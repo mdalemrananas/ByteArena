@@ -338,7 +338,7 @@ const User_Profile = () => {
           </div>
         </header>
 
-        <Container maxWidth="lg" sx={{ mt: 3, mb: 4, padding: '0 24px' }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 }, py: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <IconButton onClick={() => navigate(-1)} sx={{ mr: 2 }}>
           <ArrowBackIcon />
