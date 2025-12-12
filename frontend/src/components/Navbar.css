@@ -1,0 +1,74 @@
+/* Navbar User Profile Styles */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: 20px;
+}
+
+.dashboard-icon {
+  background: none;
+  border: none;
+  color: #4a3fcc;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.dashboard-icon:hover {
+  background: rgba(74, 63, 204, 0.1);
+  transform: scale(1.05);
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px 4px 4px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.user-avatar:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.avatar-image {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.username {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  margin-right: 6px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .user-profile {
+    margin: 15px 0;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .user-avatar {
+    padding: 6px 12px 6px 6px;
+  }
+  
+  .username {
+    font-size: 1rem;
+  }
+}
