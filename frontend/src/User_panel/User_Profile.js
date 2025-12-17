@@ -281,6 +281,8 @@ const User_Profile = () => {
                   setActive(item.key);
                   if (item.key === 'home') {
                     navigate('/dashboard');
+                  } else if (item.key === 'contest') {
+                    navigate('/contest');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
                   }

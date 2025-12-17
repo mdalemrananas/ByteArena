@@ -1,20 +1,65 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
 import LoadingBar from 'react-top-loading-bar';
 import Home from './User_panel/Home.js';
 import Dashboard from './User_panel/User_Dashboard.js';
 import UserProfile from './User_panel/User_Profile.js';
 import UserLeaderboard from './User_panel/User_Leaderboard.js';
+import UserContest from './User_panel/User_Contest.js';
+import UserContestDetails from './User_panel/User_Contest_Details.js';
+import sessionTimeoutService from './services/sessionTimeoutService';
 import './App.css';
 
 // Wrapper component to handle loading bar
 const AppContent = () => {
   const [progress, setProgress] = useState(0);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showWarning, setShowWarning] = useState(false);
   const location = useLocation();
 
+  // Handle session timeout warning
+  const handleSessionWarning = useCallback(() => {
+    setShowWarning(true);
+  }, []);
+
+  // Extend session when user clicks "Stay Signed In"
+  const handleExtendSession = useCallback(() => {
+    sessionTimeoutService.extendSession();
+    setShowWarning(false);
+  }, []);
+
+  // Handle manual sign out from warning modal
+  const handleSignOut = useCallback(async () => {
+    setShowWarning(false);
+    await sessionTimeoutService.forceLogout();
+  }, []);
+
+  // Monitor authentication state
   useEffect(() => {
-    // Start loading bar when route changes
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+      
+      if (currentUser) {
+        // Initialize session timeout when user is authenticated
+        sessionTimeoutService.init(handleSessionWarning);
+      } else {
+        // Cleanup session timeout when user is not authenticated
+        sessionTimeoutService.cleanup();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      sessionTimeoutService.cleanup();
+    };
+  }, [handleSessionWarning]);
+
+  // Start loading bar when route changes
+  useEffect(() => {
     setProgress(30);
     
     // Simulate loading completion
@@ -24,6 +69,20 @@ const AppContent = () => {
     return () => clearTimeout(timer);
   }, [location]);
 
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <>
       <LoadingBar
@@ -31,11 +90,77 @@ const AppContent = () => {
         progress={progress}
         onLoaderFinished={() => setProgress(0)}
       />
+      
+      {/* Session Timeout Warning Modal */}
+      {showWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            maxWidth: '400px',
+            textAlign: 'center',
+            fontFamily: 'Arial, sans-serif'
+          }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#f44336' }}>
+              Session Timeout Warning
+            </h3>
+            <p style={{ margin: '0 0 20px 0', color: '#666' }}>
+              Your session will expire in 5 minutes due to inactivity. Do you want to stay signed in?
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={handleExtendSession}
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Stay Signed In
+              </button>
+              <button
+                onClick={handleSignOut}
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<UserProfile />} />
         <Route path="/leaderboard" element={<UserLeaderboard />} />
+        <Route path="/contest" element={<UserContest />} />
+        <Route path="/contest-details" element={<UserContestDetails />} />
       </Routes>
     </>
   );
