@@ -135,16 +135,7 @@
   color: white !important;
 }
 
-/* Contest Cards Grid */
-.contest-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  align-items: stretch;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
+/* Contest Cards Grid - Using Material-UI Grid */
 .contest-card-wrapper {
   height: 435px;
   width: 100%;
@@ -352,9 +343,7 @@
 
 /* Responsive Design */
 @media (max-width: 1200px) {
-  .contest-card-grid {
-    max-width: 1200px;
-  }
+  /* Material-UI Grid handles responsive breakpoints automatically */
 }
 
 @media (max-width: 960px) {
@@ -367,22 +356,23 @@
     gap: 1rem !important;
   }
   
-  .contest-card-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  
   .category-chip-container {
     gap: 0.5rem !important;
   }
 }
 
 @media (max-width: 768px) {
-  .ud-main .contest-header h1 {
-    font-size: 1.75rem;
-  }
-  
+  /* Featured Tournament Mobile Styles */
   .featured-tournament .MuiCardContent-root {
     padding: 1.5rem !important;
+  }
+  
+  .featured-tournament .MuiTypography-h4 {
+    font-size: 1.5rem !important;
+  }
+  
+  .featured-tournament .MuiTypography-h6 {
+    font-size: 1rem !important;
   }
   
   .featured-tournament .contest-info-grid {
@@ -390,6 +380,12 @@
     gap: 0.75rem !important;
   }
   
+  .featured-tournament .MuiButton-root {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  /* Contest Cards Mobile Styles */
   .contest-card .MuiCardContent-root {
     padding: 1rem !important;
   }
@@ -418,34 +414,45 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+  
+  /* Header Mobile Styles */
+  .ud-main .contest-header h1 {
+    font-size: 1.75rem;
+  }
+  
+  /* Tabs Mobile Styles */
+  .MuiTabs-root {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .MuiTab-root {
+    min-width: 120px !important;
+    font-size: 14px !important;
+  }
 }
 
 @media (max-width: 600px) {
-  .ud-main .contest-header h1 {
-    font-size: 1.5rem;
-  }
-  
-  .ud-main .contest-header h6 {
-    font-size: 1rem;
-  }
-  
+  /* Featured Tournament Small Mobile Styles */
   .featured-tournament .MuiCardContent-root {
     padding: 1rem !important;
   }
   
-  .featured-tournament h4 {
-    font-size: 1.5rem;
+  .featured-tournament .MuiTypography-h4 {
+    font-size: 1.25rem !important;
   }
   
-  .featured-tournament h6 {
-    font-size: 0.9rem;
+  .featured-tournament .MuiTypography-h6 {
+    font-size: 0.9rem !important;
   }
   
-  .contest-card-grid {
-    grid-template-columns: 1fr !important;
-    gap: 1rem !important;
+  .featured-tournament .MuiButton-root {
+    padding: 0.6rem 1.2rem !important;
+    font-size: 0.85rem !important;
+    width: 100% !important;
   }
   
+  /* Contest Cards Small Mobile */
   .contest-card-image {
     height: 120px;
   }
@@ -482,11 +489,22 @@
     font-size: 0.8rem !important;
   }
   
+  /* Header Small Mobile */
+  .ud-main .contest-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .ud-main .contest-header h6 {
+    font-size: 1rem;
+  }
+  
+  /* Category Chips Small Mobile */
   .category-chip {
     padding: 4px 12px !important;
     font-size: 0.75rem !important;
   }
   
+  /* Pagination Small Mobile */
   .pagination-btn {
     padding: 0.5rem 1rem !important;
     font-size: 0.875rem !important;
@@ -497,12 +515,36 @@
     height: 36px !important;
     font-size: 0.875rem !important;
   }
+  
+  /* Filter Section Small Mobile */
+  .MuiBox-root[style*="display: flex"] {
+    gap: 0.5rem !important;
+  }
+  
+  .MuiChip-root {
+    font-size: 0.75rem !important;
+    height: 28px !important;
+  }
 }
 
 @media (max-width: 480px) {
+  /* Container Padding */
   .container-padding {
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
+  }
+  
+  /* Featured Tournament Extra Small Mobile */
+  .featured-tournament .MuiCardContent-root {
+    padding: 0.75rem !important;
+  }
+  
+  .featured-tournament .MuiTypography-h4 {
+    font-size: 1.1rem !important;
+  }
+  
+  .featured-tournament .MuiTypography-h6 {
+    font-size: 0.8rem !important;
   }
   
   .featured-tournament .contest-stat-chip {
@@ -510,6 +552,12 @@
     padding: 4px 8px !important;
   }
   
+  .featured-tournament .MuiButton-root {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Contest Cards Extra Small Mobile */
   .contest-card-image {
     height: 100px;
   }
@@ -528,6 +576,41 @@
   
   .contest-register-btn {
     padding: 0.4rem 0.8rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Header Extra Small Mobile */
+  .ud-main .contest-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .ud-main .contest-header h6 {
+    font-size: 0.9rem;
+  }
+  
+  /* Tabs Extra Small Mobile */
+  .MuiTab-root {
+    min-width: 100px !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+  }
+  
+  /* Category Chips Extra Small Mobile */
+  .MuiChip-root {
+    font-size: 0.7rem !important;
+    height: 24px !important;
+    padding: 2px 8px !important;
+  }
+  
+  /* Pagination Extra Small Mobile */
+  .pagination-btn {
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  .pagination-page-btn {
+    min-width: 32px !important;
+    height: 32px !important;
     font-size: 0.75rem !important;
   }
 }

@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { FaGoogle, FaGithub, FaTimes, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithGithub } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../services/supabaseClient';
+import { updateProfile } from 'firebase/auth';
+import { auth } from '../firebase';
 import './Sign_in.css';
 
 const SignIn = ({ onClose }) => {
@@ -100,6 +103,145 @@ const SignIn = ({ onClose }) => {
     }
   };
 
+  // Function to save user data to Supabase after successful signup
+  const saveUserDataToSupabase = async (firebaseUser) => {
+    try {
+      const userData = {
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        auth_provider: 'email',
+        display_name: formData.name,
+        username: firebaseUser.email.split('@')[0], // Generate username from email
+        skills: [], // Empty skills array initially
+        rating: 1000, // Default rating
+        wins: 0,
+        losses: 0,
+        matches_played: 0,
+        is_active: true,
+        is_verified: false,
+        role: 'user',
+        preferences: {},
+        metadata: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert([userData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving user data to Supabase:', error);
+        // Don't throw error here to avoid blocking signup flow
+        // User will still be able to use the app even if database save fails
+      } else {
+        console.log('User data saved to Supabase successfully:', data);
+      }
+    } catch (error) {
+      console.error('Unexpected error saving user data:', error);
+    }
+  };
+
+  // Function to update Firebase user profile
+  const updateFirebaseUserProfile = async (firebaseUser) => {
+    try {
+      // Update Firebase user profile with display name
+      await updateProfile(firebaseUser, {
+        displayName: formData.name
+      });
+      console.log('Firebase user profile updated successfully');
+    } catch (error) {
+      console.error('Error updating Firebase user profile:', error);
+      // Don't throw error here to avoid blocking signup flow
+    }
+  };
+
+  // Function to update last login timestamp
+  const updateLastLoginInSupabase = async (firebaseUser) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          last_login: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('firebase_uid', firebaseUser.uid);
+
+      if (error) {
+        console.error('Error updating last login:', error);
+        // Don't throw error here to avoid blocking sign in flow
+      } else {
+        console.log('Last login updated successfully');
+      }
+    } catch (error) {
+      console.error('Unexpected error updating last login:', error);
+    }
+  };
+
+  // Function to handle social authentication users (Google/GitHub)
+  const handleSocialAuthUser = async (firebaseUser, provider) => {
+    try {
+      // First check if user already exists in Supabase
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('firebase_uid', firebaseUser.uid)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Error checking existing user:', fetchError);
+        return;
+      }
+
+      if (existingUser) {
+        // User exists, just update last login
+        await updateLastLoginInSupabase(firebaseUser);
+        console.log('Existing social user logged in:', existingUser);
+      } else {
+        // New user, create record in Supabase
+        const userData = {
+          firebase_uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          auth_provider: provider,
+          display_name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          username: firebaseUser.email?.split('@')[0] || `user_${Date.now()}`,
+          avatar_url: firebaseUser.photoURL || null,
+          skills: [], // Empty skills array initially
+          rating: 1000, // Default rating
+          wins: 0,
+          losses: 0,
+          matches_played: 0,
+          is_active: true,
+          is_verified: false,
+          role: 'user',
+          preferences: {},
+          metadata: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+          .from('users')
+          .insert([userData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating social user in Supabase:', error);
+          // Don't throw error here to avoid blocking auth flow
+        } else {
+          console.log('New social user created in Supabase successfully:', data);
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error handling social auth user:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -134,9 +276,23 @@ const SignIn = ({ onClose }) => {
           name: formData.name
         });
         result = await signUpWithEmail(formData.email, formData.password, formData.name);
+        
+        // If signup is successful, save user data to both Firebase and Supabase
+        if (result.success && result.user) {
+          // Update Firebase user profile
+          await updateFirebaseUserProfile(result.user);
+          
+          // Save user data to Supabase
+          await saveUserDataToSupabase(result.user);
+        }
       } else {
         console.log('Attempting sign in with:', { email: formData.email });
         result = await signInWithEmail(formData.email, formData.password);
+        
+        // If sign in is successful, update last login in Supabase
+        if (result.success && result.user) {
+          await updateLastLoginInSupabase(result.user);
+        }
       }
       
       if (result.success) {
@@ -164,8 +320,12 @@ const SignIn = ({ onClose }) => {
     try {
       const result = await signInWithGoogle();
       
-      if (result.success) {
+      if (result.success && result.user) {
         console.log('Google authentication successful:', result.user);
+        
+        // Check if user exists in Supabase, if not create new user record
+        await handleSocialAuthUser(result.user, 'google');
+        
         navigate('/dashboard');
         if (onClose) onClose();
       } else {
@@ -185,8 +345,12 @@ const SignIn = ({ onClose }) => {
     try {
       const result = await signInWithGithub();
       
-      if (result.success) {
+      if (result.success && result.user) {
         console.log('GitHub authentication successful:', result.user);
+        
+        // Check if user exists in Supabase, if not create new user record
+        await handleSocialAuthUser(result.user, 'github');
+        
         navigate('/dashboard');
         if (onClose) onClose();
       } else {

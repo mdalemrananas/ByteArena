@@ -46,6 +46,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
 import './User_Contest.css';
 
@@ -65,8 +66,87 @@ const User_Contest = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [contests, setContests] = useState([]);
+  const [featuredContest, setFeaturedContest] = useState(null);
+  const [registeredContests, setRegisteredContests] = useState([]);
 
-  // Monitor authentication state
+  // Fetch user's registered contests
+  const fetchRegisteredContests = async (userId) => {
+    try {
+      // First get user's UUID from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('firebase_uid', userId)
+        .single();
+
+      let registeredContestIds = [];
+
+      if (userError || !userData) {
+        console.log('User not found in users table, trying direct Firebase UID check');
+        // Try with Firebase UID directly
+        const { data, error } = await supabase
+          .from('contest_participants')
+          .select('contest_id')
+          .eq('user_id', userId);
+
+        if (!error && data) {
+          registeredContestIds = data.map(item => item.contest_id);
+        }
+      } else {
+        // Use proper UUID
+        const { data, error } = await supabase
+          .from('contest_participants')
+          .select('contest_id')
+          .eq('user_id', userData.id);
+
+        if (!error && data) {
+          registeredContestIds = data.map(item => item.contest_id);
+        }
+      }
+
+      setRegisteredContests(registeredContestIds);
+    } catch (error) {
+      console.error('Error fetching registered contests:', error);
+    }
+  };
+
+  // Fetch contests from Supabase
+  const fetchContests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contests')
+        .select('*')
+        .order('registration_end', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching contests:', error);
+        return;
+      }
+
+      console.log('Contests fetched from Supabase:', data);
+      setContests(data || []);
+
+      // Filter for upcoming contests (registration_end > now) and find the one ending soonest
+      const now = new Date();
+      const upcomingContests = data?.filter(contest => 
+        new Date(contest.registration_end) > now
+      ) || [];
+
+      // Sort by registration_end (soonest first) and take the first one
+      const sortedUpcoming = upcomingContests.sort((a, b) => 
+        new Date(a.registration_end) - new Date(b.registration_end)
+      );
+
+      if (sortedUpcoming.length > 0) {
+        setFeaturedContest(sortedUpcoming[0]);
+      }
+    } catch (error) {
+      console.error('Error in fetchContests:', error);
+    }
+  };
+
+  // Monitor authentication state and fetch contests
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -75,8 +155,13 @@ const User_Contest = () => {
           email: currentUser.email,
           photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'User'}&background=random`
         });
+        // Fetch contests when user is authenticated
+        fetchContests();
+        // Fetch user's registered contests
+        fetchRegisteredContests(currentUser.uid);
       } else {
         setUser(null);
+        setRegisteredContests([]);
       }
       setLoading(false);
     });
@@ -84,106 +169,93 @@ const User_Contest = () => {
     return () => unsubscribe();
   }, []);
 
-  const featuredContest = {
-    title: 'Global Knowledge Championship',
-    description: 'Test your knowledge across multiple categories and compete with players worldwide',
-    date: 'Dec 4, 2025 at 7:00 PM - 9:00 PM',
-    time: '1,248 participants',
-    participants: '1,248 participants',
-    prize: '$1000',
-    registrationCloses: '2 days',
-    rounds: '3 Rounds',
-    categories: '15 Categories',
-    questions: '50 Questions',
-    progress: 75
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
   };
 
-  const contests = [
-    {
-      id: 1,
-      title: 'Code Clash Championship',
-      description: 'Ultimate coding battle for developers',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '856',
-      prize: '$500',
-      closesIn: '5 days',
-      status: 'Registration Open',
-      difficulty: 'Medium',
-      color: '#4CAF50',
-      image: '/Contest_Cover.jpg'
-    },
-    {
-      id: 2,
-      title: 'Algorithm Arena',
-      description: 'Master complex algorithms and data structures',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '623',
-      prize: '$750',
-      closesIn: '7 days',
-      status: 'Upcoming',
-      difficulty: 'Hard',
-      color: '#FF9800',
-      image: '/Contest_Cover.jpg'
-    },
-    {
-      id: 3,
-      title: 'JavaScript Jam',
-      description: 'Test your JavaScript skills and frameworks',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '445',
-      prize: '$300',
-      closesIn: '10 days',
-      status: 'Registration Open',
-      difficulty: 'Easy',
-      color: '#2196F3',
-      image: '/Contest_Cover.jpg'
-    },
-    {
-      id: 4,
-      title: 'Python Power Play',
-      description: 'Python programming challenge for all levels',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '789',
-      prize: '$600',
-      closesIn: '13 days',
-      status: 'Upcoming',
-      difficulty: 'Medium',
-      color: '#4CAF50',
-      image: '/Contest_Cover.jpg'
-    },
-    {
-      id: 5,
-      title: 'Web Dev Warriors',
-      description: 'Frontend and backend development contest',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '334',
-      prize: '$400',
-      closesIn: '16 days',
-      status: 'Registration Open',
-      difficulty: 'Hard',
-      color: '#FF9800',
-      image: '/Contest_Cover.jpg'
-    },
-    {
-      id: 6,
-      title: 'Database Duel',
-      description: 'SQL and NoSQL database challenge',
-      date: 'Dec 4, 2025',
-      time: '7:00 PM - 9:00 PM',
-      participants: '567',
-      prize: '$350',
-      closesIn: '18 days',
-      status: 'Upcoming',
-      difficulty: 'Medium',
-      color: '#4CAF50',
-      image: '/Contest_Cover.jpg'
+  // Helper function to calculate registration status
+  const getRegistrationStatus = (registrationStart, registrationEnd) => {
+    const now = new Date();
+    const start = new Date(registrationStart);
+    const end = new Date(registrationEnd);
+    
+    if (now < start) return 'Upcoming';
+    if (now > end) return 'Closed';
+    return 'Registration Open';
+  };
+
+  // Check if user is registered for a specific contest
+  const isUserRegisteredForContest = async (userId, contestId) => {
+    try {
+      // First get user's UUID from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('firebase_uid', userId)
+        .single();
+
+      if (userError || !userData) {
+        console.log('User not found in users table, trying direct Firebase UID check');
+        // Try with Firebase UID directly
+        const { data, error } = await supabase
+          .from('contest_participants')
+          .select('id')
+          .eq('contest_id', contestId)
+          .eq('user_id', userId)
+          .single();
+
+        return !error && data;
+      } else {
+        // Use proper UUID
+        const { data, error } = await supabase
+          .from('contest_participants')
+          .select('id')
+          .eq('contest_id', contestId)
+          .eq('user_id', userData.id)
+          .single();
+
+        return !error && data;
+      }
+    } catch (error) {
+      console.error('Error checking registration status:', error);
+      return false;
     }
-  ];
+  };
+
+  // Filter contests based on tab selection
+  const getFilteredContests = () => {
+    const now = new Date();
+    
+    if (tabValue === 0) { // All Contests tab - show present/future contests only
+      return contests.filter(contest => 
+        new Date(contest.registration_end) > now
+      );
+    } else if (tabValue === 2) { // Past Contests tab - show past contests only
+      return contests.filter(contest => 
+        new Date(contest.registration_end) <= now
+      );
+    } else if (tabValue === 1) { // My Contests tab - show registered contests only
+      return contests.filter(contest => 
+        registeredContests.includes(contest.id)
+      );
+    }
+  };
+
+  // Check if registration button should be shown
+  const shouldShowRegisterButton = (contest) => {
+    const now = new Date();
+    const registrationStart = new Date(contest.registration_start);
+    const registrationEnd = new Date(contest.registration_end);
+    
+    // Show register button only if registration is currently open (between start and end dates)
+    return now >= registrationStart && now <= registrationEnd;
+  };
 
   const categories = ['all', 'C/C++', 'Java', 'PHP', 'HTML, CSS', 'JavaScript', 'Python'];
 
@@ -197,7 +269,7 @@ const User_Contest = () => {
 
   const handleRegister = (contestId) => {
     console.log('Registering for contest:', contestId);
-    // Add registration logic here
+    navigate(`/contest/${contestId}`);
   };
 
   const handleLogout = async () => {
@@ -321,11 +393,11 @@ const User_Contest = () => {
         </header>
 
         <Container 
-          maxWidth="xl" 
+          maxWidth={false}
           sx={{ 
             px: { xs: 1, sm: 2, md: 3, lg: 4 }, 
             py: { xs: 2, sm: 3 },
-            maxWidth: { xl: '1400px' }
+            width: '100%'
           }}
         >
           {/* Header */}
@@ -339,132 +411,140 @@ const User_Contest = () => {
           </Box>
 
           {/* Featured Tournament */}
-          <Card 
-            sx={{ 
-              mb: 4, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', mb: 2, color: 'white' }}>
-                    {featuredContest.title}
-                  </Typography>
-                  <Typography variant="h6" sx={{ mb: 3, opacity: 0.9, color: 'white' }}>
-                    {featuredContest.description}
-                  </Typography>
+          {featuredContest && (
+            <Card 
+              sx={{ 
+                mb: 4, 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', mb: 2, color: 'white' }}>
+                      {featuredContest.title}
+                    </Typography>
+                    <Typography variant="h6" sx={{ mb: 3, opacity: 0.9, color: 'white' }}>
+                      {featuredContest.title_description}
+                    </Typography>
                   
-                  <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CalendarIcon sx={{ color: 'white' }} />
-                        <Box>
-                          <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>{featuredContest.date}</Typography>
+                    <Grid container spacing={3} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CalendarIcon sx={{ color: 'white' }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
+                              {formatDate(featuredContest.registration_start)} - {formatDate(featuredContest.registration_end)}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <UsersIcon sx={{ color: 'white' }} />
-                        <Box>
-                          <Typography variant="body2" sx={{ color: 'white' }}>{featuredContest.participants}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <UsersIcon sx={{ color: 'white' }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ color: 'white' }}>
+                              {featuredContest.total_register || 0} participants
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CoinsIcon sx={{ color: 'white' }} />
-                        <Box>
-                          <Typography variant="body2" sx={{ color: 'white' }}>Prize pool {featuredContest.prize}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CoinsIcon sx={{ color: 'white' }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ color: 'white' }}>
+                              Prize pool ${featuredContest.prize_money || '0'}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
+                      </Grid>
                     </Grid>
-                  </Grid>
 
-                  <Box sx={{ mb: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
-                        Registration closes in {featuredContest.registrationCloses}
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
-                        {featuredContest.progress}%
-                      </Typography>
+                    <Box sx={{ mb: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
+                          {getRegistrationStatus(featuredContest.registration_start, featuredContest.registration_end)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
+                          {featuredContest.contest_difficulty}
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={75} 
+                        sx={{ 
+                          height: 8, 
+                          borderRadius: 4,
+                          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: 'white'
+                          }
+                        }}
+                      />
                     </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={featuredContest.progress} 
-                      sx={{ 
-                        height: 8, 
-                        borderRadius: 4,
-                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: 'white'
-                        }
-                      }}
-                    />
-                  </Box>
 
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={4}>
-                      <Chip 
-                        icon={<TrophyIcon />} 
-                        label={featuredContest.rounds} 
-                        sx={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }} 
-                      />
+                    <Grid container spacing={2} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={4}>
+                        <Chip 
+                          icon={<TrophyIcon />} 
+                          label={`${featuredContest.question_problem} Questions`} 
+                          sx={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }} 
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Chip 
+                          icon={<TagIcon />} 
+                          label={`${featuredContest.time_limit_qs}s per question`} 
+                          sx={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }} 
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Chip 
+                          icon={<BoltIcon />} 
+                          label={featuredContest.contest_difficulty} 
+                          sx={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }} 
+                        />
+                      </Grid>
                     </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Chip 
-                        icon={<TagIcon />} 
-                        label={featuredContest.categories} 
-                        sx={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }} 
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Chip 
-                        icon={<BoltIcon />} 
-                        label={featuredContest.questions} 
-                        sx={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }} 
-                      />
-                    </Grid>
-                  </Grid>
+                  </Box>
                 </Box>
-              </Box>
               
-              <Button 
-                variant="contained" 
-                size="large"
-                sx={{ 
-                  backgroundColor: 'white', 
-                  color: '#764ba2',
-                  fontWeight: 'bold',
-                  px: 4,
-                  py: 1.5,
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)'
-                  }
-                }}
-                onClick={() => handleRegister('featured')}
-              >
-                Register Now
-              </Button>
-            </CardContent>
-          </Card>
+                <Button 
+                  variant="contained" 
+                  size="large"
+                  sx={{ 
+                    backgroundColor: 'white', 
+                    color: '#764ba2',
+                    fontWeight: 'bold',
+                    px: 4,
+                    py: 1.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                    }
+                  }}
+                  onClick={() => handleRegister(featuredContest.id)}
+                >
+                  View Details
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Contest Filters */}
           <Box sx={{ mb: 3 }}>
@@ -505,33 +585,35 @@ const User_Contest = () => {
           </Box>
 
           {/* Contest Cards Grid */}
-          <Box className="contest-cards-grid" sx={{ mb: 4, maxWidth: '1400px', mx: 'auto' }}>
-            {contests.map((contest) => (
-              <div key={contest.id} className="contest-card-wrapper">
-                <Card 
-                  sx={{ 
-                    width: '100%',
-                    height: '435px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'all 0.3s ease',
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 4
-                    }
-                  }}
-                >
+          <Box sx={{ mb: 4, maxWidth: '1400px', mx: 'auto' }}>
+            <Grid container spacing={3}>
+              {getFilteredContests().map((contest) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
+                  <div className="contest-card-wrapper">
+                    <Card 
+                      sx={{ 
+                        width: '330px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.3s ease',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: 4
+                        }
+                      }}
+                    >
                   {/* Contest Image */}
                   <Box
                     sx={{
                       height: 160,
-                      backgroundImage: `url(${contest.image})`,
+                      backgroundImage: contest.cover_image ? `url(${contest.cover_image})` : 'url(/Contest_Cover.jpg)',
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                       position: 'relative',
+                      flexShrink: 0,
                       '&::before': {
                         content: '""',
                         position: 'absolute',
@@ -552,10 +634,10 @@ const User_Contest = () => {
                       }}
                     >
                       <Chip
-                        label={contest.difficulty}
+                        label={contest.contest_difficulty}
                         size="small"
                         sx={{
-                          backgroundColor: getDifficultyColor(contest.difficulty),
+                          backgroundColor: getDifficultyColor(contest.contest_difficulty),
                           color: 'white',
                           fontWeight: 'bold',
                           fontSize: '12px'
@@ -569,12 +651,15 @@ const User_Contest = () => {
                     p: 2, 
                     display: 'flex', 
                     flexDirection: 'column', 
-                    justifyContent: 'space-between',
-                    height: '360px',
-                    overflow: 'hidden'
+                    justifyContent: 'space-between'
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold', flex: 1 }}>
+                      <Typography variant="h6" component="h3" sx={{ 
+                        fontWeight: 'bold', 
+                        flex: 1,
+                        fontSize: '1.1rem',
+                        lineHeight: 1.3
+                      }}>
                         {contest.title}
                       </Typography>
                     </Box>
@@ -589,27 +674,27 @@ const User_Contest = () => {
                     lineHeight: 1.4,
                     maxHeight: '2.8em'
                   }}>
-                      {contest.description}
+                      {contest.title_description}
                     </Typography>
 
                     <Box sx={{ mb: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <CalendarIcon style={{ fontSize: '14px', color: '#666' }} />
                         <Typography variant="body2" color="text.secondary">
-                          {contest.date} at {contest.time}
+                          {formatDate(contest.registration_start)} - {formatDate(contest.registration_end)}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <UsersIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            {contest.participants} participants
+                            {contest.total_register || 0} participants
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CoinsIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            {contest.prize} prize
+                            ${contest.prize_money || 0} prize
                           </Typography>
                         </Box>
                       </Box>
@@ -619,27 +704,31 @@ const User_Contest = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ClockIcon style={{ fontSize: '14px', color: '#666' }} />
                         <Typography variant="body2" color="text.secondary">
-                          Closes in {contest.closesIn}
+                          {getRegistrationStatus(contest.registration_start, contest.registration_end)}
                         </Typography>
                       </Box>
-                      <Button 
-                        variant="contained" 
-                        onClick={() => handleRegister(contest.id)}
-                        sx={{
-                          backgroundColor: '#635BFF',
-                          '&:hover': {
+                      {shouldShowRegisterButton(contest) && (
+                        <Button 
+                          variant="contained" 
+                          onClick={() => handleRegister(contest.id)}
+                          sx={{
                             backgroundColor: '#635BFF',
-                            opacity: 0.9
-                          }
-                        }}
-                      >
-                        Register
-                      </Button>
+                            '&:hover': {
+                              backgroundColor: '#635BFF',
+                              opacity: 0.9
+                            }
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      )}
                     </Box>
                   </CardContent>
                 </Card>
               </div>
-            ))}
+                </Grid>
+              ))}
+            </Grid>
           </Box>
 
           {/* Pagination */}

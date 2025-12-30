@@ -8,7 +8,8 @@ import Dashboard from './User_panel/User_Dashboard.js';
 import UserProfile from './User_panel/User_Profile.js';
 import UserLeaderboard from './User_panel/User_Leaderboard.js';
 import UserContest from './User_panel/User_Contest.js';
-import UserContestDetails from './User_panel/User_Contest_Details.js';
+import User_Contest_Details from './User_panel/User_Contest_Details.js';
+import User_Contest_Participate from './User_panel/User_Contest_Participate.js';
 import sessionTimeoutService from './services/sessionTimeoutService';
 import './App.css';
 
@@ -160,7 +161,8 @@ const AppContent = () => {
         <Route path="/profile" element={<UserProfile />} />
         <Route path="/leaderboard" element={<UserLeaderboard />} />
         <Route path="/contest" element={<UserContest />} />
-        <Route path="/contest-details" element={<UserContestDetails />} />
+        <Route path="/contest/:contestId" element={<User_Contest_Details />} />
+        <Route path="/contest/participate/:contestId" element={<User_Contest_Participate />} />
       </Routes>
     </>
   );

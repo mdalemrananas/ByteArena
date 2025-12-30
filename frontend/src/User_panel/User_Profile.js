@@ -19,8 +19,15 @@ import {
   Card,
   CardContent,
   LinearProgress,
-  IconButton
+  IconButton,
+  Modal,
+  TextField,
+  FormControl,
+  InputLabel,
+  OutlinedInput,
+  InputAdornment
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { 
   FaArrowLeft as ArrowBackIcon,
   FaCheckCircle as CheckCircleIcon,
@@ -45,11 +52,22 @@ import {
   FaUser,
   FaChartLine,
   FaFire,
-  FaMedal
+  FaMedal,
+  FaEdit,
+  FaEye,
+  FaEyeSlash,
+  FaLock,
+  FaUserCircle,
+  FaEnvelope,
+  FaGlobe,
+  FaCodeBranch,
+  FaTimes,
+  FaPlus
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
 
 const menuItems = [
@@ -73,6 +91,11 @@ const User_Profile = () => {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editTabValue, setEditTabValue] = useState(0);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [userData, setUserData] = useState({
     name: 'Alex Johnson',
     email: 'alex.johnson@example.com',
@@ -80,6 +103,19 @@ const User_Profile = () => {
     location: 'San Francisco, CA',
     website: 'alexjohnson.dev',
     skills: ['JavaScript', 'React', 'Node.js', 'Python', 'DSA']
+  });
+  
+  const [editFormData, setEditFormData] = useState({
+    display_name: '',
+    email: '',
+    bio: '',
+    website: '',
+    country: '',
+    skills: [],
+    currentSkill: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   const stats = useMemo(
@@ -162,19 +198,65 @@ const User_Profile = () => {
   ];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        setUser(prev => ({
-          ...prev,
-          displayName: currentUser.displayName || userData.name,
-          email: currentUser.email || userData.email,
-          photoURL: currentUser.photoURL || 'https://randomuser.me/api/portraits/men/32.jpg'
-        }));
-        setLoading(false);
+        setLoading(true);
+        
+        try {
+          // Set basic user info from Firebase
+          setUser(prev => ({
+            ...prev,
+            displayName: currentUser.displayName || userData.name,
+            email: currentUser.email || userData.email,
+            photoURL: currentUser.photoURL || 'https://randomuser.me/api/portraits/men/32.jpg'
+          }));
+
+          // Fetch user data from Supabase
+          let supabaseUserData = await fetchUserData(currentUser.uid);
+          
+          // If user doesn't exist in Supabase, create a basic profile
+          if (!supabaseUserData) {
+            supabaseUserData = await createOrUpdateUserProfile(currentUser);
+          }
+
+          // Update local state with Supabase data
+          if (supabaseUserData) {
+            setUserData(prev => ({
+              ...prev,
+              name: supabaseUserData.display_name || prev.name,
+              email: supabaseUserData.email || prev.email,
+              bio: supabaseUserData.bio || prev.bio,
+              website: supabaseUserData.website || prev.website,
+              location: supabaseUserData.country || prev.location,
+              skills: supabaseUserData.skills || prev.skills,
+              // Add any other fields from Supabase you want to use
+              username: supabaseUserData.username,
+              avatar_url: supabaseUserData.avatar_url,
+              rating: supabaseUserData.rating,
+              rank: supabaseUserData.rank,
+              wins: supabaseUserData.wins,
+              losses: supabaseUserData.losses,
+              matches_played: supabaseUserData.matches_played
+            }));
+
+            // Update user state with Supabase data
+            setUser(prev => ({
+              ...prev,
+              displayName: supabaseUserData.display_name || prev.displayName,
+              photoURL: supabaseUserData.avatar_url || prev.photoURL
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+          // Still show the profile with Firebase data even if Supabase fails
+        } finally {
+          setLoading(false);
+        }
       } else {
         navigate('/');
       }
     });
+    
     return () => unsubscribe();
   }, [navigate]);
 
@@ -186,6 +268,218 @@ const User_Profile = () => {
       console.error('Logout error:', error);
       navigate('/');
     }
+  };
+
+  const handleEditProfile = () => {
+    setEditFormData({
+      display_name: user?.displayName || userData.name,
+      email: user?.email || userData.email,
+      bio: userData.bio,
+      website: userData.website,
+      country: userData.location || '',
+      skills: userData.skills || [],
+      currentSkill: '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleEditTabChange = (event, newValue) => {
+    setEditTabValue(newValue);
+  };
+
+  const handleEditFormChange = (field) => (event) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: event.target.value
+    }));
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user from Firebase
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Validate required fields
+      if (!editFormData.display_name?.trim()) {
+        throw new Error('Display name is required');
+      }
+      if (!editFormData.email?.trim()) {
+        throw new Error('Email is required');
+      }
+
+      // Prepare data for Supabase - matching the table schema exactly
+      const profileData = {
+        display_name: editFormData.display_name.trim(),
+        email: editFormData.email.trim().toLowerCase(),
+        bio: editFormData.bio?.trim() || null,
+        website: editFormData.website?.trim() || null,
+        country: editFormData.country?.trim() || null,
+        skills: editFormData.skills || [],
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Saving profile data:', profileData);
+
+      // Update user profile in Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .update(profileData)
+        .eq('firebase_uid', currentUser.uid)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(`Failed to update profile: ${error.message}`);
+      }
+
+      console.log('Profile updated successfully in Supabase:', data);
+
+      // Update local state
+      setUserData(prev => ({
+        ...prev,
+        name: editFormData.display_name,
+        bio: editFormData.bio,
+        website: editFormData.website,
+        location: editFormData.country,
+        skills: editFormData.skills
+      }));
+
+      // Update Firebase user display name if changed
+      if (currentUser.displayName !== editFormData.display_name) {
+        await currentUser.updateProfile({
+          displayName: editFormData.display_name
+        });
+        setUser(prev => ({
+          ...prev,
+          displayName: editFormData.display_name
+        }));
+      }
+
+      // Show success message
+      alert('Profile updated successfully!');
+      setEditModalOpen(false);
+      
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert(`Error updating profile: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = () => {
+    // Handle password change logic here
+    console.log('Changing password:', {
+      currentPassword: editFormData.currentPassword,
+      newPassword: editFormData.newPassword,
+      confirmPassword: editFormData.confirmPassword
+    });
+    setEditModalOpen(false);
+  };
+
+  const fetchUserData = async (firebaseUid) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('firebase_uid', firebaseUid)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user data:', error);
+        // If user doesn't exist in Supabase yet, we'll create a basic profile
+        if (error.code === 'PGRST116') { // No rows returned
+          console.log('User not found in Supabase, creating new profile...');
+          return null;
+        }
+        throw error;
+      }
+
+      console.log('User data fetched from Supabase:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in fetchUserData:', error);
+      throw error;
+    }
+  };
+
+  const createOrUpdateUserProfile = async (firebaseUser) => {
+    try {
+      const userProfile = {
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        display_name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+        auth_provider: 'email',
+        updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      };
+
+      // Try to update first, then insert if not exists
+      const { data, error } = await supabase
+        .from('users')
+        .upsert(userProfile, { 
+          onConflict: 'firebase_uid',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating/updating user profile:', error);
+        throw error;
+      }
+
+      console.log('User profile created/updated:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in createOrUpdateUserProfile:', error);
+      throw error;
+    }
+  };
+
+  const handleSkillInputChange = (event) => {
+    const value = event.target.value;
+    setEditFormData(prev => ({
+      ...prev,
+      currentSkill: value
+    }));
+  };
+
+  const handleSkillKeyPress = (event) => {
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      const skill = editFormData.currentSkill?.trim() || '';
+      const currentSkills = editFormData.skills || [];
+      if (skill && !currentSkills.includes(skill)) {
+        setEditFormData(prev => ({
+          ...prev,
+          skills: [...currentSkills, skill],
+          currentSkill: ''
+        }));
+      } else {
+        setEditFormData(prev => ({
+          ...prev,
+          currentSkill: ''
+        }));
+      }
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    const currentSkills = editFormData.skills || [];
+    setEditFormData(prev => ({
+      ...prev,
+      skills: currentSkills.filter(skill => skill !== skillToRemove)
+    }));
   };
 
   // Update the existing user data state with useMemo at the top level
@@ -400,11 +694,13 @@ const User_Profile = () => {
                 </Typography>
                 
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-                  <Button variant="contained" color="primary">
-                    Follow
-                  </Button>
-                  <Button variant="outlined" color="primary">
-                    Message
+                  <Button 
+                    variant="outlined" 
+                    color="secondary" 
+                    startIcon={<FaEdit />}
+                    onClick={handleEditProfile}
+                  >
+                    Edit Profile
                   </Button>
                 </Box>
               </Grid>
@@ -682,6 +978,677 @@ const User_Profile = () => {
         </Grid>
       </Grid>
         </Container>
+
+        {/* Edit Profile Modal - New Design */}
+        <Modal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          aria-labelledby="edit-profile-modal"
+          aria-describedby="edit-profile-modal-description"
+        >
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '95%', sm: '85%', md: '800px' },
+            maxHeight: '95vh',
+            bgcolor: 'background.paper',
+            borderRadius: '20px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            {/* New Modal Header */}
+            <Box sx={{
+              position: 'relative',
+              p: 4,
+              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+              color: 'white',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{
+                position: 'absolute',
+                top: -50,
+                right: -50,
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                filter: 'blur(40px)'
+              }} />
+              <Box sx={{
+                position: 'absolute',
+                bottom: -30,
+                left: -30,
+                width: 150,
+                height: 150,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.08)',
+                filter: 'blur(30px)'
+              }} />
+              
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
+                  <Box sx={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: '15px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <FaEdit style={{ fontSize: '28px' }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" component="h2" fontWeight="700" sx={{ mb: 0.5 }}>
+                      Edit Profile
+                    </Typography>
+                    <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                      Customize your profile and security settings
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* New Tab Navigation */}
+            <Box sx={{
+              px: 4,
+              py: 3,
+              background: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
+              borderBottom: '1px solid rgba(0, 0, 0, 0.06)'
+            }}>
+              <Box sx={{
+                display: 'flex',
+                gap: 2,
+                p: 1,
+                bgcolor: 'rgba(0, 0, 0, 0.03)',
+                borderRadius: '12px'
+              }}>
+                <Button
+                  onClick={() => setEditTabValue(0)}
+                  sx={{
+                    flex: 1,
+                    py: 2,
+                    px: 3,
+                    borderRadius: '10px',
+                    background: editTabValue === 0 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                      : 'transparent',
+                    color: editTabValue === 0 ? 'white' : 'text.secondary',
+                    fontWeight: editTabValue === 0 ? '600' : '500',
+                    boxShadow: editTabValue === 0 
+                      ? '0 4px 15px rgba(102, 126, 234, 0.4)' 
+                      : 'none',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: editTabValue === 0 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                        : 'rgba(0, 0, 0, 0.05)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  <FaUserCircle style={{ marginRight: 8, fontSize: '18px' }} />
+                  General Information
+                </Button>
+                <Button
+                  onClick={() => setEditTabValue(1)}
+                  sx={{
+                    flex: 1,
+                    py: 2,
+                    px: 3,
+                    borderRadius: '10px',
+                    background: editTabValue === 1 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                      : 'transparent',
+                    color: editTabValue === 1 ? 'white' : 'text.secondary',
+                    fontWeight: editTabValue === 1 ? '600' : '500',
+                    boxShadow: editTabValue === 1 
+                      ? '0 4px 15px rgba(102, 126, 234, 0.4)' 
+                      : 'none',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: editTabValue === 1 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                        : 'rgba(0, 0, 0, 0.05)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  <FaLock style={{ marginRight: 8, fontSize: '18px' }} />
+                  Security
+                </Button>
+              </Box>
+            </Box>
+
+            {/* New Tab Content */}
+            <Box sx={{ p: 4, maxHeight: '50vh', overflowY: 'auto' }}>
+              {editTabValue === 0 && (
+                <Box>
+                  <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" fontWeight="700" sx={{ mb: 1, color: '#1a202c' }}>
+                      Personal Details
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Update your basic information and profile details
+                    </Typography>
+                    
+                    <Box sx={{ display: 'grid', gap: 3 }}>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+                        <Box sx={{ position: 'relative' }}>
+                          <TextField
+                            fullWidth
+                            label="Full Name"
+                            value={editFormData.display_name}
+                            onChange={handleEditFormChange('display_name')}
+                            variant="outlined"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                backgroundColor: '#f8fafc',
+                                border: '2px solid transparent',
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  backgroundColor: '#ffffff',
+                                  borderColor: '#e2e8f0'
+                                },
+                                '&.Mui-focused': {
+                                  backgroundColor: '#ffffff',
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                                }
+                              }
+                            }}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <FaUserCircle style={{ color: '#64748b' }} />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </Box>
+                        
+                        <Box sx={{ position: 'relative' }}>
+                          <TextField
+                            fullWidth
+                            label="Email Address"
+                            type="email"
+                            value={editFormData.email}
+                            onChange={handleEditFormChange('email')}
+                            variant="outlined"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                backgroundColor: '#f8fafc',
+                                border: '2px solid transparent',
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  backgroundColor: '#ffffff',
+                                  borderColor: '#e2e8f0'
+                                },
+                                '&.Mui-focused': {
+                                  backgroundColor: '#ffffff',
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                                }
+                              }
+                            }}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <FaEnvelope style={{ color: '#64748b' }} />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                      
+                      <TextField
+                        fullWidth
+                        label="Bio"
+                        multiline
+                        rows={3}
+                        value={editFormData.bio}
+                        onChange={handleEditFormChange('bio')}
+                        variant="outlined"
+                        placeholder="Tell us about yourself..."
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            backgroundColor: '#f8fafc',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#e2e8f0'
+                            },
+                            '&.Mui-focused': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#667eea',
+                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }
+                          }
+                        }}
+                      />
+                      
+                      <TextField
+                        fullWidth
+                        label="Website"
+                        value={editFormData.website}
+                        onChange={handleEditFormChange('website')}
+                        variant="outlined"
+                        placeholder="https://yourwebsite.com"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            backgroundColor: '#f8fafc',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#e2e8f0'
+                            },
+                            '&.Mui-focused': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#667eea',
+                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }
+                          }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <FaGlobe style={{ color: '#64748b' }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      
+                      <TextField
+                        fullWidth
+                        label="Country"
+                        value={editFormData.country}
+                        onChange={handleEditFormChange('country')}
+                        variant="outlined"
+                        placeholder="Enter your country"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            backgroundColor: '#f8fafc',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#e2e8f0'
+                            },
+                            '&.Mui-focused': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#667eea',
+                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }
+                          }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <FaGlobe style={{ color: '#64748b' }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ 
+                    p: 3, 
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%)',
+                    border: '1px solid rgba(0, 0, 0, 0.05)'
+                  }}>
+                    <Typography variant="h6" fontWeight="700" sx={{ mb: 3, color: '#1a202c' }}>
+                      Skills
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Add your skills by typing and pressing space or enter
+                    </Typography>
+                    
+                    <Box sx={{ mb: 3 }}>
+                      <TextField
+                        fullWidth
+                        label="Type a skill and press space or enter"
+                        value={editFormData.currentSkill}
+                        onChange={handleSkillInputChange}
+                        onKeyPress={handleSkillKeyPress}
+                        variant="outlined"
+                        placeholder="e.g., C++, JavaScript, React..."
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            backgroundColor: '#ffffff',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              borderColor: '#e2e8f0'
+                            },
+                            '&.Mui-focused': {
+                              borderColor: '#667eea',
+                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }
+                          }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <FaPlus style={{ color: '#64748b' }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Box>
+                    
+                    {editFormData.skills && editFormData.skills.length > 0 && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 2,
+                        p: 2,
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                        minHeight: '60px'
+                      }}>
+                        {editFormData.skills.map((skill, index) => (
+                          <Chip
+                            key={index}
+                            label={skill}
+                            onDelete={() => handleRemoveSkill(skill)}
+                            deleteIcon={
+                              <FaTimes style={{ fontSize: '12px', color: 'black' }} />
+                            }
+                            sx={{
+                              backgroundColor: 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)',
+                              color: 'black',
+                              fontWeight: '500',
+                              borderRadius: '20px',
+                              '& .MuiChip-deleteIcon': {
+                                color: 'black',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                  borderRadius: '50%'
+                                }
+                              },
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                              }
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {editTabValue === 1 && (
+                <Box>
+                  <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" fontWeight="700" sx={{ mb: 1, color: '#1a202c' }}>
+                      Security Settings
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Update your password to keep your account secure
+                    </Typography>
+                    
+                    <Box sx={{ display: 'grid', gap: 3 }}>
+                      <FormControl fullWidth variant="outlined">
+                        <InputLabel htmlFor="current-password" sx={{ 
+                          backgroundColor: 'white',
+                          px: 1
+                        }}>
+                          Current Password
+                        </InputLabel>
+                        <OutlinedInput
+                          id="current-password"
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={editFormData.currentPassword}
+                          onChange={handleEditFormChange('currentPassword')}
+                          sx={{
+                            borderRadius: '12px',
+                            backgroundColor: '#f8fafc',
+                            border: '2px solid transparent',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#e2e8f0'
+                            },
+                            '&.Mui-focused': {
+                              backgroundColor: '#ffffff',
+                              borderColor: '#667eea',
+                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }
+                          }}
+                          endAdornment={
+                            <InputAdornment position="end">
+                              <IconButton
+                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                edge="end"
+                                sx={{ color: '#64748b' }}
+                              >
+                                {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                              </IconButton>
+                            </InputAdornment>
+                          }
+                          label="Current Password"
+                        />
+                      </FormControl>
+                      
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel htmlFor="new-password" sx={{ 
+                            backgroundColor: 'white',
+                            px: 1
+                          }}>
+                            New Password
+                          </InputLabel>
+                          <OutlinedInput
+                            id="new-password"
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={editFormData.newPassword}
+                            onChange={handleEditFormChange('newPassword')}
+                            sx={{
+                              borderRadius: '12px',
+                              backgroundColor: '#f8fafc',
+                              border: '2px solid transparent',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                backgroundColor: '#ffffff',
+                                borderColor: '#e2e8f0'
+                              },
+                              '&.Mui-focused': {
+                                backgroundColor: '#ffffff',
+                                borderColor: '#667eea',
+                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                              }
+                            }}
+                            endAdornment={
+                              <InputAdornment position="end">
+                                <IconButton
+                                  onClick={() => setShowNewPassword(!showNewPassword)}
+                                  edge="end"
+                                  sx={{ color: '#64748b' }}
+                                >
+                                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                                </IconButton>
+                              </InputAdornment>
+                            }
+                            label="New Password"
+                          />
+                        </FormControl>
+                        
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel htmlFor="confirm-password" sx={{ 
+                            backgroundColor: 'white',
+                            px: 1
+                          }}>
+                            Confirm New Password
+                          </InputLabel>
+                          <OutlinedInput
+                            id="confirm-password"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={editFormData.confirmPassword}
+                            onChange={handleEditFormChange('confirmPassword')}
+                            sx={{
+                              borderRadius: '12px',
+                              backgroundColor: '#f8fafc',
+                              border: '2px solid transparent',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                backgroundColor: '#ffffff',
+                                borderColor: '#e2e8f0'
+                              },
+                              '&.Mui-focused': {
+                                backgroundColor: '#ffffff',
+                                borderColor: '#667eea',
+                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                              }
+                            }}
+                            endAdornment={
+                              <InputAdornment position="end">
+                                <IconButton
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  edge="end"
+                                  sx={{ color: '#64748b' }}
+                                >
+                                  {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                                </IconButton>
+                              </InputAdornment>
+                            }
+                            label="Confirm New Password"
+                          />
+                        </FormControl>
+                      </Box>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ 
+                    p: 3, 
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                    border: '1px solid #3b82f6',
+                    borderLeft: '4px solid #3b82f6'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <Box sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '10px',
+                        background: '#3b82f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white'
+                      }}>
+                        <FaLock />
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight="600" color="#1e40af">
+                        Password Requirements
+                      </Typography>
+                    </Box>
+                    <Box sx={{ pl: 12 }}>
+                      <Typography variant="body2" color="#1e40af" component="ul" sx={{ mt: 1, pl: 2 }}>
+                        <li>At least 8 characters long</li>
+                        <li>Contains uppercase and lowercase letters</li>
+                        <li>Contains at least one number</li>
+                        <li>Contains at least one special character</li>
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ textAlign: 'left', mt: 3 }}>
+                    <Button
+                      variant="text"
+                      size="small"
+                      sx={{
+                        color: '#667eea',
+                        fontWeight: '500',
+                        textTransform: 'none',
+                        '&:hover': {
+                          backgroundColor: 'rgba(102, 126, 234, 0.08)',
+                          color: '#5a67d8'
+                        }
+                      }}
+                      onClick={() => {
+                        // Handle forgot password logic here
+                        console.log('Forgot password clicked');
+                      }}
+                    >
+                      Forgot Password?
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+
+            {/* New Modal Actions */}
+            <Box sx={{
+              p: 4,
+              borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+              background: 'linear-gradient(to bottom, #ffffff, #f8fafc)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <Typography variant="body2" color="text.secondary">
+                All changes will be saved automatically
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setEditModalOpen(false)}
+                  sx={{
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    border: '2px solid #e2e8f0',
+                    color: '#64748b',
+                    '&:hover': {
+                      backgroundColor: '#f1f5f9',
+                      borderColor: '#cbd5e1'
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={editTabValue === 0 ? handleSaveProfile : handlePasswordChange}
+                  sx={{
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)'
+                    }
+                  }}
+                >
+                  {editTabValue === 0 ? 'Save Changes' : 'Update Password'}
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        </Modal>
       </main>
     </div>
   );
