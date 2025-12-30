@@ -57,6 +57,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
 
 const menuItems = [
@@ -77,12 +78,144 @@ const User_Leaderboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [statsData, setStatsData] = useState([]);
+
+  // Fetch leaderboard data from Supabase
+  const fetchLeaderboardData = async () => {
+    try {
+      console.log('Fetching leaderboard data...');
+      
+      // First, try a simple query to see if the table exists
+      const { data: testData, error: testError } = await supabase
+        .from('leaderboard')
+        .select('id, score, level, problem_solve, badge, participate_id')
+        .limit(1);
+
+      console.log('Table test result:', { testData, testError });
+
+      if (testError) {
+        console.error('Table access error:', testError);
+        console.error('Error details:', testError.details);
+        console.error('Error hint:', testError.hint);
+        return;
+      }
+      
+      // Now try the full query with user join using correct column names
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select(`
+          *,
+          users:participate_id (
+            id,
+            display_name,
+            email,
+            avatar_url
+          )
+        `)
+        .order('score', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching leaderboard data:', error);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        
+        // Fallback to simple query without user join
+        console.log('Trying fallback query without user join...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .order('score', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          return;
+        }
+
+        console.log('Fallback data fetched:', fallbackData);
+        
+        if (fallbackData && fallbackData.length > 0) {
+          const transformedData = fallbackData.map((entry, index) => ({
+            rank: index + 1,
+            id: entry.id,
+            name: 'Anonymous User',
+            username: '@anonymous',
+            score: entry.score,
+            level: entry.level,
+            problemsSolved: entry.problem_solve,
+            badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1),
+            avatar: 'AU',
+            userId: entry.participate_id
+          }));
+
+          setLeaderboardData(transformedData);
+          return;
+        }
+      }
+
+      console.log('Leaderboard data fetched:', data);
+
+      if (data && data.length > 0) {
+        // Transform data for the leaderboard
+        const transformedData = data.map((entry, index) => ({
+          rank: index + 1,
+          id: entry.id,
+          name: entry.users?.display_name || 'Anonymous User',
+          username: entry.users?.email ? `@${entry.users.email.split('@')[0]}` : '@anonymous',
+          score: entry.score,
+          level: entry.level,
+          problemsSolved: entry.problem_solve,
+          badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1), // Capitalize first letter
+          avatar: entry.users?.display_name 
+            ? entry.users.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+            : 'AU',
+          userId: entry.participate_id
+        }));
+
+        console.log('Transformed leaderboard data:', transformedData);
+        setLeaderboardData(transformedData);
+
+        // Calculate stats
+        const totalPlayers = transformedData.length;
+        const avgScore = Math.round(transformedData.reduce((sum, player) => sum + player.score, 0) / totalPlayers);
+        const totalProblems = transformedData.reduce((sum, player) => sum + player.problemsSolved, 0);
+
+        setStatsData([
+          { label: 'Total Players', value: totalPlayers.toLocaleString(), change: '+12%', icon: <FaUser />, color: '#6366F1' },
+          { label: 'Avg Score', value: avgScore.toLocaleString(), change: '+5%', icon: <TrendingUp />, color: '#10B981' },
+          { label: 'Problems Solved', value: totalProblems.toLocaleString(), change: '+8%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Active Players', value: Math.round(totalPlayers * 0.8).toLocaleString(), change: '+3%', icon: <FaTrophy />, color: '#EF4444' }
+        ]);
+      } else {
+        console.log('No leaderboard data found');
+        setLeaderboardData([]);
+        setStatsData([
+          { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
+          { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
+          { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error in fetchLeaderboardData:', error);
+      console.error('Stack trace:', error.stack);
+      setLeaderboardData([]);
+      setStatsData([
+        { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
+        { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
+        { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+        { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
+      ]);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
+        // Fetch leaderboard data when user is authenticated
+        fetchLeaderboardData();
       } else {
         navigate('/');
       }
@@ -108,36 +241,12 @@ const User_Leaderboard = () => {
     );
   }
 
-  // Stats data
-  const statsData = [
-    { label: 'Total Players', value: '2,847', change: '+12%', icon: <FaUser />, color: '#6366F1' },
-    { label: 'Active Today', value: '1,234', change: '+8%', icon: <FaFire />, color: '#F59E0B' },
-    { label: 'Avg Score', value: '4,250', change: '+5%', icon: <TrendingUp />, color: '#10B981' },
-    { label: 'Tournaments', value: '24', change: '+2', icon: <FaTrophy />, color: '#EF4444' }
-  ];
-
-  // Mock data for leaderboard
-  const leaderboardData = [
-    { rank: 1, name: 'Alex Chen', username: '@alexchen', score: 9850, level: 78, problemsSolved: 342, badge: 'Elite', avatar: 'AC' },
-    { rank: 2, name: 'Sarah Johnson', username: '@sarahj', score: 8720, level: 65, problemsSolved: 298, badge: 'Master', avatar: 'SJ' },
-    { rank: 3, name: 'Mike Wilson', username: '@mikew', score: 7640, level: 59, problemsSolved: 267, badge: 'Expert', avatar: 'MW' },
-    { rank: 4, name: 'Emma Davis', username: '@emmad', score: 6980, level: 52, problemsSolved: 245, badge: 'Advanced', avatar: 'ED' },
-    { rank: 5, name: 'James Brown', username: '@jamesb', score: 6540, level: 48, problemsSolved: 229, badge: 'Advanced', avatar: 'JB' },
-    { rank: 6, name: 'Lisa Anderson', username: '@lisaa', score: 5920, level: 45, problemsSolved: 211, badge: 'Senior', avatar: 'LA' },
-    { rank: 7, name: 'David Miller', username: '@davidm', score: 5480, level: 41, problemsSolved: 198, badge: 'Senior', avatar: 'DM' },
-    { rank: 8, name: 'Jennifer Taylor', username: '@jennifert', score: 5120, level: 38, problemsSolved: 187, badge: 'Intermediate', avatar: 'JT' },
-    { rank: 9, name: 'Robert Martinez', username: '@robertm', score: 4890, level: 36, problemsSolved: 176, badge: 'Intermediate', avatar: 'RM' },
-    { rank: 10, name: 'Maria Garcia', username: '@mariag', score: 4670, level: 34, problemsSolved: 165, badge: 'Intermediate', avatar: 'MG' },
-  ];
-
   const getBadgeColor = (badge) => {
     switch(badge) {
+      case 'Bronze': return 'default';
+      case 'Silver': return 'secondary';
       case 'Elite': return 'error';
       case 'Master': return 'warning';
-      case 'Expert': return 'success';
-      case 'Advanced': return 'info';
-      case 'Senior': return 'secondary';
-      case 'Intermediate': return 'default';
       default: return 'default';
     }
   };
@@ -184,8 +293,12 @@ const User_Leaderboard = () => {
                   setActive(item.key);
                   if (item.key === 'home') {
                     navigate('/dashboard');
+                  } else if (item.key === 'contest') {
+                    navigate('/contest');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
+                  } else if (item.key === 'practice') {
+                    navigate('/dashboard');
                   }
                 }
               }}
