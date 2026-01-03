@@ -66,6 +66,8 @@ const User_Contest = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [difficultyFilter, setDifficultyFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
@@ -228,23 +230,54 @@ const User_Contest = () => {
     }
   };
 
-  // Filter contests based on tab selection
+  // Filter contests based on tab selection, category, difficulty, and search term
   const getFilteredContests = () => {
     const now = new Date();
+    let filteredContests = [];
     
+    // Filter by tab first
     if (tabValue === 0) { // All Contests tab - show present/future contests only
-      return contests.filter(contest => 
+      filteredContests = contests.filter(contest => 
         new Date(contest.registration_end) > now
       );
     } else if (tabValue === 2) { // Past Contests tab - show past contests only
-      return contests.filter(contest => 
+      filteredContests = contests.filter(contest => 
         new Date(contest.registration_end) <= now
       );
     } else if (tabValue === 1) { // My Contests tab - show registered contests only
-      return contests.filter(contest => 
+      filteredContests = contests.filter(contest => 
         registeredContests.includes(contest.id)
       );
+    } else {
+      filteredContests = contests;
     }
+    
+    // Filter by category
+    if (categoryFilter !== 'all') {
+      filteredContests = filteredContests.filter(contest => 
+        contest.contest_category === categoryFilter
+      );
+    }
+    
+    // Filter by difficulty
+    if (difficultyFilter !== 'all') {
+      filteredContests = filteredContests.filter(contest => 
+        contest.contest_difficulty === difficultyFilter
+      );
+    }
+    
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filteredContests = filteredContests.filter(contest => 
+        contest.title.toLowerCase().includes(searchLower) ||
+        contest.description?.toLowerCase().includes(searchLower) ||
+        contest.contest_difficulty.toLowerCase().includes(searchLower) ||
+        contest.contest_category.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filteredContests;
   };
 
   // Check if registration button should be shown
@@ -547,7 +580,7 @@ const User_Contest = () => {
           )}
 
           {/* Contest Filters */}
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 4 }}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
@@ -567,20 +600,113 @@ const User_Contest = () => {
               <Tab label="Past Contests" />
             </Tabs>
 
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
-              {categories.map((category) => (
-                <Chip
-                  key={category}
-                  label={category === 'all' ? 'All Categories' : category}
-                  onClick={() => handleCategoryChange(category)}
-                  variant={categoryFilter === category ? 'filled' : 'outlined'}
-                  color={categoryFilter === category ? 'primary' : 'default'}
-                  sx={{ 
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
+            {/* Search and Filter Section */}
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 2, 
+              alignItems: 'center', 
+              mb: 3,
+              flexWrap: 'wrap'
+            }}>
+              {/* Search Bar */}
+              <Box sx={{ 
+                width: '350px', // Decreased width
+                position: 'relative'
+              }}>
+                <FaSearch 
+                  style={{ 
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#9ca3af',
+                    fontSize: '16px'
+                  }} 
+                />
+                <input
+                  type="text"
+                  placeholder="Search contests..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 12px 12px 40px',
+                    fontSize: '14px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                    backgroundColor: 'white'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#6366f1';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = 'none';
                   }}
                 />
-              ))}
+              </Box>
+
+              {/* Category Select */}
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                style={{
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  minWidth: '150px'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#6366f1';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e5e7eb';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category === 'all' ? 'All Categories' : category}
+                  </option>
+                ))}
+              </select>
+
+              {/* Difficulty Select */}
+              <select
+                value={difficultyFilter}
+                onChange={(e) => setDifficultyFilter(e.target.value)}
+                style={{
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  outline: 'none',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  minWidth: '120px'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#6366f1';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e5e7eb';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                <option value="all">All Levels</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
             </Box>
           </Box>
 
@@ -707,7 +833,7 @@ const User_Contest = () => {
                           {getRegistrationStatus(contest.registration_start, contest.registration_end)}
                         </Typography>
                       </Box>
-                      {shouldShowRegisterButton(contest) && (
+                      {shouldShowRegisterButton(contest) ? (
                         <Button 
                           variant="contained" 
                           onClick={() => handleRegister(contest.id)}
@@ -721,6 +847,16 @@ const User_Contest = () => {
                         >
                           View Details
                         </Button>
+                      ) : (
+                        <Box 
+                          sx={{ 
+                            width: '100px',  // Match button width
+                            height: '36px',   // Match button height
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        />
                       )}
                     </Box>
                   </CardContent>

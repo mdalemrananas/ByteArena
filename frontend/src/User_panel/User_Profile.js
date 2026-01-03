@@ -62,8 +62,19 @@ import {
   FaGlobe,
   FaCodeBranch,
   FaTimes,
-  FaPlus
+  FaPlus,
+  FaCheckCircle,
+  FaTrophy as FaTrophyIcon
 } from 'react-icons/fa';
+import { 
+  Target, 
+  Trophy, 
+  TrendingUp, 
+  Clock, 
+  Check, 
+  Award,
+  Camera 
+} from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
@@ -78,11 +89,1378 @@ const menuItems = [
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
+const AccountSettings = ({ user, userData, onClose, onSave }) => {
+  const [activeTab, setActiveTab] = useState('Profile');
+  const [notification, setNotification] = useState(null);
+  const [formData, setFormData] = useState({
+    fullName: user?.displayName || 'Alex Johnson',
+    username: userData?.username || user?.displayName?.toLowerCase().replace(/\s+/g, '') || 'quizmaster',
+    email: user?.email || 'alex@example.com',
+    bio: userData?.bio || 'Quiz enthusiast and creator. I love making educational content!',
+    website: userData?.website || '',
+    country: userData?.country || userData?.location || '',
+    skills: userData?.skills || [],
+    currentSkill: '',
+    avatar_url: user?.photoURL || userData?.avatar_url || ''
+  });
+
+  const tabs = [
+    'Profile',
+    'Security',
+    'Notifications',
+    'Privacy',
+    'Appearance',
+    'Quiz Preferences',
+    'Connected Accounts',
+    'Subscription'
+  ];
+
+  const handleInputChange = (field) => (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }));
+  };
+
+  const handleSkillInputChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      currentSkill: e.target.value
+    }));
+  };
+
+  const handleSkillKeyPress = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const skill = formData.currentSkill?.trim();
+      if (skill && !formData.skills.includes(skill)) {
+        setFormData(prev => ({
+          ...prev,
+          skills: [...prev.skills, skill],
+          currentSkill: ''
+        }));
+      }
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  const handleSaveChanges = async () => {
+    console.log('Saving changes:', formData);
+    console.log('User UID:', user?.uid);
+    console.log('User object:', user);
+    console.log('User properties:', Object.keys(user || {}));
+    
+    // Try different possible UID properties
+    const uid = user?.uid || user?.user?.uid || user?.firebase_uid;
+    console.log('Resolved UID:', uid);
+    
+    if (!uid) {
+      console.error('No user UID found');
+      setNotification({
+        type: 'error',
+        title: 'Authentication Error',
+        message: 'User not authenticated. Please log in again.'
+      });
+      return;
+    }
+    
+    try {
+      // First check if user exists in database
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('firebase_uid', uid)
+        .single();
+
+      console.log('Existing user:', existingUser);
+      console.log('Fetch error:', fetchError);
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching user:', fetchError);
+        setNotification({
+          type: 'error',
+          title: 'Database Error',
+          message: 'Error checking user data. Please try again.'
+        });
+        return;
+      }
+
+      let updateData = {
+        username: formData.username,
+        display_name: formData.fullName,
+        avatar_url: formData.avatar_url,
+        bio: formData.bio,
+        website: formData.website,
+        country: formData.country,
+        skills: formData.skills,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Update data:', updateData);
+
+      let result;
+      if (existingUser) {
+        // Update existing user
+        console.log('Updating existing user...');
+        result = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('firebase_uid', uid);
+      } else {
+        // Create new user
+        console.log('Creating new user...');
+        result = await supabase
+          .from('users')
+          .insert({
+            ...updateData,
+            firebase_uid: uid,
+            email: user?.email || user?.user?.email,
+            created_at: new Date().toISOString()
+          });
+      }
+
+      const { data, error } = result;
+      console.log('Supabase result:', { data, error });
+
+      if (error) {
+        console.error('Error updating/creating profile:', error);
+        setNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: error.message || 'Unknown error occurred while updating profile.'
+        });
+        return;
+      }
+
+      console.log('Profile updated/created successfully:', data);
+      
+      // Call the parent onSave function to update local state
+      onSave(formData);
+      
+      // Show success notification
+      setNotification({
+        type: 'success',
+        title: 'Profile Updated Successfully!',
+        message: 'Your profile information has been saved.'
+      });
+      
+      // Auto-close modal after success
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      setNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: error.message || 'Unknown error occurred while saving changes.'
+      });
+    }
+  };
+
+  // Debug function to check user data
+  const handleDebugUserInfo = () => {
+    console.log('=== DEBUG USER INFO ===');
+    console.log('User object:', user);
+    console.log('User UID:', user?.uid);
+    console.log('User email:', user?.email);
+    console.log('User displayName:', user?.displayName);
+    console.log('User properties:', Object.keys(user || {}));
+    console.log('UserData:', userData);
+    console.log('========================');
+    alert('Debug info logged to console. Check browser dev tools.');
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f9fafb',
+      padding: '1rem',
+      position: 'relative'
+    }}>
+      <style>
+        {`
+          @keyframes slideIn {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `}
+      </style>
+      
+      {/* Custom Notification */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          minWidth: '300px',
+          maxWidth: '400px',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem'
+          }}>
+            <div style={{
+              fontSize: '1.25rem',
+              marginTop: '0.125rem'
+            }}>
+              {notification.type === 'success' ? '✓' : '⚠'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <h4 style={{
+                margin: '0 0 0.25rem 0',
+                fontSize: '1rem',
+                fontWeight: '600'
+              }}>
+                {notification.title}
+              </h4>
+              <p style={{
+                margin: 0,
+                fontSize: '0.875rem',
+                opacity: 0.9
+              }}>
+                {notification.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                padding: '0',
+                lineHeight: '1',
+                opacity: 0.8
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '1'}
+              onMouseLeave={(e) => e.target.style.opacity = '0.8'}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      
+      <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
+        {/* Header */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 style={{
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                color: '#111827',
+                margin: '0 0 0.5rem 0'
+              }}>
+                Account Settings
+              </h1>
+              <p style={{
+                fontSize: '1rem',
+                color: '#6b7280',
+                margin: 0
+              }}>
+                Manage your account settings and preferences
+              </p>
+            </div>
+            <button
+              onClick={handleDebugUserInfo}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                color: '#6b7280',
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#f3f4f6';
+              }}
+            >
+              Debug User Info
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          marginBottom: '2rem',
+          overflowX: 'auto',
+          paddingBottom: '0.5rem'
+        }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                color: activeTab === tab ? '#111827' : '#6b7280',
+                backgroundColor: activeTab === tab ? 'white' : 'transparent',
+                border: activeTab === tab ? '2px solid #111827' : '2px solid transparent',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab) {
+                  e.target.style.backgroundColor = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab) {
+                  e.target.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Card */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '0.75rem',
+          padding: '1.5rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+        }}>
+          {/* Profile Information Section */}
+          <div style={{ marginBottom: '2.5rem' }}>
+            <h2 style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#111827',
+              margin: '0 0 0.5rem 0'
+            }}>
+              Profile Information
+            </h2>
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#6b7280',
+              margin: '0 0 2rem 0'
+            }}>
+              Update your profile information and how others see you on the platform.
+            </p>
+
+            {/* Avatar Section */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1.5rem',
+              marginBottom: '2rem',
+              paddingBottom: '2rem',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              <img
+                src={user?.photoURL || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
+                alt="Profile"
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '3px solid #e5e7eb'
+                }}
+              />
+              <div>
+                <button style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  backgroundColor: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  marginBottom: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f9fafb';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'white';
+                }}>
+                  <Camera size={16} />
+                  Change Avatar
+                </button>
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: 0
+                }}>
+                  JPG, PNG or GIF. 1MB max.
+                </p>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div style={{
+              display: 'grid',
+              gap: '1.5rem'
+            }}>
+              {/* Display Name and Username Row */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1.5rem'
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.fullName}
+                    onChange={handleInputChange('fullName')}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      fontSize: '0.875rem',
+                      color: '#111827',
+                      backgroundColor: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.5rem',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#6366f1';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.username}
+                    onChange={handleInputChange('username')}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      fontSize: '0.875rem',
+                      color: '#111827',
+                      backgroundColor: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.5rem',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#6366f1';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    color: '#6b7280',
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '0.5rem',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                    boxSizing: 'border-box',
+                    cursor: 'not-allowed'
+                  }}
+                />
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: '0.5rem 0 0 0'
+                }}>
+                  Email address cannot be changed. Contact support if you need to update it.
+                </p>
+              </div>
+
+              {/* Website and Country Row */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1.5rem'
+              }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Website
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.website}
+                    onChange={handleInputChange('website')}
+                    placeholder="https://yourwebsite.com"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      fontSize: '0.875rem',
+                      color: '#111827',
+                      backgroundColor: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.5rem',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#6366f1';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.country}
+                    onChange={handleInputChange('country')}
+                    placeholder={userData?.country || userData?.location || 'United States'}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      fontSize: '0.875rem',
+                      color: '#111827',
+                      backgroundColor: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.5rem',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#6366f1';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#d1d5db';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Avatar URL */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Avatar URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.avatar_url}
+                  onChange={handleInputChange('avatar_url')}
+                  placeholder="https://example.com/avatar.jpg"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    color: '#111827',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#6366f1';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#d1d5db';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+
+              {/* Skills */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Skills
+                </label>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  minHeight: '60px'
+                }}>
+                  {formData.skills.map((skill, index) => (
+                    <span key={index} style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.25rem 0.75rem',
+                      backgroundColor: '#6366f1',
+                      color: 'white',
+                      borderRadius: '9999px',
+                      fontSize: '0.875rem',
+                      fontWeight: '500'
+                    }}>
+                      {skill}
+                      <button
+                        onClick={() => handleRemoveSkill(skill)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          padding: '0',
+                          fontSize: '1rem',
+                          lineHeight: '1'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={formData.currentSkill}
+                  onChange={handleSkillInputChange}
+                  onKeyPress={handleSkillKeyPress}
+                  placeholder="Type a skill and press Enter or Space to add"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    color: '#111827',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#6366f1';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#d1d5db';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: '0.5rem 0 0 0'
+                }}>
+                  Press Enter or Space to add skills. Click × to remove.
+                </p>
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Bio
+                </label>
+                <textarea
+                  value={formData.bio}
+                  onChange={handleInputChange('bio')}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    color: '#111827',
+                    backgroundColor: 'white',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    outline: 'none',
+                    transition: 'all 0.2s',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#6366f1';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#d1d5db';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+                <p style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: '0.5rem 0 0 0'
+                }}>
+                  Brief description for your profile. URLs are hyperlinked.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <div>
+            <button
+              onClick={handleSaveChanges}
+              style={{
+                padding: '0.75rem 2rem',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                color: 'white',
+                backgroundColor: '#6366f1',
+                border: 'none',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#4f46e5';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#6366f1';
+              }}
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile }) => {
+  const activities = [
+    {
+      icon: <FaCheckCircle style={{ color: '#10b981', fontSize: '20px' }} />,
+      text: "Completed 'World History Trivia' with a score of 95%",
+      date: "May 1, 08:30 PM"
+    },
+    {
+      icon: <FaTrophyIcon style={{ color: '#f59e0b', fontSize: '20px' }} />,
+      text: "Earned the 'Quiz Wizard' achievement",
+      date: "Apr 28, 03:15 PM"
+    },
+    {
+      icon: <TrendingUp style={{ color: '#3b82f6', fontSize: '20px' }} />,
+      text: "Reached level 42",
+      date: "Apr 25, 10:45 PM"
+    }
+  ];
+
+  const achievements = [
+    {
+      icon: <FaTrophyIcon style={{ color: '#a855f7', fontSize: '24px' }} />,
+      title: "Quiz Master",
+      badge: "Epic",
+      badgeColor: "#f3e8ff",
+      textColor: "#7c3aed",
+      description: "Complete 100 quizzes with a score of 80% or higher",
+      date: "Earned on 1/20/2023"
+    },
+    {
+      icon: <Award style={{ color: '#10b981', width: '24px', height: '24px' }} />,
+      title: "Knowledge Seeker",
+      badge: "Uncommon",
+      badgeColor: "#dcfce7",
+      textColor: "#16a34a",
+      description: "Complete quizzes in 10 different categories",
+      date: "Earned on 11/5/2022"
+    },
+    {
+      icon: <Target style={{ color: '#3b82f6', width: '24px', height: '24px' }} />,
+      title: "Perfect Score",
+      badge: "Rare",
+      badgeColor: "#dbeafe",
+      textColor: "#2563eb",
+      description: "Achieve 100% on a difficult quiz",
+      date: "Earned on 4/12/2023"
+    }
+  ];
+
+  return (
+    <>
+      {/* Header Section */}
+      <div style={{
+        background: 'linear-gradient(to right, #e9d5ff, #bfdbfe)',
+        borderRadius: '12px',
+        padding: '2rem',
+        marginBottom: '1.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
+          <img
+            src={user?.photoURL || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"}
+            alt={user?.displayName || "User"}
+            style={{
+              width: '96px',
+              height: '96px',
+              borderRadius: '50%',
+              border: '4px solid white',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              objectFit: 'cover'
+            }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+                {user?.displayName || 'Alex Johnson'}
+              </h1>
+              <span style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: '#3b82f6',
+                borderRadius: '50%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '0.5rem'
+              }}>
+                <Check style={{ width: '12px', height: '12px', color: 'white' }} />
+              </span>
+              <span style={{
+                backgroundColor: '#f97316',
+                color: 'white',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '9999px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                marginLeft: '0.5rem'
+              }}>
+                <span style={{ color: '#fde047' }}>★</span> Level 42
+              </span>
+            </div>
+            <p style={{ color: '#4b5563', margin: '0 0 0.25rem 0' }}>
+              @{user?.displayName?.toLowerCase().replace(/\s+/g, '') || 'alexjohnson'}
+            </p>
+            <p style={{ color: '#4b5563', margin: '0 0 0.25rem 0' }}>
+              📍 {userData.location || 'United States'} • 📅 Joined {user?.joinedDate || 'March 15, 2022'}
+            </p>
+            <p style={{ color: '#374151', margin: '0 0 1rem 0' }}>
+              {userData.bio || 'Quiz enthusiast and knowledge seeker. I love challenging myself with difficult quizzes!'}
+            </p>
+            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
+              <span style={{ color: '#374151' }}>
+                <strong style={{ color: '#111827' }}>187</strong> Quizzes Taken
+              </span>
+              <span style={{ color: '#374151' }}>
+                <strong style={{ color: '#111827' }}>15</strong> Quizzes Created
+              </span>
+              <span style={{ color: '#374151' }}>
+                <strong style={{ color: '#111827' }}>1,243</strong> Followers
+              </span>
+              <span style={{ color: '#374151' }}>
+                <strong style={{ color: '#111827' }}>356</strong> Following
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button 
+              onClick={handleEditProfile}
+              style={{
+                backgroundColor: '#2563eb',
+                color: 'white',
+                padding: '0.5rem 1.5rem',
+                borderRadius: '0.5rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span style={{ fontSize: '1.125rem' }}>✏️</span> Edit Profile
+            </button>
+            <button 
+              style={{
+                backgroundColor: 'white',
+                color: '#374151',
+                padding: '0.5rem 1.5rem',
+                borderRadius: '0.5rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                border: '1px solid #d1d5db',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span>💬</span> Message
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '2rem' }}>
+        {['Activity', 'Quizzes Taken', 'Created Quizzes', 'Followers', 'Following'].map((tab, index) => (
+          <button
+            key={tab}
+            onClick={() => setTabValue(index)}
+            style={{
+              padding: '1rem 0.5rem',
+              fontWeight: '500',
+              color: tabValue === index ? '#2563eb' : '#4b5563',
+              background: 'none',
+              border: 'none',
+              borderBottom: tabValue === index ? '2px solid #2563eb' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              marginRight: '2rem'
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Content Section */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '2rem', 
+        flexDirection: 'row',
+        padding: '0'
+      }}>
+        {/* Left Column - Activity */}
+        <div style={{ 
+          flex: 2, 
+          minWidth: 0 
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '0.75rem',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden'
+          }}>
+            {activities.map((activity, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: '2rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1.5rem',
+                  borderBottom: index < activities.length - 1 ? '1px solid #e5e7eb' : 'none',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <div style={{ 
+                  marginTop: '0.25rem', 
+                  fontSize: '24px'
+                }}>{activity.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ 
+                    color: '#111827', 
+                    margin: '0 0 0.5rem 0', 
+                    fontSize: '1rem', 
+                    fontWeight: '500' 
+                  }}>{activity.text}</p>
+                  <p style={{ 
+                    fontSize: '0.875rem', 
+                    color: '#6b7280', 
+                    margin: 0 
+                  }}>{activity.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column - Stats & Achievements */}
+        <div style={{ 
+          flex: 1, 
+          minWidth: 0 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '2rem' 
+          }}>
+            {/* Stats & Performance */}
+            <div style={{
+              background: 'white',
+              borderRadius: '0.75rem',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+              padding: '2rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginTop: 0,
+                marginBottom: '2rem'
+              }}>
+                Stats & Performance
+              </h2>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Target style={{ width: '18px', height: '18px' }} /> Average Score
+                  </p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>87.5%</p>
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Trophy style={{ width: '18px', height: '18px' }} /> Win Rate
+                  </p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>78%</p>
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <TrendingUp style={{ width: '18px', height: '18px' }} /> Current Streak
+                  </p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>5 quizzes</p>
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <TrendingUp style={{ width: '18px', height: '18px' }} /> Highest Streak
+                  </p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>12 quizzes</p>
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1.5rem',
+                marginBottom: '2rem'
+              }}>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Clock style={{ width: '18px', height: '18px' }} /> Time Played
+                  </p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>11h 50m</p>
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Check style={{ width: '18px', height: '18px' }} /> Completion Rate
+                  </p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>94%</p>
+                </div>
+              </div>
+
+              <div style={{ paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '1rem'
+                }}>
+                  <span style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <span style={{ color: '#f59e0b' }}>⭐</span> Best Category
+                  </span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>History</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '1rem'
+                }}>
+                  <span style={{
+                    fontSize: '0.875rem',
+                    color: '#4b5563',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <span style={{ color: '#3b82f6' }}>💙</span> Favorite Category
+                  </span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Science</span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>Weakest Category</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Sports</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Achievements */}
+            <div style={{
+              background: 'white',
+              borderRadius: '0.75rem',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+              padding: '2rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.25rem',
+                fontWeight: 'bold',
+                color: '#111827',
+                marginTop: 0,
+                marginBottom: '1.5rem'
+              }}>
+                Achievements
+              </h2>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '1.5rem' 
+              }}>
+                {achievements.map((achievement, index) => (
+                  <div key={index} style={{ 
+                    display: 'flex', 
+                    gap: '1rem',
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    transition: 'background-color 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {achievement.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        marginBottom: '0.5rem' 
+                      }}>
+                        <h3 style={{ 
+                          fontWeight: '600', 
+                          color: '#111827', 
+                          margin: 0, 
+                          fontSize: '1.125rem' 
+                        }}>
+                          {achievement.title}
+                        </h3>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '0.375rem',
+                          fontWeight: '600',
+                          backgroundColor: achievement.badgeColor,
+                          color: achievement.textColor
+                        }}>
+                          {achievement.badge}
+                        </span>
+                      </div>
+                      <p style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#4b5563', 
+                        margin: '0 0 0.5rem 0', 
+                        lineHeight: '1.5' 
+                      }}>
+                        {achievement.description}
+                      </p>
+                      <p style={{ 
+                        fontSize: '0.75rem', 
+                        color: '#6b7280', 
+                        margin: 0 
+                      }}>
+                        {achievement.date}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 const User_Profile = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [active, setActive] = useState('home');
   const [user, setUser] = useState({
+    uid: null,
     displayName: 'Alex Johnson',
     email: 'alex.johnson@example.com',
     photoURL: 'https://randomuser.me/api/portraits/men/32.jpg',
@@ -206,6 +1584,7 @@ const User_Profile = () => {
           // Set basic user info from Firebase
           setUser(prev => ({
             ...prev,
+            uid: currentUser.uid, // Add the UID here
             displayName: currentUser.displayName || userData.name,
             email: currentUser.email || userData.email,
             photoURL: currentUser.photoURL || 'https://randomuser.me/api/portraits/men/32.jpg'
@@ -634,352 +2013,17 @@ const User_Profile = () => {
           </div>
         </header>
 
-        <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 }, py: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 2 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
-          {updatedUserData.name}'s Profile
-        </Typography>
-      </Box>
+        <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, py: 3 }}>
+          <ProfileContent 
+            user={user} 
+            userData={userData} 
+            tabValue={tabValue} 
+            setTabValue={setTabValue} 
+            handleEditProfile={handleEditProfile} 
+          />
+        </Box>
 
-      <Grid container spacing={3}>
-        {/* Main Content */}
-        <Grid item xs={12} md={7}>
-          <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, backgroundColor: '#f8f9fa' }}>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} sm="auto" sx={{ textAlign: 'center' }}>
-                <Avatar 
-                  sx={{ 
-                    width: 100, 
-                    height: 100, 
-                    mb: 2,
-                    fontSize: '2.5rem',
-                    bgcolor: 'primary.main',
-                    mx: 'auto'
-                  }}
-                >
-                  {updatedUserData.name.split(' ').map(n => n[0]).join('')}
-                </Avatar>
-              </Grid>
-              <Grid item xs={12} sm>
-                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                  <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', mr: 1 }}>
-                    {updatedUserData.name}
-                  </Typography>
-                  <Chip 
-                    icon={<CheckCircleIcon fontSize="small" />} 
-                    label="Verified" 
-                    size="small" 
-                    color="success"
-                    variant="outlined"
-                  />
-                  <Chip 
-                    label={`Level ${updatedUserData.level}`} 
-                    size="small" 
-                    color="primary"
-                    variant="outlined"
-                  />
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {updatedUserData.username} • {updatedUserData.location}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {updatedUserData.joinDate}
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  {updatedUserData.bio}
-                </Typography>
-                
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-                  <Button 
-                    variant="outlined" 
-                    color="secondary" 
-                    startIcon={<FaEdit />}
-                    onClick={handleEditProfile}
-                  >
-                    Edit Profile
-                  </Button>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm="auto" sx={{ ml: 'auto' }}>
-                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight="bold">{updatedUserData.stats.quizzesTaken}</Typography>
-                    <Typography variant="body2" color="text.secondary">Quizzes Taken</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight="bold">{updatedUserData.stats.quizzesCreated}</Typography>
-                    <Typography variant="body2" color="text.secondary">Quizzes Created</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight="bold">{updatedUserData.stats.followers.toLocaleString()}</Typography>
-                    <Typography variant="body2" color="text.secondary">Followers</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight="bold">{updatedUserData.stats.following}</Typography>
-                    <Typography variant="body2" color="text.secondary">Following</Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Tabs */}
-          <Paper elevation={0} sx={{ mb: 3, borderRadius: 2, backgroundColor: '#f8f9fa' }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                borderBottom: 1,
-                borderColor: 'divider',
-                '& .MuiTabs-indicator': {
-                  height: 3,
-                },
-              }}
-            >
-              <Tab label="Activity" />
-              <Tab label="Quizzes Taken" />
-              <Tab label="Created Quizzes" />
-              <Tab label="Followers" />
-              <Tab label="Following" />
-            </Tabs>
-            
-            {/* Tab Content */}
-            <Box sx={{ p: 3 }}>
-              {tabValue === 0 && (
-                <List>
-                  {updatedUserData.activities.map((activity) => (
-                    <React.Fragment key={activity.id}>
-                      <ListItem alignItems="flex-start" sx={{ px: 0 }}>
-                        <ListItemIcon sx={{ minWidth: 40, mt: 1 }}>
-                          {activity.icon}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={activity.title}
-                          secondary={
-                            <>
-                              <Typography
-                                component="span"
-                                variant="body2"
-                                color="text.primary"
-                              >
-                                {activity.details}
-                              </Typography>
-                              <br />
-                              {activity.time}
-                            </>
-                          }
-                        />
-                      </ListItem>
-                      <Divider component="li" />
-                    </React.Fragment>
-                  ))}
-                </List>
-              )}
-              {tabValue !== 0 && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography color="text.secondary">
-                    {tabValue === 1 && 'No quizzes taken yet'}
-                    {tabValue === 2 && 'No quizzes created yet'}
-                    {tabValue === 3 && 'No followers yet'}
-                    {tabValue === 4 && 'Not following anyone yet'}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </Paper>
-
-          {/* Stats & Performance */}
-          <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 2, backgroundColor: '#f8f9fa' }}>
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Stats & Performance
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            {/* Stats Table */}
-            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, overflow: 'hidden' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Table Header */}
-                <Box sx={{ display: 'flex', backgroundColor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-                  <Box sx={{ flex: 1, p: 1.5, borderRight: '1px solid #e0e0e0' }}>
-                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                      Metric
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1, p: 1.5 }}>
-                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                      Value
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Table Rows */}
-                {updatedUserData.statsData.map((stat, index) => {
-                  const getIcon = (label) => {
-                    switch(label) {
-                      case 'Average Score':
-                        return <FaChartLine style={{ color: '#6366F1', fontSize: '14px' }} />;
-                      case 'Win Rate':
-                        return <FaTrophy style={{ color: '#F59E0B', fontSize: '14px' }} />;
-                      case 'Current Streak':
-                        return <FaFire style={{ color: '#F97316', fontSize: '14px' }} />;
-                      case 'Highest Streak':
-                        return <FaMedal style={{ color: '#EC4899', fontSize: '14px' }} />;
-                      case 'Time Played':
-                        return <AccessTimeIcon style={{ color: '#10B981', fontSize: '14px' }} />;
-                      case '% Completion Rate':
-                        return <TrendingUpIcon style={{ color: '#8B5CF6', fontSize: '14px' }} />;
-                      case 'Best Category':
-                        return <SportsScoreIcon style={{ color: '#3B82F6', fontSize: '14px' }} />;
-                      case 'Favorite Category':
-                        return <FavoriteIcon style={{ color: '#EF4444', fontSize: '14px' }} />;
-                      case 'Weakest Category':
-                        return <CategoryIcon style={{ color: '#6B7280', fontSize: '14px' }} />;
-                      default:
-                        return null;
-                    }
-                  };
-
-                  const getProgressValue = (label) => {
-                    switch(label) {
-                      case 'Best Category':
-                        return 85;
-                      case 'Favorite Category':
-                        return 70;
-                      case 'Weakest Category':
-                        return 30;
-                      default:
-                        return null;
-                    }
-                  };
-
-                  const progressValue = getProgressValue(stat.label);
-                  const icon = getIcon(stat.label);
-
-                  return (
-                    <Box 
-                      key={index} 
-                      sx={{ 
-                        display: 'flex', 
-                        borderBottom: index < updatedUserData.statsData.length - 1 ? '1px solid #e0e0e0' : 'none',
-                        '&:hover': {
-                          backgroundColor: '#fafafa'
-                        }
-                      }}
-                    >
-                      <Box sx={{ flex: 1, p: 1.5, borderRight: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {icon}
-                        <Typography variant="caption" color="text.secondary">
-                          {stat.label}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ flex: 1, p: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="caption" fontWeight="500">
-                          {stat.value}
-                        </Typography>
-                        {progressValue !== null && (
-                          <Box sx={{ flex: 1, maxWidth: '60px' }}>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={progressValue} 
-                              sx={{ 
-                                height: 4, 
-                                borderRadius: 2,
-                                backgroundColor: '#e0e0e0',
-                                '& .MuiLinearProgress-bar': {
-                                  backgroundColor: stat.label === 'Best Category' ? '#3B82F6' : 
-                                                  stat.label === 'Favorite Category' ? '#EF4444' : '#6B7280'
-                                }
-                              }}
-                            />
-                          </Box>
-                        )}
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Sidebar */}
-        <Grid item xs={12} md={5}>
-          {/* Achievements */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, backgroundColor: '#f8f9fa' }}>
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Achievements
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Grid container spacing={2}>
-              {updatedUserData.achievements.map((achievement) => (
-                <Grid item xs={12} key={achievement.id}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2,
-                      opacity: achievement.locked ? 0.6 : 1,
-                      backgroundColor: achievement.locked ? 'action.hover' : 'background.paper',
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: 2
-                      }
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                      <Box sx={{ 
-                        width: 50, 
-                        height: 50, 
-                        borderRadius: '50%', 
-                        bgcolor: achievement.locked ? 'action.disabledBackground' : 'primary.light',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        {React.cloneElement(achievement.icon, {
-                          sx: { 
-                            color: achievement.locked ? 'action.disabled' : 'primary.main',
-                            fontSize: 24
-                          }
-                        })}
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 0.5 }}>
-                          {achievement.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          {achievement.description}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {achievement.date}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-            <Button 
-              fullWidth 
-              variant="text" 
-              color="primary"
-              sx={{ mt: 2 }}
-            >
-              View All Achievements
-            </Button>
-          </Paper>
-        </Grid>
-      </Grid>
-        </Container>
-
-        {/* Edit Profile Modal - New Design */}
+        {/* Edit Profile Modal - New Account Settings */}
         <Modal
           open={editModalOpen}
           onClose={() => setEditModalOpen(false)}
@@ -991,661 +2035,40 @@ const User_Profile = () => {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: { xs: '95%', sm: '85%', md: '800px' },
-            maxHeight: '95vh',
+            width: { xs: '98%', sm: '95%', md: '90%', lg: '85%', xl: '80%' },
+            height: { xs: '95vh', sm: '90vh', md: '90vh', lg: '85vh', xl: '80vh' },
             bgcolor: 'background.paper',
-            borderRadius: '20px',
+            borderRadius: '16px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             overflow: 'hidden',
             border: '1px solid rgba(255, 255, 255, 0.1)'
           }}>
-            {/* New Modal Header */}
-            <Box sx={{
-              position: 'relative',
-              p: 4,
-              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
-              color: 'white',
-              overflow: 'hidden'
-            }}>
-              <Box sx={{
-                position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 200,
-                height: 200,
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.1)',
-                filter: 'blur(40px)'
-              }} />
-              <Box sx={{
-                position: 'absolute',
-                bottom: -30,
-                left: -30,
-                width: 150,
-                height: 150,
-                borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.08)',
-                filter: 'blur(30px)'
-              }} />
-              
-              <Box sx={{ position: 'relative', zIndex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-                  <Box sx={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: '15px',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(10px)'
-                  }}>
-                    <FaEdit style={{ fontSize: '28px' }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="h4" component="h2" fontWeight="700" sx={{ mb: 0.5 }}>
-                      Edit Profile
-                    </Typography>
-                    <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                      Customize your profile and security settings
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-
-            {/* New Tab Navigation */}
-            <Box sx={{
-              px: 4,
-              py: 3,
-              background: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
-              borderBottom: '1px solid rgba(0, 0, 0, 0.06)'
-            }}>
-              <Box sx={{
-                display: 'flex',
-                gap: 2,
-                p: 1,
-                bgcolor: 'rgba(0, 0, 0, 0.03)',
-                borderRadius: '12px'
-              }}>
-                <Button
-                  onClick={() => setEditTabValue(0)}
-                  sx={{
-                    flex: 1,
-                    py: 2,
-                    px: 3,
-                    borderRadius: '10px',
-                    background: editTabValue === 0 
-                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                      : 'transparent',
-                    color: editTabValue === 0 ? 'white' : 'text.secondary',
-                    fontWeight: editTabValue === 0 ? '600' : '500',
-                    boxShadow: editTabValue === 0 
-                      ? '0 4px 15px rgba(102, 126, 234, 0.4)' 
-                      : 'none',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: editTabValue === 0 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                        : 'rgba(0, 0, 0, 0.05)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  <FaUserCircle style={{ marginRight: 8, fontSize: '18px' }} />
-                  General Information
-                </Button>
-                <Button
-                  onClick={() => setEditTabValue(1)}
-                  sx={{
-                    flex: 1,
-                    py: 2,
-                    px: 3,
-                    borderRadius: '10px',
-                    background: editTabValue === 1 
-                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                      : 'transparent',
-                    color: editTabValue === 1 ? 'white' : 'text.secondary',
-                    fontWeight: editTabValue === 1 ? '600' : '500',
-                    boxShadow: editTabValue === 1 
-                      ? '0 4px 15px rgba(102, 126, 234, 0.4)' 
-                      : 'none',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: editTabValue === 1 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                        : 'rgba(0, 0, 0, 0.05)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  <FaLock style={{ marginRight: 8, fontSize: '18px' }} />
-                  Security
-                </Button>
-              </Box>
-            </Box>
-
-            {/* New Tab Content */}
-            <Box sx={{ p: 4, maxHeight: '50vh', overflowY: 'auto' }}>
-              {editTabValue === 0 && (
-                <Box>
-                  <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" fontWeight="700" sx={{ mb: 1, color: '#1a202c' }}>
-                      Personal Details
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Update your basic information and profile details
-                    </Typography>
-                    
-                    <Box sx={{ display: 'grid', gap: 3 }}>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-                        <Box sx={{ position: 'relative' }}>
-                          <TextField
-                            fullWidth
-                            label="Full Name"
-                            value={editFormData.display_name}
-                            onChange={handleEditFormChange('display_name')}
-                            variant="outlined"
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: '12px',
-                                backgroundColor: '#f8fafc',
-                                border: '2px solid transparent',
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  backgroundColor: '#ffffff',
-                                  borderColor: '#e2e8f0'
-                                },
-                                '&.Mui-focused': {
-                                  backgroundColor: '#ffffff',
-                                  borderColor: '#667eea',
-                                  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                                }
-                              }
-                            }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <FaUserCircle style={{ color: '#64748b' }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                        </Box>
-                        
-                        <Box sx={{ position: 'relative' }}>
-                          <TextField
-                            fullWidth
-                            label="Email Address"
-                            type="email"
-                            value={editFormData.email}
-                            onChange={handleEditFormChange('email')}
-                            variant="outlined"
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: '12px',
-                                backgroundColor: '#f8fafc',
-                                border: '2px solid transparent',
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  backgroundColor: '#ffffff',
-                                  borderColor: '#e2e8f0'
-                                },
-                                '&.Mui-focused': {
-                                  backgroundColor: '#ffffff',
-                                  borderColor: '#667eea',
-                                  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                                }
-                              }
-                            }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <FaEnvelope style={{ color: '#64748b' }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                      
-                      <TextField
-                        fullWidth
-                        label="Bio"
-                        multiline
-                        rows={3}
-                        value={editFormData.bio}
-                        onChange={handleEditFormChange('bio')}
-                        variant="outlined"
-                        placeholder="Tell us about yourself..."
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: '12px',
-                            backgroundColor: '#f8fafc',
-                            border: '2px solid transparent',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#e2e8f0'
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#667eea',
-                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                            }
-                          }
-                        }}
-                      />
-                      
-                      <TextField
-                        fullWidth
-                        label="Website"
-                        value={editFormData.website}
-                        onChange={handleEditFormChange('website')}
-                        variant="outlined"
-                        placeholder="https://yourwebsite.com"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: '12px',
-                            backgroundColor: '#f8fafc',
-                            border: '2px solid transparent',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#e2e8f0'
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#667eea',
-                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                            }
-                          }
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <FaGlobe style={{ color: '#64748b' }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      
-                      <TextField
-                        fullWidth
-                        label="Country"
-                        value={editFormData.country}
-                        onChange={handleEditFormChange('country')}
-                        variant="outlined"
-                        placeholder="Enter your country"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: '12px',
-                            backgroundColor: '#f8fafc',
-                            border: '2px solid transparent',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#e2e8f0'
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#667eea',
-                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                            }
-                          }
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <FaGlobe style={{ color: '#64748b' }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ 
-                    p: 3, 
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%)',
-                    border: '1px solid rgba(0, 0, 0, 0.05)'
-                  }}>
-                    <Typography variant="h6" fontWeight="700" sx={{ mb: 3, color: '#1a202c' }}>
-                      Skills
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Add your skills by typing and pressing space or enter
-                    </Typography>
-                    
-                    <Box sx={{ mb: 3 }}>
-                      <TextField
-                        fullWidth
-                        label="Type a skill and press space or enter"
-                        value={editFormData.currentSkill}
-                        onChange={handleSkillInputChange}
-                        onKeyPress={handleSkillKeyPress}
-                        variant="outlined"
-                        placeholder="e.g., C++, JavaScript, React..."
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: '12px',
-                            backgroundColor: '#ffffff',
-                            border: '2px solid transparent',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              borderColor: '#e2e8f0'
-                            },
-                            '&.Mui-focused': {
-                              borderColor: '#667eea',
-                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                            }
-                          }
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <FaPlus style={{ color: '#64748b' }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Box>
-                    
-                    {editFormData.skills && editFormData.skills.length > 0 && (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 2,
-                        p: 2,
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                        minHeight: '60px'
-                      }}>
-                        {editFormData.skills.map((skill, index) => (
-                          <Chip
-                            key={index}
-                            label={skill}
-                            onDelete={() => handleRemoveSkill(skill)}
-                            deleteIcon={
-                              <FaTimes style={{ fontSize: '12px', color: 'black' }} />
-                            }
-                            sx={{
-                              backgroundColor: 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)',
-                              color: 'black',
-                              fontWeight: '500',
-                              borderRadius: '20px',
-                              '& .MuiChip-deleteIcon': {
-                                color: 'black',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                                  borderRadius: '50%'
-                                }
-                              },
-                              '&:hover': {
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-                              }
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              )}
-
-              {editTabValue === 1 && (
-                <Box>
-                  <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" fontWeight="700" sx={{ mb: 1, color: '#1a202c' }}>
-                      Security Settings
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Update your password to keep your account secure
-                    </Typography>
-                    
-                    <Box sx={{ display: 'grid', gap: 3 }}>
-                      <FormControl fullWidth variant="outlined">
-                        <InputLabel htmlFor="current-password" sx={{ 
-                          backgroundColor: 'white',
-                          px: 1
-                        }}>
-                          Current Password
-                        </InputLabel>
-                        <OutlinedInput
-                          id="current-password"
-                          type={showCurrentPassword ? 'text' : 'password'}
-                          value={editFormData.currentPassword}
-                          onChange={handleEditFormChange('currentPassword')}
-                          sx={{
-                            borderRadius: '12px',
-                            backgroundColor: '#f8fafc',
-                            border: '2px solid transparent',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#e2e8f0'
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#ffffff',
-                              borderColor: '#667eea',
-                              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                            }
-                          }}
-                          endAdornment={
-                            <InputAdornment position="end">
-                              <IconButton
-                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                edge="end"
-                                sx={{ color: '#64748b' }}
-                              >
-                                {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
-                              </IconButton>
-                            </InputAdornment>
-                          }
-                          label="Current Password"
-                        />
-                      </FormControl>
-                      
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-                        <FormControl fullWidth variant="outlined">
-                          <InputLabel htmlFor="new-password" sx={{ 
-                            backgroundColor: 'white',
-                            px: 1
-                          }}>
-                            New Password
-                          </InputLabel>
-                          <OutlinedInput
-                            id="new-password"
-                            type={showNewPassword ? 'text' : 'password'}
-                            value={editFormData.newPassword}
-                            onChange={handleEditFormChange('newPassword')}
-                            sx={{
-                              borderRadius: '12px',
-                              backgroundColor: '#f8fafc',
-                              border: '2px solid transparent',
-                              transition: 'all 0.3s ease',
-                              '&:hover': {
-                                backgroundColor: '#ffffff',
-                                borderColor: '#e2e8f0'
-                              },
-                              '&.Mui-focused': {
-                                backgroundColor: '#ffffff',
-                                borderColor: '#667eea',
-                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                              }
-                            }}
-                            endAdornment={
-                              <InputAdornment position="end">
-                                <IconButton
-                                  onClick={() => setShowNewPassword(!showNewPassword)}
-                                  edge="end"
-                                  sx={{ color: '#64748b' }}
-                                >
-                                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                                </IconButton>
-                              </InputAdornment>
-                            }
-                            label="New Password"
-                          />
-                        </FormControl>
-                        
-                        <FormControl fullWidth variant="outlined">
-                          <InputLabel htmlFor="confirm-password" sx={{ 
-                            backgroundColor: 'white',
-                            px: 1
-                          }}>
-                            Confirm New Password
-                          </InputLabel>
-                          <OutlinedInput
-                            id="confirm-password"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            value={editFormData.confirmPassword}
-                            onChange={handleEditFormChange('confirmPassword')}
-                            sx={{
-                              borderRadius: '12px',
-                              backgroundColor: '#f8fafc',
-                              border: '2px solid transparent',
-                              transition: 'all 0.3s ease',
-                              '&:hover': {
-                                backgroundColor: '#ffffff',
-                                borderColor: '#e2e8f0'
-                              },
-                              '&.Mui-focused': {
-                                backgroundColor: '#ffffff',
-                                borderColor: '#667eea',
-                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                              }
-                            }}
-                            endAdornment={
-                              <InputAdornment position="end">
-                                <IconButton
-                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                  edge="end"
-                                  sx={{ color: '#64748b' }}
-                                >
-                                  {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                                </IconButton>
-                              </InputAdornment>
-                            }
-                            label="Confirm New Password"
-                          />
-                        </FormControl>
-                      </Box>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ 
-                    p: 3, 
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                    border: '1px solid #3b82f6',
-                    borderLeft: '4px solid #3b82f6'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Box sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '10px',
-                        background: '#3b82f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white'
-                      }}>
-                        <FaLock />
-                      </Box>
-                      <Typography variant="subtitle1" fontWeight="600" color="#1e40af">
-                        Password Requirements
-                      </Typography>
-                    </Box>
-                    <Box sx={{ pl: 12 }}>
-                      <Typography variant="body2" color="#1e40af" component="ul" sx={{ mt: 1, pl: 2 }}>
-                        <li>At least 8 characters long</li>
-                        <li>Contains uppercase and lowercase letters</li>
-                        <li>Contains at least one number</li>
-                        <li>Contains at least one special character</li>
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ textAlign: 'left', mt: 3 }}>
-                    <Button
-                      variant="text"
-                      size="small"
-                      sx={{
-                        color: '#667eea',
-                        fontWeight: '500',
-                        textTransform: 'none',
-                        '&:hover': {
-                          backgroundColor: 'rgba(102, 126, 234, 0.08)',
-                          color: '#5a67d8'
-                        }
-                      }}
-                      onClick={() => {
-                        // Handle forgot password logic here
-                        console.log('Forgot password clicked');
-                      }}
-                    >
-                      Forgot Password?
-                    </Button>
-                  </Box>
-                </Box>
-              )}
-            </Box>
-
-            {/* New Modal Actions */}
-            <Box sx={{
-              p: 4,
-              borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-              background: 'linear-gradient(to bottom, #ffffff, #f8fafc)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <Typography variant="body2" color="text.secondary">
-                All changes will be saved automatically
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => setEditModalOpen(false)}
-                  sx={{
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: '10px',
-                    fontWeight: '600',
-                    border: '2px solid #e2e8f0',
-                    color: '#64748b',
-                    '&:hover': {
-                      backgroundColor: '#f1f5f9',
-                      borderColor: '#cbd5e1'
-                    }
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={editTabValue === 0 ? handleSaveProfile : handlePasswordChange}
-                  sx={{
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: '10px',
-                    fontWeight: '600',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)'
-                    }
-                  }}
-                >
-                  {editTabValue === 0 ? 'Save Changes' : 'Update Password'}
-                </Button>
-              </Box>
+            <Box sx={{ height: '100%', overflow: 'auto' }}>
+              <AccountSettings
+                user={user}
+                userData={userData}
+                onClose={() => setEditModalOpen(false)}
+                onSave={(formData) => {
+                  // Handle save logic here
+                  console.log('Profile updated:', formData);
+                  // Update user state with new data
+                  setUser(prev => ({
+                    ...prev,
+                    displayName: formData.fullName,
+                    photoURL: formData.avatar_url
+                  }));
+                  // Update userData state
+                  setUserData(prev => ({
+                    ...prev,
+                    username: formData.username,
+                    bio: formData.bio,
+                    website: formData.website,
+                    country: formData.country,
+                    skills: formData.skills,
+                    avatar_url: formData.avatar_url
+                  }));
+                }}
+              />
             </Box>
           </Box>
         </Modal>
