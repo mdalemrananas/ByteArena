@@ -1,0 +1,546 @@
+/* Solve Problem Page Styles */
+
+.sp-content {
+    padding: 24px;
+    background: #f8fafc;
+    height: calc(100vh - 80px);
+    overflow: hidden;
+}
+
+/* Problem Navbar */
+.sp-navbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background: #f8fafc;
+    padding: 8px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+}
+
+.sp-navbar-left {
+    display: flex;
+    gap: 0;
+}
+
+.sp-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.sp-nav-btn:hover {
+    color: #374151;
+}
+
+.sp-nav-btn.active {
+    color: #0969da;
+    border-bottom-color: #0969da;
+}
+
+/* Problem Header */
+.sp-header {
+    margin-bottom: 12px;
+}
+
+.sp-breadcrumb {
+    margin-bottom: 8px;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.sp-title-section {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.sp-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.sp-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.difficulty-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.difficulty-badge.easy {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.difficulty-badge.medium {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.difficulty-badge.hard {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.points {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.success-rate {
+    background: #f0fdf4;
+    color: #16a34a;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Main Layout */
+.sp-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 16px;
+    margin-bottom: 32px;
+    height: calc(100% - 60px);
+}
+
+/* Problem Section */
+.sp-problem-section {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    overflow-y: auto;
+    height: 100%;
+    max-height: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+}
+
+.sp-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.sp-section-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #24292e;
+    margin: 0;
+}
+
+.sp-problem-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #24292e;
+    margin-bottom: 12px;
+    margin-top: 20px;
+}
+
+.sp-problem-content p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #586069;
+    margin-bottom: 16px;
+}
+
+.sp-problem-content code {
+    background: #f6f8fa;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    color: #24292e;
+}
+
+.sp-example {
+    background: #f6f8fa;
+    border-left: 4px solid #0366d6;
+    padding: 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+}
+
+.sp-example p {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.sp-example strong {
+    color: #24292e;
+}
+
+.sp-constraints {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+
+.sp-constraints li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e1e4e8;
+    font-size: 14px;
+    color: #586069;
+}
+
+.sp-constraints li:last-child {
+    border-bottom: none;
+}
+
+/* Editor Section - Exact Contest Design Match */
+.sp-editor-section {
+    background: #1e293b;
+    border-radius: 8px;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.sp-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+    flex-shrink: 0;
+}
+
+.sp-editor-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.language-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.language-selector label {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.language-select {
+    background: #1e293b;
+    color: #f1f5f9;
+    border: 1px solid #475569;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.language-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.language-select option {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+.sp-editor-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.run-icon-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #374151;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(55, 65, 81, 0.3);
+}
+
+.run-icon-container:hover {
+    background: #4b5563;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(55, 65, 81, 0.4);
+}
+
+.run-icon-container.running {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.run-icon {
+    font-size: 16px;
+}
+
+.run-text {
+    font-size: 14px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.action-btn.primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+.action-btn.secondary {
+    background: #374151;
+    color: white;
+    box-shadow: 0 4px 15px rgba(55, 65, 81, 0.3);
+}
+
+.action-btn.secondary:hover {
+    background: #4b5563;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(55, 65, 81, 0.4);
+}
+
+.sp-editor-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sp-editor {
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 300px;
+}
+
+.code-editor-container {
+    display: flex;
+    background: #0f172a;
+    overflow-y: auto;
+    overflow-x: auto;
+    flex: 1;
+    max-height: 300px;
+}
+
+.line-numbers {
+    width: 50px;
+    background: #1e293b;
+    border-right: 1px solid #334155;
+    padding: 25px 10px;
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.line-number {
+    color: #64748b;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.code-textarea {
+    flex: 1;
+    height: auto;
+    min-height: 100%;
+    background: #0f172a;
+    color: #e2e8f0;
+    border: none;
+    padding: 25px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Output Console */
+.sp-output {
+    border-top: 1px solid #334155;
+    background: #0f172a;
+    min-height: 150px;
+    max-height: 180px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.sp-output h3 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    margin: 0;
+    padding: 12px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+}
+
+.output-content {
+    padding: 12px 16px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.output-content pre {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .sp-main-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    
+    .sp-editor-actions {
+        flex-direction: column;
+    }
+    
+    .run-btn,
+    .submit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .sp-content {
+        padding: 16px;
+    }
+    
+    .sp-title {
+        font-size: 24px;
+    }
+    
+    .sp-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .sp-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .code-textarea {
+        min-height: 200px;
+    }
+    
+    .sp-editor-container {
+        gap: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sp-title {
+        font-size: 20px;
+    }
+    
+    .sp-problem-section,
+    .sp-editor-section {
+        padding: 16px;
+    }
+    
+    .code-textarea {
+        min-height: 150px;
+        padding: 12px;
+    }
+}

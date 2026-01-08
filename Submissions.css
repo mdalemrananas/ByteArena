@@ -1,0 +1,201 @@
+/* Submissions Page Styles - Using SolveProblem CSS Classes */
+
+/* Import SolveProblem styles */
+@import './SolveProblem.css';
+
+/* Override header height for minimal design */
+.submissions-full-width .sp-header {
+    min-height: auto;
+    padding: 16px 0;
+    margin-bottom: 16px;
+}
+
+.submissions-full-width .sp-title-section h1 {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+/* Full Width Submissions Layout */
+.submissions-full-width {
+    width: 100%;
+    padding: 0 24px 24px;
+}
+
+/* Submissions Table Specific Styles */
+.submissions-table-wrapper {
+    width: 100%;
+    height: 60vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    background: #1e293b;
+    border-radius: 12px;
+    border: 1px solid #334155;
+}
+
+.submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.submissions-table th {
+    background: #334155;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #f1f5f9;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #475569;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.submissions-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #334155;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+}
+
+.submissions-table tr:last-child td {
+    border-bottom: none;
+}
+
+.submission-row:hover {
+    background: #334155;
+}
+
+/* Submission Status Styles */
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-icon {
+    font-size: 1.1rem;
+}
+
+.status-icon.accepted {
+    color: #10b981;
+}
+
+.status-icon.wrong {
+    color: #ef4444;
+}
+
+.status-icon.timeout {
+    color: #f59e0b;
+}
+
+.status-icon.error {
+    color: #ef4444;
+}
+
+.status-icon.pending {
+    color: #6b7280;
+}
+
+.status-accepted {
+    border-left: 4px solid #10b981;
+}
+
+.status-wrong {
+    border-left: 4px solid #ef4444;
+}
+
+.status-timeout {
+    border-left: 4px solid #f59e0b;
+}
+
+.status-error {
+    border-left: 4px solid #ef4444;
+}
+
+.status-pending {
+    border-left: 4px solid #6b7280;
+}
+
+/* Submission Cells */
+.submission-id {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 80px;
+}
+
+.submission-problem {
+    font-weight: 500;
+    color: #f1f5f9;
+}
+
+.submission-time,
+.submission-memory,
+.submission-language {
+    color: #94a3b8;
+}
+
+.submission-date {
+    color: #6b7280;
+    font-size: 0.85rem;
+    min-width: 150px;
+}
+
+.submission-points {
+    color: #10b981;
+    font-weight: 600;
+    min-width: 80px;
+}
+
+/* View Code Button */
+.view-code-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.view-code-btn:hover {
+    background: #5a67d8;
+    transform: translateY(-1px);
+}
+
+.view-code-btn svg {
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .submissions-full-width {
+        padding: 0 16px 16px;
+    }
+    
+    .submissions-table-wrapper {
+        height: 50vh;
+    }
+    
+    .submissions-table {
+        min-width: 600px;
+    }
+    
+    .sp-navbar .sp-navbar-left {
+        flex-wrap: wrap;
+    }
+    
+    .sp-nav-btn {
+        font-size: 0.8rem;
+        padding: 8px 12px;
+    }
+}
