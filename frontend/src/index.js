@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+// Import admin setup for initialization
+import './Admin-panel/admin_setup';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

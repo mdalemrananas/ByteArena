@@ -103,9 +103,38 @@ const SignIn = ({ onClose }) => {
     }
   };
 
+  // Helper function to check admin status and redirect accordingly
+  const redirectAfterAuth = async (userEmail) => {
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_admin, role')
+        .eq('email', userEmail)
+        .single();
+      
+      const isAdmin = userData?.is_admin === true || userData?.role === 'admin' || userEmail.toLowerCase() === 'lamiakamalnusny@gmail.com';
+      
+      if (isAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+      
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      // Default to user dashboard if check fails
+      navigate('/dashboard');
+      if (onClose) onClose();
+    }
+  };
+
   // Function to save user data to Supabase after successful signup
   const saveUserDataToSupabase = async (firebaseUser) => {
     try {
+      // Check if this is the admin email
+      const isAdmin = firebaseUser.email.toLowerCase() === 'lamiakamalnusny@gmail.com';
+      
       const userData = {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -119,7 +148,8 @@ const SignIn = ({ onClose }) => {
         matches_played: 0,
         is_active: true,
         is_verified: false,
-        role: 'user',
+        is_admin: isAdmin,
+        role: isAdmin ? 'admin' : 'user',
         preferences: {},
         metadata: {},
         created_at: new Date().toISOString(),
@@ -202,6 +232,9 @@ const SignIn = ({ onClose }) => {
         console.log('Existing social user logged in:', existingUser);
       } else {
         // New user, create record in Supabase
+        // Check if this is the admin email
+        const isAdmin = firebaseUser.email?.toLowerCase() === 'lamiakamalnusny@gmail.com';
+        
         const userData = {
           firebase_uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -216,7 +249,8 @@ const SignIn = ({ onClose }) => {
           matches_played: 0,
           is_active: true,
           is_verified: false,
-          role: 'user',
+          is_admin: isAdmin,
+          role: isAdmin ? 'admin' : 'user',
           preferences: {},
           metadata: {},
           created_at: new Date().toISOString(),
@@ -297,8 +331,8 @@ const SignIn = ({ onClose }) => {
       
       if (result.success) {
         console.log('Authentication successful:', result.user);
-        navigate('/dashboard');
-        if (onClose) onClose();
+        // Redirect based on admin status
+        await redirectAfterAuth(formData.email);
       } else {
         console.log('Authentication failed with result:', result);
         console.log('Error message:', result.error);
@@ -326,8 +360,8 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'google');
         
-        navigate('/dashboard');
-        if (onClose) onClose();
+        // Redirect based on admin status
+        await redirectAfterAuth(result.user.email);
       } else {
         setAuthError(result.error);
       }
@@ -351,8 +385,8 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'github');
         
-        navigate('/dashboard');
-        if (onClose) onClose();
+        // Redirect based on admin status
+        await redirectAfterAuth(result.user.email);
       } else {
         setAuthError(result.error);
       }

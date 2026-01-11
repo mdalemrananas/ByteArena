@@ -10,7 +10,11 @@ import UserLeaderboard from './User_panel/User_Leaderboard.js';
 import UserContest from './User_panel/User_Contest.js';
 import User_Contest_Details from './User_panel/User_Contest_Details.js';
 import User_Contest_Participate from './User_panel/User_Contest_Participate.js';
+import AdminLogin from './Admin-panel/admin_login.js';
+import AdminHomepage from './Admin-panel/admin_homepage.js';
 import sessionTimeoutService from './services/sessionTimeoutService';
+import { supabase } from './services/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 import './App.css';
 
 // Wrapper component to handle loading bar
@@ -19,7 +23,9 @@ const AppContent = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Handle session timeout warning
   const handleSessionWarning = useCallback(() => {
@@ -40,24 +46,46 @@ const AppContent = () => {
 
   // Monitor authentication state
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
       
       if (currentUser) {
+        // Check if user is admin
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('is_admin, role')
+            .eq('email', currentUser.email)
+            .single();
+          
+          const adminStatus = userData?.is_admin === true || userData?.role === 'admin' || currentUser.email?.toLowerCase() === 'lamiakamalnusny@gmail.com';
+          setIsAdmin(adminStatus);
+          
+          // If admin is on user routes, redirect to admin panel
+          if (adminStatus && !location.pathname.startsWith('/admin') && location.pathname !== '/') {
+            navigate('/admin/dashboard');
+          }
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
+        
         // Initialize session timeout when user is authenticated
         sessionTimeoutService.init(handleSessionWarning);
       } else {
+        setIsAdmin(false);
         // Cleanup session timeout when user is not authenticated
         sessionTimeoutService.cleanup();
       }
+      
+      setLoading(false);
     });
 
     return () => {
       unsubscribe();
       sessionTimeoutService.cleanup();
     };
-  }, [handleSessionWarning]);
+  }, [handleSessionWarning, location.pathname, navigate]);
 
   // Start loading bar when route changes
   useEffect(() => {
@@ -163,6 +191,10 @@ const AppContent = () => {
         <Route path="/contest" element={<UserContest />} />
         <Route path="/contest/:contestId" element={<User_Contest_Details />} />
         <Route path="/contest/participate/:contestId" element={<User_Contest_Participate />} />
+        {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminHomepage />} />
+        <Route path="/admin/dashboard" element={<AdminHomepage />} />
+        <Route path="/admin" element={<AdminHomepage />} />
       </Routes>
     </>
   );

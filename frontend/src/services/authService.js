@@ -50,6 +50,10 @@ export const signUpWithEmail = async (email, password, name) => {
     await updateProfile(result.user, { displayName: name });
     
     console.log('Saving user data to Supabase...');
+    
+    // Check if this is the admin email
+    const isAdmin = email.toLowerCase() === 'lamiakamalnusny@gmail.com';
+    
     // Save user data to Supabase
     const { error: supabaseError } = await supabase
       .from('users')
@@ -57,6 +61,8 @@ export const signUpWithEmail = async (email, password, name) => {
         firebase_uid: result.user.uid,
         email: result.user.email,
         display_name: name,
+        is_admin: isAdmin,
+        role: isAdmin ? 'admin' : 'user',
         created_at: new Date().toISOString(),
         last_login: new Date().toISOString()
       });
@@ -64,6 +70,8 @@ export const signUpWithEmail = async (email, password, name) => {
     if (supabaseError) {
       console.error('Error saving to Supabase:', supabaseError);
       // Don't fail the signup if Supabase fails, but log the error
+    } else if (isAdmin) {
+      console.log('Admin user created successfully with admin privileges');
     }
     
     console.log('Sign up completed successfully');
