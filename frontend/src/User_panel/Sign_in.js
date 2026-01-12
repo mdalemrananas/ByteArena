@@ -297,7 +297,12 @@ const SignIn = ({ onClose }) => {
       
       if (result.success) {
         console.log('Authentication successful:', result.user);
-        navigate('/dashboard');
+        // Redirect to question-setter homepage for specific email
+        if (result.user.email === 'alimran7164@gmail.com') {
+          navigate('/question-setter');
+        } else {
+          navigate('/dashboard');
+        }
         if (onClose) onClose();
       } else {
         console.log('Authentication failed with result:', result);
@@ -326,7 +331,12 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'google');
         
-        navigate('/dashboard');
+        // Redirect to question-setter homepage for specific email
+        if (result.user.email === 'alimran7164@gmail.com') {
+          navigate('/question-setter');
+        } else {
+          navigate('/dashboard');
+        }
         if (onClose) onClose();
       } else {
         setAuthError(result.error);
@@ -351,7 +361,12 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'github');
         
-        navigate('/dashboard');
+        // Redirect to question-setter homepage for specific email
+        if (result.user.email === 'alimran7164@gmail.com') {
+          navigate('/question-setter');
+        } else {
+          navigate('/dashboard');
+        }
         if (onClose) onClose();
       } else {
         setAuthError(result.error);
