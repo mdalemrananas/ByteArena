@@ -10,6 +10,16 @@ import UserLeaderboard from './User_panel/User_Leaderboard.js';
 import UserContest from './User_panel/User_Contest.js';
 import User_Contest_Details from './User_panel/User_Contest_Details.js';
 import User_Contest_Participate from './User_panel/User_Contest_Participate.js';
+import QuestionSetterHomepage from './Question-setter/question-setter-Homepage.js';
+import QuestionSetterExploreQuestions from './Question-setter/question-setter-ExploreQuestions.js';
+import QuestionSetterCreateQuestion from './Question-setter/question-setter-CreateQuestion.js';
+import QuestionSetterCreateCompetition from './Question-setter/question-setter-CreateCompetition.js';
+import QuestionSetterQuestionDetails from './Question-setter/question-setter-QuestionDetails.js';
+import QuestionSetterSubmissionDetails from './Question-setter/question-setter-SubmissionDetails.js';
+import QuestionSetterContest from './Question-setter/question-setter-Contest.js';
+import QuestionSetterContestDetails from './Question-setter/question-setter-ContestDetails.js';
+import QuestionSetterLeaderboard from './Question-setter/question-setter-Leaderboard.js';
+import QuestionSetterProfile from './Question-setter/question-setter-Profile.js';
 import sessionTimeoutService from './services/sessionTimeoutService';
 import './App.css';
 
@@ -163,6 +173,16 @@ const AppContent = () => {
         <Route path="/contest" element={<UserContest />} />
         <Route path="/contest/:contestId" element={<User_Contest_Details />} />
         <Route path="/contest/participate/:contestId" element={<User_Contest_Participate />} />
+        <Route path="/question-setter" element={<QuestionSetterHomepage />} />
+        <Route path="/question-setter/explore" element={<QuestionSetterExploreQuestions />} />
+        <Route path="/question-setter/contest" element={<QuestionSetterContest />} />
+        <Route path="/question-setter/contest/:contestId" element={<QuestionSetterContestDetails />} />
+        <Route path="/question-setter/leaderboard" element={<QuestionSetterLeaderboard />} />
+        <Route path="/question-setter/profile" element={<QuestionSetterProfile />} />
+        <Route path="/question-setter/create" element={<QuestionSetterCreateQuestion />} />
+        <Route path="/question-setter/create-competition" element={<QuestionSetterCreateCompetition />} />
+        <Route path="/question-setter/question/:questionId" element={<QuestionSetterQuestionDetails />} />
+        <Route path="/question-setter/submission/:questionId/:userId" element={<QuestionSetterSubmissionDetails />} />
       </Routes>
     </>
   );
