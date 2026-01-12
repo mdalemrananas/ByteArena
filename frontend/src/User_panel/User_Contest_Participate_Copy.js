@@ -5,6 +5,7 @@ import {
   FaBell,
   FaCode,
   FaCoins,
+  FaCommentAlt,
   FaChartLine,
   FaFire,
   FaHome,
@@ -123,14 +124,6 @@ int main() {
     // Your code here
     return 0;
 }`,
-              c: `#include <stdio.h>
-#include <stdlib.h>
-
-// Write your solution here
-int main() {
-    // Your code here
-    return 0;
-}`,
               python: `# Write your solution here
 def main():
     # Your code here
@@ -144,13 +137,7 @@ public class Main {
     public static void main(String[] args) {
         // Your code here
     }
-}`,
-              javascript: `// Write your solution here
-function main() {
-    // Your code here
-}
-
-main();`
+}`
             }
           };
         });
@@ -187,146 +174,12 @@ main();`
     }
   };
 
-  // Load Emscripten for C/C++ execution
-  const loadEmscripten = async () => {
-    return new Promise((resolve, reject) => {
-      if (window.wasmModule) {
-        resolve(window.wasmModule);
-        return;
-      }
-
-      // Load Emscripten runtime
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/emscripten@3.1.27/emscripten.js';
-      script.crossOrigin = 'anonymous';
-      script.onload = () => {
-        resolve(window.emscripten);
-      };
-      script.onerror = (error) => {
-        console.error('Emscripten loading error:', error);
-        reject(error);
-      };
-      document.head.appendChild(script);
-    });
-  };
-
-  // Compile and execute C/C++/Java code using Judge0 API
-  const executeWandboxCode = async (code, language, input) => {
-    try {
-      const languageMap = {
-        'cpp': 54,    // C++ (GCC 9.2.0)
-        'c': 50,      // C (GCC 9.2.0)
-        'java': 62    // Java (OpenJDK 13.0.1)
-      };
-
-      // First, submit the code for compilation
-      const submitResponse = await fetch('https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-rapidapi-key': '1234567890abcdef1234567890abcdef', // Free tier key (limited)
-          'x-rapidapi-host': 'judge0-ce.p.rapidapi.com'
-        },
-        body: JSON.stringify({
-          language_id: languageMap[language],
-          source_code: code,
-          stdin: input || ''
-        })
-      });
-
-      if (!submitResponse.ok) {
-        // Fallback to alternative API if Judge0 fails
-        return await executeCodeWithPiston(code, language, input);
-      }
-
-      const result = await submitResponse.json();
-      
-      let output = '';
-      if (result.compile_output) {
-        output = `Compilation Error:\n${result.compile_output}`;
-      } else if (result.runtime_error) {
-        output = `Runtime Error:\n${result.runtime_error}`;
-      } else if (result.stdout) {
-        output = result.stdout;
-      } else {
-        output = 'No output';
-      }
-
-      return {
-        output: output.trim() || 'No output',
-        status: result.compile_output || result.runtime_error ? 'Runtime Error' : 'Successfully executed'
-      };
-    } catch (error) {
-      console.error('Judge0 compilation error, trying Piston API:', error);
-      // Fallback to Piston API
-      return await executeCodeWithPiston(code, language, input);
-    }
-  };
-
-  // Fallback: Compile and execute using Piston API (free, no authentication needed)
-  const executeCodeWithPiston = async (code, language, input) => {
-    try {
-      const languageMap = {
-        'cpp': 'cpp',
-        'c': 'c',
-        'java': 'java'
-      };
-
-      const response = await fetch('https://emkc.org/api/v2/piston/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          language: languageMap[language],
-          version: '*',
-          files: [
-            {
-              name: language === 'java' ? 'Main.java' : `main.${language === 'cpp' ? 'cpp' : 'c'}`,
-              content: code
-            }
-          ],
-          stdin: input || ''
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      let output = '';
-      if (result.compile && result.compile.stderr) {
-        output = `Compilation Error:\n${result.compile.stderr}`;
-      } else if (result.run && result.run.stderr) {
-        output = `Runtime Error:\n${result.run.stderr}`;
-      } else if (result.run && result.run.stdout) {
-        output = result.run.stdout;
-      } else {
-        output = 'No output';
-      }
-
-      return {
-        output: output.trim() || 'No output',
-        status: (result.compile && result.compile.stderr) || (result.run && result.run.stderr) ? 'Runtime Error' : 'Successfully executed'
-      };
-    } catch (error) {
-      console.error('Piston API error:', error);
-      return {
-        output: `Error: ${error.message}\n\nTroubleshooting:\n1. Check your code syntax\n2. Ensure code compiles locally\n3. Check input format`,
-        status: 'Compilation Error'
-      };
-    }
-  };
-
   // Browser-based code execution
   const executeCode = async (code, language, input) => {
     const startTime = performance.now();
     
     try {
       let output = '';
-      let status = 'Successfully executed';
       
       if (language === 'javascript') {
         // Create a console capture mechanism
@@ -371,7 +224,6 @@ main();`
           output = logs.join('\n');
         } catch (error) {
           output = `Error: ${error.message}`;
-          status = 'Runtime Error';
         } finally {
           console.log = originalConsoleLog;
         }
@@ -413,22 +265,16 @@ sys.stdin = StringIO('${escapedInput}')
           const stderrOutput = pyodide.runPython('sys.stderr.getvalue()');
           if (stderrOutput) {
             output = `Error: ${stderrOutput}`;
-            status = 'Runtime Error';
           }
           
         } catch (error) {
           console.error('Python execution error:', error);
           output = `Error: ${error.message || error.toString()}`;
-          status = 'Runtime Error';
         }
-      } else if (language === 'cpp' || language === 'c' || language === 'java') {
-        // Use Wandbox API for C/C++/Java execution
-        const wandboxResult = await executeWandboxCode(code, language, input);
-        output = wandboxResult.output;
-        status = wandboxResult.status;
+      } else if (language === 'cpp' || language === 'java') {
+        output = `Compilation and execution of ${language.toUpperCase()} is not supported in browser mode. Please use JavaScript or Python for instant execution, or submit your code for server-side evaluation.`;
       } else {
         output = `Language ${language} is not supported for browser execution.`;
-        status = 'Not Supported';
       }
       
       const endTime = performance.now();
@@ -438,7 +284,7 @@ sys.stdin = StringIO('${escapedInput}')
         output: output || 'No output',
         time: executionTime,
         memory: 'N/A',
-        status: status
+        status: output.includes('Error') ? 'Runtime Error' : 'Successfully executed'
       };
       
     } catch (error) {
@@ -618,6 +464,10 @@ sys.stdin = StringIO('${escapedInput}')
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
               <span className="badge">4</span>
+            </button>
+            <button className="icon-btn" data-tooltip="Messages">
+              <FaCommentAlt />
+              <span className="badge">2</span>
             </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
@@ -918,7 +768,6 @@ sys.stdin = StringIO('${escapedInput}')
                         }}
                       >
                         <option value="cpp">C++</option>
-                        <option value="c">C</option>
                         <option value="python">Python</option>
                         <option value="java">Java</option>
                         <option value="javascript">JavaScript</option>

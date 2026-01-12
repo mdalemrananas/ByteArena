@@ -15,7 +15,8 @@ const SignIn = ({ onClose }) => {
     email: '',
     password: '',
     name: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    userType: 'user'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -52,7 +53,8 @@ const SignIn = ({ onClose }) => {
       formData.name.trim() !== '' && 
       formData.email.trim() !== '' && 
       formData.password.trim() !== '' && 
-      formData.confirmPassword.trim() !== '';
+      formData.confirmPassword.trim() !== '' &&
+      formData.userType !== '';
 
     return isPasswordStrong && isPasswordsMatch && isAllFieldsFilled;
   };
@@ -72,7 +74,8 @@ const SignIn = ({ onClose }) => {
         email: '',
         password: '',
         name: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        userType: 'user'
       });
       setPasswordStrength({
         hasMinLength: false,
@@ -119,7 +122,7 @@ const SignIn = ({ onClose }) => {
         matches_played: 0,
         is_active: true,
         is_verified: false,
-        role: 'user',
+        role: formData.userType,
         preferences: {},
         metadata: {},
         created_at: new Date().toISOString(),
@@ -399,6 +402,21 @@ const SignIn = ({ onClose }) => {
                 required
               />
             </div>
+            {isSignUp && (
+              <div className="form-group">
+                <select
+                  name="userType"
+                  value={formData.userType}
+                  onChange={handleChange}
+                  className="user-type-select"
+                  required
+                >
+                  <option disabled value="">Select User Type</option>
+                  <option value="user">User</option>
+                  <option value="moderator">Question Setter</option>
+                </select>
+              </div>
+            )}
             <div className="form-group password-input-container">
               <input
                 type={showPassword ? "text" : "password"}
