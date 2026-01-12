@@ -42,7 +42,6 @@ import {
   FaBell,
   FaCode,
   FaCoins,
-  FaCommentAlt,
   FaChartLine,
   FaFire,
   FaHome,
@@ -340,10 +339,6 @@ const User_Leaderboard = () => {
               <FaBell />
               <span className="badge">4</span>
             </button>
-            <button className="icon-btn" data-tooltip="Messages">
-              <FaCommentAlt />
-              <span className="badge">2</span>
-            </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
               <span>1200.00</span>
@@ -371,12 +366,8 @@ const User_Leaderboard = () => {
               <Box sx={{ mb: 4 }}>
                 <Typography variant="h3" component="h1" sx={{ 
                   fontWeight: 'bold', 
-                  color: '#1e293b',
-                  mb: 1,
-                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
+                  color: '#000000',
+                  mb: 1
                 }}>
                   Global Leaderboard
                 </Typography>

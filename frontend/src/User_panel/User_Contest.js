@@ -39,7 +39,6 @@ import {
   FaSignOutAlt,
   FaSearch,
   FaBell,
-  FaCommentAlt,
   FaCoins,
   FaUser
 } from 'react-icons/fa';
@@ -390,16 +389,19 @@ const User_Contest = () => {
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button className="icon-btn" data-tooltip="Home">
+            <button
+              className="icon-btn"
+              onClick={() => {
+                console.log('Home button clicked, navigating to /');
+                navigate('/');
+              }}
+              data-tooltip="Home"
+            >
               <FaHome />
             </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
               <span className="badge">4</span>
-            </button>
-            <button className="icon-btn" data-tooltip="Messages">
-              <FaCommentAlt />
-              <span className="badge">2</span>
             </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
