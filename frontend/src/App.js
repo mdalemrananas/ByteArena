@@ -21,6 +21,12 @@ import QuestionSetterContestDetails from './Question-setter/question-setter-Cont
 import QuestionSetterLeaderboard from './Question-setter/question-setter-Leaderboard.js';
 import QuestionSetterProfile from './Question-setter/question-setter-Profile.js';
 import sessionTimeoutService from './services/sessionTimeoutService';
+import PracticeProblem from './User_panel/PracticeProblem.js';
+import SolveProblem from './User_panel/SolveProblem.js';
+import Submissions from './User_panel/Submissions.js';
+import ViewSubmission from './User_panel/ViewSubmission.js';
+import Editorial from './User_panel/Editorial.js';
+import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
 import './App.css';
 
 // Wrapper component to handle loading bar
@@ -173,6 +179,15 @@ const AppContent = () => {
         <Route path="/contest" element={<UserContest />} />
         <Route path="/contest/:contestId" element={<User_Contest_Details />} />
         <Route path="/contest/participate/:contestId" element={<User_Contest_Participate />} />
+        <Route path="/practice" element={<PracticeProblem />} />
+        <Route path="/practice/solve/:problemId" element={<SolveProblem />} />
+        <Route path="/practice/editorial/:problemId" element={<Editorial />} />
+        <Route path="/practice/submissions/:problemId" element={<Submissions />} />
+        <Route path="/practice/leaderboard/:problemId" element={<IndividualLeaderboard />} />
+        <Route path="/submissions" element={<Submissions />} />
+        <Route path="/submissions/view/:submissionId" element={<ViewSubmission />} />
+        <Route path="/editorial" element={<Editorial />} />
+        <Route path="/individual-leaderboard" element={<IndividualLeaderboard />} />
         <Route path="/question-setter" element={<QuestionSetterHomepage />} />
         <Route path="/question-setter/explore" element={<QuestionSetterExploreQuestions />} />
         <Route path="/question-setter/contest" element={<QuestionSetterContest />} />

@@ -46,7 +46,7 @@ export default function CodingProblemPage() {
   const [contestData, setContestData] = useState(null);
 
   const [selectedProblem, setSelectedProblem] = useState(0);
-  const [status, setStatus] = useState('Successfully executed');
+  const [status, setStatus] = useState('');
   const [time, setTime] = useState('0.0000 secs');
   const [memory, setMemory] = useState('3.58 Mb');
   const [yourOutput, setYourOutput] = useState('');

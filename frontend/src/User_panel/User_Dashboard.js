@@ -245,6 +245,8 @@ function UserDashboard() {
                     navigate('/dashboard');
                   } else if (item.key === 'contest') {
                     navigate('/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/practice');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
                   }

@@ -25,6 +25,27 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import {
+  Box,
+  Paper,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  Avatar,
+  Chip,
+  Fade
+} from '@mui/material';
+import { Search as SearchIcon, FilterList, Star as StarIcon } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
 import './User_Dashboard.css';
 import './User_Contest_Details.css';
 
@@ -48,6 +69,12 @@ const User_Contest_Details = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [contestData, setContestData] = useState(null);
   const [notification, setNotification] = useState(null);
+
+  // Leaderboard state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('score');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Check if user is already registered for this contest
   const checkRegistrationStatus = async (userId, contestId) => {
@@ -261,6 +288,53 @@ const User_Contest_Details = () => {
     }
   };
 
+  // Leaderboard helper functions
+  const getRankIcon = (rank) => {
+    if (rank === 1) return <FaTrophy style={{ color: '#FFD700', fontSize: '1.2rem' }} />;
+    if (rank === 2) return <FaMedal style={{ color: '#C0C0C0', fontSize: '1.2rem' }} />;
+    if (rank === 3) return <FaMedal style={{ color: '#CD7F32', fontSize: '1.2rem' }} />;
+    return <Typography variant="body2" fontWeight="600" sx={{ color: '#64748b' }}>#{rank}</Typography>;
+  };
+
+  const getRankBackgroundColor = (rank) => {
+    if (rank === 1) return alpha('#FFD700', 0.1);
+    if (rank === 2) return alpha('#C0C0C0', 0.1);
+    if (rank === 3) return alpha('#CD7F32', 0.1);
+    return 'transparent';
+  };
+
+  const getBadgeColor = (badge) => {
+    const colors = {
+      'Gold': 'warning',
+      'Silver': 'default',
+      'Bronze': 'success',
+      'Diamond': 'info',
+      'Platinum': 'secondary'
+    };
+    return colors[badge] || 'default';
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Sample leaderboard data - replace with actual data fetching
+  const leaderboardData = [
+    { rank: 1, name: 'Rahman Islam', username: '@rahman', score: 2450, level: 42, problemsSolved: 156, badge: 'Gold', avatar: 'R' },
+    { rank: 2, name: 'Fatima Begum', username: '@fatima', score: 2380, level: 40, problemsSolved: 148, badge: 'Gold', avatar: 'F' },
+    { rank: 3, name: 'Mohammed Ali', username: '@mohammed', score: 2290, level: 38, problemsSolved: 142, badge: 'Silver', avatar: 'M' },
+    { rank: 4, name: 'Ayesha Siddique', username: '@ayesha', score: 2150, level: 35, problemsSolved: 135, badge: 'Silver', avatar: 'A' },
+    { rank: 5, name: 'Tariq Ahmed', username: '@tariq', score: 2080, level: 33, problemsSolved: 128, badge: 'Bronze', avatar: 'T' },
+    { rank: 6, name: 'Nusrat Jahan', username: '@nusrat', score: 1950, level: 30, problemsSolved: 120, badge: 'Bronze', avatar: 'N' },
+    { rank: 7, name: 'Abdul Karim', username: '@abdul', score: 1820, level: 28, problemsSolved: 112, badge: 'Bronze', avatar: 'A' },
+    { rank: 8, name: 'Shamima Akter', username: '@shamima', score: 1750, level: 26, problemsSolved: 108, badge: 'Diamond', avatar: 'S' },
+    { rank: 9, name: 'Imran Hossain', username: '@imran', score: 1680, level: 24, problemsSolved: 104, badge: 'Diamond', avatar: 'I' },
+    { rank: 10, name: 'Sabina Yasmin', username: '@sabina', score: 1600, level: 22, problemsSolved: 100, badge: 'Platinum', avatar: 'S' },
+    { rank: 11, name: 'Kamal Hassan', username: '@kamal', score: 1520, level: 20, problemsSolved: 95, badge: 'Platinum', avatar: 'K' },
+    { rank: 12, name: 'Laila Rahman', username: '@laila', score: 1450, level: 18, problemsSolved: 90, badge: 'Diamond', avatar: 'L' },
+  ];
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -458,7 +532,7 @@ const User_Contest_Details = () => {
               <div className="content-section">
                 {activeTab === 'overview' && (
                   <>
-                    <h2 className="section-title">Overview</h2>
+                    <h2 className="section-title" style={{ color: 'white' }}>Overview</h2>
                     
                     <div>
                       <h3 className="section-subtitle">About This Contest</h3>
@@ -471,7 +545,7 @@ const User_Contest_Details = () => {
                 
                 {activeTab === 'rules' && (
                   <>
-                    <h2 className="section-title">Rules</h2>
+                    <h2 className="section-title" style={{ color: 'white' }}>Rules</h2>
                     <div>
                       <h3 className="section-subtitle">Contest Rules</h3>
                       <div className="section-text" style={{ whiteSpace: 'pre-line' }}>
@@ -483,14 +557,327 @@ const User_Contest_Details = () => {
 
                 {activeTab === 'leaderboard' && (
                   <>
-                    <h2 className="section-title">Leaderboard</h2>
-                    <p className="section-text">Leaderboard will be available after the contest starts.</p>
+                    {/* Search and Sort Bar */}
+                    <Fade in timeout={1200}>
+                      <Paper 
+                        elevation={0} 
+                        sx={{ 
+                          p: { xs: 2, sm: 3 }, 
+                          mb: 4, 
+                          borderRadius: 3,
+                          background: 'white',
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <TextField
+                            placeholder="Search players by name or username..."
+                            variant="outlined"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            sx={{ 
+                              flex: 1,
+                              minWidth: { xs: '100%', sm: '300px' },
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 2.5,
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}` 
+                                }
+                              }
+                            }}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon sx={{ color: '#64748b' }} />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                          <FormControl sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                            <Select
+                              value={sortBy}
+                              onChange={(e) => setSortBy(e.target.value)}
+                              sx={{ 
+                                borderRadius: 2.5,
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}` 
+                                }
+                              }}
+                              startAdornment={
+                                <InputAdornment position="start">
+                                  <FilterList sx={{ color: '#64748b', mr: 1 }} />
+                                </InputAdornment>
+                              }
+                            >
+                              <MenuItem value="score">Sort by Score</MenuItem>
+                              <MenuItem value="level">Sort by Level</MenuItem>
+                              <MenuItem value="problems">Sort by Problems</MenuItem>
+                              <MenuItem value="name">Sort by Name</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      </Paper>
+                    </Fade>
+
+                    {/* Leaderboard Table */}
+                    <Fade in timeout={1400}>
+                      <Paper 
+                        elevation={0} 
+                        sx={{ 
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          background: 'white',
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                        }}
+                      >
+                        <TableContainer sx={{ maxHeight: 'calc(100vh - 400px)' }}>
+                          <Table sx={{ minWidth: { xs: 600, sm: 800, md: 1000 } }} stickyHeader>
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 80, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Rank
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 200, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Player
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 100, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Score
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 100, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Level
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 120, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Problems
+                                </TableCell>
+                                <TableCell sx={{ 
+                                  fontWeight: '600', 
+                                  color: '#475569', 
+                                  minWidth: 100, 
+                                  backgroundColor: '#f8fafc',
+                                  borderBottom: '2px solid #e2e8f0',
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}>
+                                  Badge
+                                </TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {leaderboardData
+                                .filter(user => 
+                                  user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  user.username.toLowerCase().includes(searchTerm.toLowerCase())
+                                )
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((user) => (
+                                  <TableRow 
+                                    key={user.rank}
+                                    sx={{ 
+                                      backgroundColor: getRankBackgroundColor(user.rank),
+                                      '&:hover': {
+                                        backgroundColor: alpha('#6366F1', 0.04),
+                                        '& .MuiTableCell-root': {
+                                          color: '#1e293b'
+                                        }
+                                      },
+                                      transition: 'all 0.2s ease-in-out',
+                                      borderBottom: '1px solid rgba(226, 232, 240, 0.6)'
+                                    }}
+                                  >
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {getRankIcon(user.rank)}
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        <Avatar 
+                                          sx={{ 
+                                            width: 40, 
+                                            height: 40,
+                                            background: user.rank <= 3 
+                                              ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' 
+                                              : 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            fontSize: '0.875rem',
+                                            boxShadow: user.rank <= 3 ? '0 4px 12px rgba(255, 215, 0, 0.4)' : '0 2px 8px rgba(99, 102, 241, 0.3)'
+                                          }}
+                                        >
+                                          {user.avatar}
+                                        </Avatar>
+                                        <Box>
+                                          <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b' }}>
+                                            {user.name}
+                                          </Typography>
+                                          <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                                            {user.username}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" fontWeight="600" sx={{ color: '#6366F1', fontSize: '0.875rem' }}>
+                                        {user.score.toLocaleString()}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
+                                          {user.level}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 0.25 }}>
+                                          {[...Array(5)].map((_, i) => (
+                                            <StarIcon 
+                                              key={i} 
+                                              sx={{ 
+                                                fontSize: 10,
+                                                color: i < Math.floor(user.level / 20) ? '#FFD700' : '#e2e8f0'
+                                              }} 
+                                            />
+                                          ))}
+                                        </Box>
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
+                                        {user.problemsSolved}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip 
+                                        label={user.badge} 
+                                        color={getBadgeColor(user.badge)}
+                                        size="small"
+                                        variant="filled"
+                                        sx={{ 
+                                          fontWeight: '600',
+                                          fontSize: '0.75rem',
+                                          height: 24,
+                                          borderRadius: 1.5
+                                        }}
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                        
+                        {/* Pagination */}
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          p: { xs: 2, sm: 3 }, 
+                          flexWrap: 'wrap', 
+                          gap: 2,
+                          backgroundColor: '#f8fafc',
+                          borderTop: '1px solid rgba(226, 232, 240, 0.8)'
+                        }}>
+                          <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+                            Showing {page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, leaderboardData.length)} of {leaderboardData.length} players
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Typography variant="body2" color="#64748b" sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.875rem' }}>
+                              Rows per page:
+                            </Typography>
+                            <Select
+                              value={rowsPerPage}
+                              onChange={handleChangeRowsPerPage}
+                              size="small"
+                              sx={{ 
+                                minWidth: 60,
+                                borderRadius: 2,
+                                backgroundColor: 'white',
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                '&:hover': {
+                                  borderColor: '#6366F1'
+                                }
+                              }}
+                            >
+                              <MenuItem value={5}>5</MenuItem>
+                              <MenuItem value={10}>10</MenuItem>
+                              <MenuItem value={25}>25</MenuItem>
+                              <MenuItem value={50}>50</MenuItem>
+                            </Select>
+                            <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+                              Page {page + 1} of {Math.ceil(leaderboardData.length / rowsPerPage)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Paper>
+                    </Fade>
                   </>
                 )}
 
                 {activeTab === 'prizes' && (
                   <>
-                    <h2 className="section-title">Prizes</h2>
+                    <h2 className="section-title" style={{ color: 'white' }}>Prizes</h2>
                     <div>
                       <h3 className="section-subtitle">Prize Distribution</h3>
                       <ul className="bullet-list">
