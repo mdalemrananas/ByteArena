@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaGoogle, FaGithub, FaTimes, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithGithub } from '../services/authService';
+import { getUserRole } from '../services/userRoleService';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { updateProfile } from 'firebase/auth';
@@ -219,7 +220,7 @@ const SignIn = ({ onClose }) => {
           matches_played: 0,
           is_active: true,
           is_verified: false,
-          role: 'user',
+          role: 'user', // Default role for social auth users
           preferences: {},
           metadata: {},
           created_at: new Date().toISOString(),
@@ -242,6 +243,27 @@ const SignIn = ({ onClose }) => {
       }
     } catch (error) {
       console.error('Unexpected error handling social auth user:', error);
+    }
+  };
+
+  // Function to handle role-based navigation
+  const handleRoleBasedNavigation = async (firebaseUser) => {
+    try {
+      const userRole = await getUserRole(firebaseUser.uid);
+      console.log('User role:', userRole);
+      
+      if (userRole === 'moderator') {
+        navigate('/question-setter');
+      } else {
+        navigate('/dashboard');
+      }
+      
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('Error handling role-based navigation:', error);
+      // Default to user dashboard on error
+      navigate('/dashboard');
+      if (onClose) onClose();
     }
   };
 
@@ -300,8 +322,7 @@ const SignIn = ({ onClose }) => {
       
       if (result.success) {
         console.log('Authentication successful:', result.user);
-        navigate('/dashboard');
-        if (onClose) onClose();
+        await handleRoleBasedNavigation(result.user);
       } else {
         console.log('Authentication failed with result:', result);
         console.log('Error message:', result.error);
@@ -329,8 +350,7 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'google');
         
-        navigate('/dashboard');
-        if (onClose) onClose();
+        await handleRoleBasedNavigation(result.user);
       } else {
         setAuthError(result.error);
       }
@@ -354,8 +374,7 @@ const SignIn = ({ onClose }) => {
         // Check if user exists in Supabase, if not create new user record
         await handleSocialAuthUser(result.user, 'github');
         
-        navigate('/dashboard');
-        if (onClose) onClose();
+        await handleRoleBasedNavigation(result.user);
       } else {
         setAuthError(result.error);
       }
