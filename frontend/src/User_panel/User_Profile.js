@@ -1964,7 +1964,14 @@ const User_Profile = () => {
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button className="icon-btn" data-tooltip="Home">
+            <button
+              className="icon-btn"
+              onClick={() => {
+                console.log('Home button clicked, navigating to /');
+                navigate('/');
+              }}
+              data-tooltip="Home"
+            >
               <FaHome />
             </button>
             <button className="icon-btn" data-tooltip="Notifications">

@@ -252,8 +252,15 @@ main();`
         output = 'No output';
       }
 
+      // Extract memory usage from Judge0 API response
+      let memoryUsage = 'N/A';
+      if (result.memory) {
+        memoryUsage = `${(result.memory / 1024).toFixed(2)} MB`; // Convert KB to MB
+      }
+
       return {
         output: output.trim() || 'No output',
+        memory: memoryUsage,
         status: result.compile_output || result.runtime_error ? 'Runtime Error' : 'Successfully executed'
       };
     } catch (error) {
@@ -307,22 +314,100 @@ main();`
         output = 'No output';
       }
 
+      // Extract memory usage from Piston API response
+      let memoryUsage = 'N/A';
+      if (result.run && result.run.memory) {
+        memoryUsage = `${(result.run.memory / 1024).toFixed(2)} MB`; // Convert KB to MB
+      }
+
       return {
         output: output.trim() || 'No output',
+        memory: memoryUsage,
         status: (result.compile && result.compile.stderr) || (result.run && result.run.stderr) ? 'Runtime Error' : 'Successfully executed'
       };
     } catch (error) {
       console.error('Piston API error:', error);
       return {
         output: `Error: ${error.message}\n\nTroubleshooting:\n1. Check your code syntax\n2. Ensure code compiles locally\n3. Check input format`,
+        memory: 'N/A',
         status: 'Compilation Error'
       };
     }
   };
 
+  // Detect code language based on syntax patterns
+  const detectCodeLanguage = (code) => {
+    const trimmedCode = code.trim();
+    
+    // Language signatures
+    const signatures = {
+      java: [
+        /\bpublic\s+class\s+\w+/,
+        /import\s+java\./,
+        /System\.out\.println/
+      ],
+      python: [
+        /^\s*def\s+\w+\s*\(/m,
+        /^\s*import\s+\w+/m,
+        /^\s*from\s+\w+\s+import/m,
+        /print\s*\(/,
+        /:\s*$/m
+      ],
+      cpp: [
+        /#include\s*[<"]/,
+        /using\s+namespace\s+std/,
+        /int\s+main\s*\(/,
+        /cout\s*<<|cin\s*>>/
+      ],
+      c: [
+        /#include\s*<stdio\.h>/,
+        /int\s+main\s*\(/,
+        /printf|scanf/
+      ],
+      javascript: [
+        /function\s+\w+\s*\(|const\s+\w+\s*=|let\s+\w+\s*=/,
+        /console\.log/,
+        /=>|function/
+      ]
+    };
+    
+    let detectedLanguages = [];
+    
+    for (const [lang, patterns] of Object.entries(signatures)) {
+      const matches = patterns.filter(pattern => pattern.test(trimmedCode)).length;
+      if (matches > 0) {
+        detectedLanguages.push({ lang, score: matches });
+      }
+    }
+    
+    return detectedLanguages.sort((a, b) => b.score - a.score).map(d => d.lang);
+  };
+
+  // Validate if selected language matches code language
+  const validateCodeLanguage = (code, selectedLanguage) => {
+    const detectedLangs = detectCodeLanguage(code);
+    
+    if (detectedLangs.length === 0) {
+      return { isValid: true, message: '' };
+    }
+    
+    const detectedLang = detectedLangs[0];
+    
+    if (detectedLang !== selectedLanguage) {
+      return {
+        isValid: false,
+        message: `⚠️ Language Mismatch!\n\nYou selected ${selectedLanguage.toUpperCase()}, but your code appears to be written in ${detectedLang.toUpperCase()}.\n\nPlease either:\n1. Change your code to ${selectedLanguage.toUpperCase()}\n2. Switch the language selector to ${detectedLang.toUpperCase()}`,
+        detectedLang
+      };
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
   // Browser-based code execution
   const executeCode = async (code, language, input) => {
     const startTime = performance.now();
+    const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
     
     try {
       let output = '';
@@ -432,12 +517,21 @@ sys.stdin = StringIO('${escapedInput}')
       }
       
       const endTime = performance.now();
+      const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
       const executionTime = ((endTime - startTime) / 1000).toFixed(4);
+      
+      // Calculate memory usage
+      let memoryUsage = 'N/A';
+      if (performance.memory) {
+        const memoryUsedBytes = endMemory - startMemory;
+        const memoryUsedMB = (memoryUsedBytes / (1024 * 1024)).toFixed(2);
+        memoryUsage = `${memoryUsedMB} MB`;
+      }
       
       return {
         output: output || 'No output',
         time: executionTime,
-        memory: 'N/A',
+        memory: memoryUsage,
         status: status
       };
       
@@ -497,6 +591,17 @@ sys.stdin = StringIO('${escapedInput}')
 
   const handleRun = async () => {
     if (isRunning) return;
+    
+    // Validate language match
+    const validation = validateCodeLanguage(code, language);
+    
+    if (!validation.isValid) {
+      setStatus('Language Mismatch');
+      setYourOutput(validation.message);
+      setTime('0.0000 secs');
+      setMemory('N/A');
+      return;
+    }
     
     setIsRunning(true);
     setStatus('Running...');
