@@ -4,7 +4,6 @@ import {
   FaBell,
   FaCode,
   FaCoins,
-  FaCommentAlt,
   FaChartLine,
   FaFire,
   FaHome,
@@ -334,10 +333,6 @@ const User_Contest_Details = () => {
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
               <span className="badge">4</span>
-            </button>
-            <button className="icon-btn" data-tooltip="Messages">
-              <FaCommentAlt />
-              <span className="badge">2</span>
             </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />

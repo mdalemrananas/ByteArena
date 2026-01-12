@@ -955,7 +955,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
     },
     {
       icon: <FaTrophyIcon style={{ color: '#f59e0b', fontSize: '20px' }} />,
-      text: "Earned the 'Quiz Wizard' achievement",
+      text: "Earned the 'Problem Solving Wizard' achievement",
       date: "Apr 28, 03:15 PM"
     },
     {
@@ -1060,10 +1060,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
             </p>
             <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
               <span style={{ color: '#374151' }}>
-                <strong style={{ color: '#111827' }}>187</strong> Quizzes Taken
-              </span>
-              <span style={{ color: '#374151' }}>
-                <strong style={{ color: '#111827' }}>15</strong> Quizzes Created
+                <strong style={{ color: '#111827' }}>187</strong> Problem Solve
               </span>
               <span style={{ color: '#374151' }}>
                 <strong style={{ color: '#111827' }}>1,243</strong> Followers
@@ -1092,30 +1089,13 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
             >
               <span style={{ fontSize: '1.125rem' }}>✏️</span> Edit Profile
             </button>
-            <button 
-              style={{
-                backgroundColor: 'white',
-                color: '#374151',
-                padding: '0.5rem 1.5rem',
-                borderRadius: '0.5rem',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                border: '1px solid #d1d5db',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <span>💬</span> Message
-            </button>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '2rem' }}>
-        {['Activity', 'Quizzes Taken', 'Created Quizzes', 'Followers', 'Following'].map((tab, index) => (
+        {['Activity', 'Problem Solve', 'Followers', 'Following'].map((tab, index) => (
           <button
             key={tab}
             onClick={() => setTabValue(index)}
@@ -1873,7 +1853,6 @@ const User_Profile = () => {
       : userData.joinDate,
     stats: userData.stats || {
       quizzesTaken: 187,
-      quizzesCreated: 15,
       followers: 1243,
       following: 356
     },
@@ -1991,10 +1970,6 @@ const User_Profile = () => {
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
               <span className="badge">4</span>
-            </button>
-            <button className="icon-btn" data-tooltip="Messages">
-              <FaCommentAlt />
-              <span className="badge">2</span>
             </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
