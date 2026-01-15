@@ -27,6 +27,9 @@ import Submissions from './User_panel/Submissions.js';
 import ViewSubmission from './User_panel/ViewSubmission.js';
 import Editorial from './User_panel/Editorial.js';
 import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
+import PrivateRoute from './components/PrivateRoute.js';
+import RoleBasedRoute from './components/RoleBasedRoute.js';
+import AdminDashboard from './Admin_Panel/Admin_Dashboard.js';
 import './App.css';
 
 // Wrapper component to handle loading bar
@@ -173,31 +176,43 @@ const AppContent = () => {
       
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/leaderboard" element={<UserLeaderboard />} />
-        <Route path="/contest" element={<UserContest />} />
-        <Route path="/contest/:contestId" element={<User_Contest_Details />} />
-        <Route path="/contest/participate/:contestId" element={<User_Contest_Participate />} />
-        <Route path="/practice" element={<PracticeProblem />} />
-        <Route path="/practice/solve/:problemId" element={<SolveProblem />} />
-        <Route path="/practice/editorial/:problemId" element={<Editorial />} />
-        <Route path="/practice/submissions/:problemId" element={<Submissions />} />
-        <Route path="/practice/leaderboard/:problemId" element={<IndividualLeaderboard />} />
-        <Route path="/submissions" element={<Submissions />} />
-        <Route path="/submissions/view/:submissionId" element={<ViewSubmission />} />
-        <Route path="/editorial" element={<Editorial />} />
-        <Route path="/individual-leaderboard" element={<IndividualLeaderboard />} />
-        <Route path="/question-setter" element={<QuestionSetterHomepage />} />
-        <Route path="/question-setter/explore" element={<QuestionSetterExploreQuestions />} />
-        <Route path="/question-setter/contest" element={<QuestionSetterContest />} />
-        <Route path="/question-setter/contest/:contestId" element={<QuestionSetterContestDetails />} />
-        <Route path="/question-setter/leaderboard" element={<QuestionSetterLeaderboard />} />
-        <Route path="/question-setter/profile" element={<QuestionSetterProfile />} />
-        <Route path="/question-setter/create" element={<QuestionSetterCreateQuestion />} />
-        <Route path="/question-setter/create-competition" element={<QuestionSetterCreateCompetition />} />
-        <Route path="/question-setter/question/:questionId" element={<QuestionSetterQuestionDetails />} />
-        <Route path="/question-setter/submission/:questionId/:userId" element={<QuestionSetterSubmissionDetails />} />
+        {/* User Routes - Only accessible by users */}
+        <Route path="/dashboard" element={<RoleBasedRoute allowedRoles={['user']}><Dashboard /></RoleBasedRoute>} />
+        <Route path="/profile" element={<RoleBasedRoute allowedRoles={['user']}><UserProfile /></RoleBasedRoute>} />
+        <Route path="/leaderboard" element={<RoleBasedRoute allowedRoles={['user']}><UserLeaderboard /></RoleBasedRoute>} />
+        <Route path="/contest" element={<RoleBasedRoute allowedRoles={['user']}><UserContest /></RoleBasedRoute>} />
+        <Route path="/contest/:contestId" element={<RoleBasedRoute allowedRoles={['user']}><User_Contest_Details /></RoleBasedRoute>} />
+        <Route path="/contest/participate/:contestId" element={<RoleBasedRoute allowedRoles={['user']}><User_Contest_Participate /></RoleBasedRoute>} />
+        <Route path="/practice" element={<RoleBasedRoute allowedRoles={['user']}><PracticeProblem /></RoleBasedRoute>} />
+        <Route path="/practice/solve/:problemId" element={<RoleBasedRoute allowedRoles={['user']}><SolveProblem /></RoleBasedRoute>} />
+        <Route path="/practice/editorial/:problemId" element={<RoleBasedRoute allowedRoles={['user']}><Editorial /></RoleBasedRoute>} />
+        <Route path="/practice/submissions/:problemId" element={<RoleBasedRoute allowedRoles={['user']}><Submissions /></RoleBasedRoute>} />
+        <Route path="/practice/leaderboard/:problemId" element={<RoleBasedRoute allowedRoles={['user']}><IndividualLeaderboard /></RoleBasedRoute>} />
+        <Route path="/submissions" element={<RoleBasedRoute allowedRoles={['user']}><Submissions /></RoleBasedRoute>} />
+        <Route path="/submissions/view/:submissionId" element={<RoleBasedRoute allowedRoles={['user']}><ViewSubmission /></RoleBasedRoute>} />
+        <Route path="/editorial" element={<RoleBasedRoute allowedRoles={['user']}><Editorial /></RoleBasedRoute>} />
+        <Route path="/individual-leaderboard" element={<RoleBasedRoute allowedRoles={['user']}><IndividualLeaderboard /></RoleBasedRoute>} />
+        
+        {/* Question Setter Routes - Only accessible by moderators */}
+        <Route path="/question-setter" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterHomepage /></RoleBasedRoute>} />
+        <Route path="/question-setter/explore" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterExploreQuestions /></RoleBasedRoute>} />
+        <Route path="/question-setter/contest" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterContest /></RoleBasedRoute>} />
+        <Route path="/question-setter/contest/:contestId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterContestDetails /></RoleBasedRoute>} />
+        <Route path="/question-setter/leaderboard" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterLeaderboard /></RoleBasedRoute>} />
+        <Route path="/question-setter/profile" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterProfile /></RoleBasedRoute>} />
+        <Route path="/question-setter/create" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateQuestion /></RoleBasedRoute>} />
+        <Route path="/question-setter/create-competition" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateCompetition /></RoleBasedRoute>} />
+        <Route path="/question-setter/question/:questionId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterQuestionDetails /></RoleBasedRoute>} />
+        <Route path="/question-setter/submission/:questionId/:userId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterSubmissionDetails /></RoleBasedRoute>} />
+        
+        {/* Admin Routes - Only accessible by admins */}
+        <Route path="/admin_dashboard" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_users" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_contests" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_problems" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
       </Routes>
     </>
   );

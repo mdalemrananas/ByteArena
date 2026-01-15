@@ -252,9 +252,11 @@ const SignIn = ({ onClose }) => {
       const userRole = await getUserRole(firebaseUser.uid);
       console.log('User role:', userRole);
       
-      if (userRole === 'moderator') {
+      if (userRole === 'admin') {
+        navigate('/admin_dashboard');
+      } else if (userRole === 'moderator') {
         navigate('/question-setter');
-      } else {
+      } else if (userRole === 'user') {
         navigate('/dashboard');
       }
       
@@ -433,6 +435,7 @@ const SignIn = ({ onClose }) => {
                   <option disabled value="">Select User Type</option>
                   <option value="user">User</option>
                   <option value="moderator">Question Setter</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
             )}
