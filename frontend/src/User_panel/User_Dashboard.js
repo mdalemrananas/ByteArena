@@ -313,7 +313,7 @@ function UserDashboard() {
             <h1>Your Adventure Starts Here:</h1>
             <h2>Share, Learn, Enjoy!</h2>
             <p className="sub">Build engaging problems, challenge others</p>
-            <button className="primary-btn">Explore Problems</button>
+            <button className="primary-btn" onClick={() => navigate('/practice')}>Explore Problems</button>
           </div>
         </section>
 
@@ -436,14 +436,21 @@ function UserDashboard() {
                       </button>
                     </div>
                   </div>
-                  <a href="#" style={{
-                    color: '#6366f1',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    textDecoration: 'none'
-                  }}>
+                  <button 
+                    onClick={() => navigate('/practice')}
+                    style={{
+                      color: '#6366f1',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      textDecoration: 'none',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
                     View All Problems
-                  </a>
+                  </button>
                 </div>
 
                 <div style={{
@@ -770,44 +777,21 @@ function UserDashboard() {
                     gap: '1rem',
                     alignItems: 'center'
                   }}>
-                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.875rem' }}>
-                      <button style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#6366f1',
-                        border: 'none',
-                        borderRadius: '6px',
+                    <button 
+                      onClick={() => navigate('/contest')}
+                      style={{
+                        color: '#6366f1',
+                        fontSize: '0.875rem',
                         fontWeight: '500',
-                        cursor: 'pointer',
-                        color: 'white'
-                      }}>All</button>
-                      <button style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: 'white',
+                        textDecoration: 'none',
+                        background: 'none',
                         border: 'none',
-                        borderRadius: '6px',
-                        fontWeight: '500',
                         cursor: 'pointer',
-                        color: '#6b7280'
-                      }}>Hot</button>
-                      <button style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        color: '#6b7280'
-                      }}>Trending</button>
-                      <button style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        color: '#6b7280'
-                      }}>Editor's</button>
-                    </div>
+                        padding: 0
+                      }}
+                    >
+                      View All contest
+                    </button>
                   </div>
                 </div>
 
@@ -1134,34 +1118,23 @@ function UserDashboard() {
                     gap: '0.5rem'
                   }}>
                     <Trophy size={24} />
-                    Top Competitors
+                    Top 5 Competitors
                   </h2>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <a href="#" style={{
-                      color: '#6366f1',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      textDecoration: 'none'
-                    }}>
+                    <button 
+                      onClick={() => navigate('/leaderboard')}
+                      style={{
+                        color: '#6366f1',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textDecoration: 'none',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
                       View Full Leaderboard
-                    </a>
-                    <button style={{
-                      padding: '0.5rem',
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}>
-                      <ChevronLeft size={16} />
-                    </button>
-                    <button style={{
-                      padding: '0.5rem',
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}>
-                      <ChevronRight size={16} />
                     </button>
                   </div>
                 </div>

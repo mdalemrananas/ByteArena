@@ -45,15 +45,159 @@ export default function CodingProblemPage() {
   const [problems, setProblems] = useState([]);
   const [contestData, setContestData] = useState(null);
 
+  // Store user-written code for each problem
+  const [problemCodes, setProblemCodes] = useState({});
+  // Store selected language for each problem
+  const [problemLanguages, setProblemLanguages] = useState({});
+  // Store output for each problem
+  const [problemOutputs, setProblemOutputs] = useState({});
+  // Store custom input for each problem
+  const [problemInputs, setProblemInputs] = useState({});
+
   const [selectedProblem, setSelectedProblem] = useState(0);
   const [status, setStatus] = useState('');
   const [time, setTime] = useState('0.0000 secs');
-  const [memory, setMemory] = useState('3.58 Mb');
+  const [memory, setMemory] = useState('0.0 Mb');
   const [yourOutput, setYourOutput] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState({ type: '', message: '' });
 
-  // Fetch contest details from Supabase
+  const handleSubmit = async () => {
+    if (!user || !contestId || !problems[currentProblem]) {
+      setSubmissionStatus({
+        type: 'error',
+        message: 'User not authenticated or contest data missing'
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmissionStatus({ type: 'info', message: 'Submitting your solution...' });
+
+    try {
+      // Get the user's ID from the users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('firebase_uid', user.uid)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('User not found in database');
+      }
+
+      // Get the current question ID
+      const currentQuestion = problems[currentProblem];
+      
+      // Map frontend language values to database expected values
+      const languageMap = {
+        'cpp': 'c++',  // Map 'cpp' to 'c++' for database
+        'c': 'c',
+        'python': 'python',
+        'java': 'java',
+        'javascript': 'javascript'
+      };
+      
+      const dbLanguage = languageMap[language] || 'c++';
+      
+      // Check if user already has a submission for this question
+      const { data: existingSubmission, error: fetchError } = await supabase
+        .from('contest_question_solves')
+        .select('id')
+        .eq('question_id', currentQuestion.id)
+        .eq('participate_id', userData.id)
+        .maybeSingle();
+
+      let result;
+      
+      if (existingSubmission) {
+        // Update existing submission
+        const { data: updatedData, error: updateError } = await supabase
+          .from('contest_question_solves')
+          .update({
+            language: dbLanguage,
+            code: code,
+            time_taken: parseFloat(time.split(' ')[0]) || 0,
+            memory_taken: parseFloat(memory.split(' ')[0]) || 0,
+            solve_updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmission.id)
+          .select()
+          .single();
+          
+        if (updateError) throw updateError;
+        result = updatedData;
+        setSubmissionStatus({
+          type: 'success',
+          message: 'Solution updated successfully!'
+        });
+      } else {
+        // Create new submission
+        const { data: newData, error: insertError } = await supabase
+          .from('contest_question_solves')
+          .insert({
+            question_id: currentQuestion.id,
+            participate_id: userData.id,
+            language: dbLanguage,
+            code: code,
+            time_taken: parseFloat(time.split(' ')[0]) || 0,
+            memory_taken: parseFloat(memory.split(' ')[0]) || 0
+          })
+          .select()
+          .single();
+          
+        if (insertError) throw insertError;
+        result = newData;
+        setSubmissionStatus({
+          type: 'success',
+          message: 'Solution submitted successfully!'
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting solution:', error);
+      setSubmissionStatus({
+        type: 'error',
+        message: error.message || 'Failed to submit solution. Please try again.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDownload = () => {
+  // Get file extension based on language
+  const fileExtensions = {
+    'cpp': 'cpp',
+    'c': 'c',
+    'python': 'py',
+    'java': 'java',
+    'javascript': 'js'
+  };
+  
+  const extension = fileExtensions[language] || 'txt';
+  const filename = `code.${extension}`;
+  
+  // Create a blob with the code content
+  const blob = new Blob([code], { type: 'text/plain' });
+  
+  // Create download link
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  
+  // Trigger download
+  document.body.appendChild(link);
+  link.click();
+  
+  // Clean up
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
   const fetchContestDetails = async (id) => {
     try {
       const { data, error } = await supabase
@@ -100,9 +244,9 @@ export default function CodingProblemPage() {
       
       if (data && data.length > 0) {
         // Transform database data to the expected format
-        const formattedProblems = data.map((question, index) => {
+        const formattedProblems = data.map((question) => {
           return {
-            id: index,
+            id: question.id, // Use the actual UUID from the database
             title: question.question_title,
             difficulty: "Medium",
             timeLimit: "1s",
@@ -173,17 +317,93 @@ main();`
   };
 
   const handleProblemChange = (index) => {
+    // Save current code, language, output, and input before switching
+    if (currentProblem !== null && problems[currentProblem]) {
+      const currentProblemId = problems[currentProblem].id;
+      setProblemCodes(prev => ({
+        ...prev,
+        [currentProblemId]: code
+      }));
+      setProblemLanguages(prev => ({
+        ...prev,
+        [currentProblemId]: language
+      }));
+      setProblemOutputs(prev => ({
+        ...prev,
+        [currentProblemId]: yourOutput
+      }));
+      setProblemInputs(prev => ({
+        ...prev,
+        [currentProblemId]: customInput
+      }));
+    }
+    
     setCurrentProblem(index);
     setSelectedProblem(index);
-    if (problems[index] && problems[index].starterCode[language]) {
-      setCode(problems[index].starterCode[language]);
+    const problem = problems[index];
+    if (problem) {
+      const problemId = problem.id;
+      // Check if user has a saved language for this problem
+      const savedLanguage = problemLanguages[problemId];
+      if (savedLanguage) {
+        // Use the saved language
+        setLanguage(savedLanguage);
+      }
+      
+      // Check if user has written code for this problem
+      const savedCode = problemCodes[problemId];
+      if (savedCode) {
+        // Use the user's saved code
+        setCode(savedCode);
+      } else {
+        // Use the starter code for the selected language if available, otherwise use the first available language
+        const currentLang = savedLanguage || language;
+        const codeToSet = problem.starterCode[currentLang] || 
+                         Object.values(problem.starterCode)[0] || 
+                         '';
+        setCode(codeToSet);
+      }
+      
+      // Restore or clear output for this problem
+      const savedOutput = problemOutputs[problemId];
+      setYourOutput(savedOutput || '');
+      
+      // Restore or clear custom input for this problem
+      const savedInput = problemInputs[problemId];
+      setCustomInput(savedInput || '');
+      
+      // Reset status when switching problems
+      setStatus('');
+      setTime('0.0000 secs');
+      setMemory('0.0 Mb');
     }
   };
 
   const handleLanguageChange = (newLanguage) => {
     setLanguage(newLanguage);
-    if (problems[currentProblem] && problems[currentProblem].starterCode[newLanguage]) {
-      setCode(problems[currentProblem].starterCode[newLanguage]);
+    // Save the language preference for the current problem
+    if (currentProblem !== null && problems[currentProblem]) {
+      const currentProblemId = problems[currentProblem].id;
+      setProblemLanguages(prev => ({
+        ...prev,
+        [currentProblemId]: newLanguage
+      }));
+    }
+    
+    const problem = problems[currentProblem];
+    if (problem) {
+      const problemId = problem.id;
+      // Check if user has written code for this problem
+      const savedCode = problemCodes[problemId];
+      if (savedCode) {
+        // Keep the user's code even when changing language
+        setCode(savedCode);
+      } else {
+        // Use the starter code for the new language if available
+        if (problem.starterCode[newLanguage]) {
+          setCode(problem.starterCode[newLanguage]);
+        }
+      }
     }
   };
 
@@ -679,10 +899,10 @@ sys.stdin = StringIO('${escapedInput}')
                     navigate('/dashboard');
                   } else if (item.key === 'contest') {
                     navigate('/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/practice');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
-                  } else if (item.key === 'practice') {
-                    navigate('/dashboard');
                   }
                 }
               }}
@@ -758,7 +978,10 @@ sys.stdin = StringIO('${escapedInput}')
             }}>
               <div style={{
                 padding: '1.5rem 1rem',
-                borderBottom: '1px solid #34495e'
+                borderBottom: '1px solid #34495e',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}>
                 <h2 style={{
                   margin: 0,
@@ -766,6 +989,41 @@ sys.stdin = StringIO('${escapedInput}')
                   fontWeight: '600',
                   color: 'white'
                 }}>Problems</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    style={{
+                      backgroundColor: isSubmitting ? '#cccccc' : '#e23333ff',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '4px',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      fontWeight: '500',
+                      fontSize: '0.875rem',
+                      transition: 'background-color 0.2s',
+                      opacity: isSubmitting ? 0.8 : 1,
+                      ':hover': {
+                        backgroundColor: isSubmitting ? '#cccccc' : '#c12a2a'
+                      }
+                    }}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </button>
+                  {submissionStatus.message && (
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: submissionStatus.type === 'error' ? '#ff6b6b' : 
+                             submissionStatus.type === 'success' ? '#51cf66' : '#339af0',
+                      textAlign: 'right',
+                      maxWidth: '200px',
+                      padding: '0.25rem 0'
+                    }}>
+                      {submissionStatus.message}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{ flex: 1, overflow: 'auto' }}>
@@ -1052,6 +1310,7 @@ sys.stdin = StringIO('${escapedInput}')
                           cursor: 'pointer',
                           borderRadius: '4px'
                         }}
+                        onClick={handleDownload}
                       >
                         <Download size={18} />
                       </button>
@@ -1064,9 +1323,29 @@ sys.stdin = StringIO('${escapedInput}')
                           cursor: 'pointer',
                           borderRadius: '4px'
                         }}
+                        onClick={(event) => {
+                          navigator.clipboard.writeText(code);
+                          setShowCopied(true);
+                          setTimeout(() => {
+                            setShowCopied(false);
+                          }, 2000);
+                        }}
                       >
                         <Copy size={18} />
                       </button>
+                      {showCopied && (
+                        <span style={{
+                          color: '#4CAF50',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                          borderRadius: '4px',
+                          animation: 'fadeIn 0.3s ease-in-out'
+                        }}>
+                          Copied!
+                        </span>
+                      )}
                       <button
                         style={{
                           padding: '0.5rem',

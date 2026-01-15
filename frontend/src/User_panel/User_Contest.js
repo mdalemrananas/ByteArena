@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Container, 
@@ -67,6 +67,7 @@ const User_Contest = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
@@ -170,6 +171,15 @@ const User_Contest = () => {
     return () => unsubscribe();
   }, []);
 
+  // Debounce search term to improve performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Helper function to format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -230,7 +240,7 @@ const User_Contest = () => {
   };
 
   // Filter contests based on tab selection, category, difficulty, and search term
-  const getFilteredContests = () => {
+  const getFilteredContests = useMemo(() => {
     const now = new Date();
     let filteredContests = [];
     
@@ -254,30 +264,31 @@ const User_Contest = () => {
     // Filter by category
     if (categoryFilter !== 'all') {
       filteredContests = filteredContests.filter(contest => 
-        contest.contest_category === categoryFilter
+        contest.contest_category && contest.contest_category.toLowerCase() === categoryFilter.toLowerCase()
       );
     }
     
     // Filter by difficulty
     if (difficultyFilter !== 'all') {
       filteredContests = filteredContests.filter(contest => 
-        contest.contest_difficulty === difficultyFilter
+        contest.contest_difficulty && contest.contest_difficulty.toLowerCase() === difficultyFilter.toLowerCase()
       );
     }
     
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
+    // Filter by search term (using debounced value)
+    if (debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase().trim();
       filteredContests = filteredContests.filter(contest => 
-        contest.title.toLowerCase().includes(searchLower) ||
-        contest.description?.toLowerCase().includes(searchLower) ||
-        contest.contest_difficulty.toLowerCase().includes(searchLower) ||
-        contest.contest_category.toLowerCase().includes(searchLower)
+        (contest.title && contest.title.toLowerCase().includes(searchLower)) ||
+        (contest.description && contest.description.toLowerCase().includes(searchLower)) ||
+        (contest.contest_difficulty && contest.contest_difficulty.toLowerCase().includes(searchLower)) ||
+        (contest.contest_category && contest.contest_category.toLowerCase().includes(searchLower)) ||
+        (contest.prize_money && contest.prize_money.toString().includes(searchLower))
       );
     }
     
     return filteredContests;
-  };
+  }, [contests, tabValue, categoryFilter, difficultyFilter, debouncedSearchTerm, registeredContests]);
 
   // Check if registration button should be shown
   const shouldShowRegisterButton = (contest) => {
@@ -287,6 +298,30 @@ const User_Contest = () => {
     
     // Show register button only if registration is currently open (between start and end dates)
     return now >= registrationStart && now <= registrationEnd;
+  };
+
+  // Get search result count
+  const getSearchResultCount = () => {
+    return getFilteredContests.length;
+  };
+
+  // Clear search function
+  const clearSearch = () => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+  };
+
+  // Clear all filters function
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+    setCategoryFilter('all');
+    setDifficultyFilter('all');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = () => {
+    return searchTerm || categoryFilter !== 'all' || difficultyFilter !== 'all';
   };
 
   const categories = ['all', 'C/C++', 'Java', 'PHP', 'HTML, CSS', 'JavaScript', 'Python'];
@@ -360,6 +395,8 @@ const User_Contest = () => {
                     navigate('/dashboard');
                   } else if (item.key === 'contest') {
                     navigate('/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/practice');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
                   }
@@ -622,7 +659,8 @@ const User_Contest = () => {
                     top: '50%',
                     transform: 'translateY(-50%)',
                     color: '#9ca3af',
-                    fontSize: '16px'
+                    fontSize: '16px',
+                    zIndex: 2
                   }} 
                 />
                 <input
@@ -630,6 +668,11 @@ const User_Contest = () => {
                   placeholder="Search contests..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      clearSearch();
+                    }
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 12px 12px 40px',
@@ -638,7 +681,8 @@ const User_Contest = () => {
                     borderRadius: '8px',
                     outline: 'none',
                     transition: 'all 0.2s',
-                    backgroundColor: 'white'
+                    backgroundColor: 'white',
+                    paddingRight: searchTerm ? '40px' : '12px'
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = '#6366f1';
@@ -649,6 +693,39 @@ const User_Contest = () => {
                     e.target.style.boxShadow = 'none';
                   }}
                 />
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#9ca3af',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      padding: '4px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 2
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#f3f4f6';
+                      e.target.style.color = '#6b7280';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'none';
+                      e.target.style.color = '#9ca3af';
+                    }}
+                    title="Clear search (ESC)"
+                  >
+                    ×
+                  </button>
+                )}
               </Box>
 
               {/* Category Select */}
@@ -709,13 +786,64 @@ const User_Contest = () => {
                 <option value="Medium">Medium</option>
                 <option value="Hard">Hard</option>
               </select>
+
+              {/* Clear All Filters Button */}
+              {hasActiveFilters() && (
+                <Button
+                  variant="outlined"
+                  onClick={clearAllFilters}
+                  size="small"
+                  sx={{
+                    borderColor: '#e5e7eb',
+                    color: '#6b7280',
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: '#d1d5db',
+                      backgroundColor: '#f9fafb'
+                    }
+                  }}
+                >
+                  Clear All
+                </Button>
+              )}
+
+              {/* Search Results Count */}
+              {debouncedSearchTerm && (
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  {getSearchResultCount()} result{getSearchResultCount() !== 1 ? 's' : ''} found
+                </Typography>
+              )}
             </Box>
           </Box>
 
           {/* Contest Cards Grid */}
           <Box sx={{ mb: 4, maxWidth: '1400px', mx: 'auto' }}>
-            <Grid container spacing={3}>
-              {getFilteredContests().map((contest) => (
+            {debouncedSearchTerm && getFilteredContests.length === 0 ? (
+              <Box sx={{ 
+                textAlign: 'center', 
+                py: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}>
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                  No contests found matching "{debouncedSearchTerm}"
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try adjusting your search terms or filters
+                </Typography>
+                <Button 
+                  variant="outlined" 
+                  onClick={clearSearch}
+                  sx={{ mt: 2 }}
+                >
+                  Clear Search
+                </Button>
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                {getFilteredContests.map((contest) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
                   <div className="contest-card-wrapper">
                     <Card 
@@ -867,6 +995,7 @@ const User_Contest = () => {
                 </Grid>
               ))}
             </Grid>
+            )}
           </Box>
 
           {/* Pagination */}
