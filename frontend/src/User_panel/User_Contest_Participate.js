@@ -22,6 +22,7 @@ import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
+import './Notifications.css';
 
 const menuItems = [
   { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
@@ -64,20 +65,90 @@ export default function CodingProblemPage() {
   const [showCopied, setShowCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState({ type: '', message: '' });
+  const [notification, setNotification] = useState(null);
+
+  // Function to validate user output against expected output
+  const validateOutput = (userOutput, expectedOutput) => {
+    // Normalize both outputs by trimming whitespace and normalizing line endings
+    const normalizedUserOutput = userOutput.trim().replace(/\r\n/g, '\n');
+    const normalizedExpectedOutput = expectedOutput.trim().replace(/\r\n/g, '\n');
+    
+    // Debug logging
+    console.log('User Output:', JSON.stringify(normalizedUserOutput));
+    console.log('Expected Output:', JSON.stringify(normalizedExpectedOutput));
+    console.log('Match:', normalizedUserOutput === normalizedExpectedOutput);
+    
+    // Compare the normalized outputs
+    return normalizedUserOutput === normalizedExpectedOutput;
+  };
+
+  // Function to show notification
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 5000);
+  };
+
+  // Function to get count of solved problems by user
+  const getSolvedProblemsCount = async (userId, contestId) => {
+    try {
+      const { data, error } = await supabase
+        .from('contest_question_solves')
+        .select('question_id')
+        .eq('participate_id', userId);
+      
+      if (error) {
+        console.error('Error fetching solved problems:', error);
+        return 0;
+      }
+      
+      // Get unique question IDs that user has solved
+      const solvedQuestionIds = data ? [...new Set(data.map(solve => solve.question_id))] : [];
+      return solvedQuestionIds.length;
+    } catch (error) {
+      console.error('Error in getSolvedProblemsCount:', error);
+      return 0;
+    }
+  };
 
   const handleSubmit = async () => {
     if (!user || !contestId || !problems[currentProblem]) {
-      setSubmissionStatus({
-        type: 'error',
-        message: 'User not authenticated or contest data missing'
-      });
+      showNotification('User not authenticated or contest data missing', 'error');
+      return;
+    }
+
+    // Check if code has been run and output is available
+    if (!yourOutput) {
+      showNotification('Please run your code first to check output before submitting.', 'error');
       return;
     }
 
     setIsSubmitting(true);
-    setSubmissionStatus({ type: 'info', message: 'Submitting your solution...' });
+    setSubmissionStatus({ type: 'info', message: 'Validating your solution...' });
 
     try {
+      // Get the current question details
+      const currentQuestion = problems[currentProblem];
+      
+      // Use the sample output from the problem data for validation
+      const expectedOutput = currentQuestion.sampleOutput;
+      
+      // Debug logging
+      console.log('Current Question:', currentQuestion);
+      console.log('Sample Output:', JSON.stringify(expectedOutput));
+      console.log('User Output:', JSON.stringify(yourOutput));
+
+      // Validate the output
+      const isValidOutput = validateOutput(yourOutput, expectedOutput);
+      
+      if (!isValidOutput) {
+        showNotification('Your output does not match the expected output. Please check your solution and try again.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Get the user's ID from the users table
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -88,13 +159,10 @@ export default function CodingProblemPage() {
       if (userError || !userData) {
         throw new Error('User not found in database');
       }
-
-      // Get the current question ID
-      const currentQuestion = problems[currentProblem];
       
       // Map frontend language values to database expected values
       const languageMap = {
-        'cpp': 'c++',  // Map 'cpp' to 'c++' for database
+        'cpp': 'c++',
         'c': 'c',
         'python': 'python',
         'java': 'java',
@@ -130,10 +198,7 @@ export default function CodingProblemPage() {
           
         if (updateError) throw updateError;
         result = updatedData;
-        setSubmissionStatus({
-          type: 'success',
-          message: 'Solution updated successfully!'
-        });
+        showNotification('Solution updated successfully!', 'success');
       } else {
         // Create new submission
         const { data: newData, error: insertError } = await supabase
@@ -151,17 +216,71 @@ export default function CodingProblemPage() {
           
         if (insertError) throw insertError;
         result = newData;
-        setSubmissionStatus({
-          type: 'success',
-          message: 'Solution submitted successfully!'
-        });
+        
+        // Award 5 points for solving the problem and update contest participant score
+        try {
+          // First, get current participant record
+          const { data: participantData, error: participantError } = await supabase
+            .from('contest_participants')
+            .select('score')
+            .eq('contest_id', contestId)
+            .eq('user_id', userData.id)
+            .single();
+
+          let isAllProblemsSolved = false;
+
+          if (participantError && participantError.code !== 'PGRST116') {
+            // If participant record doesn't exist, create it
+            if (participantError.code === 'PGRST116') {
+              const { error: createError } = await supabase
+                .from('contest_participants')
+                .insert({
+                  contest_id: contestId,
+                  user_id: userData.id,
+                  score: 5,
+                  status: 'in_progress'
+                });
+              if (createError) throw createError;
+            } else {
+              throw participantError;
+            }
+          } else {
+            // Update existing participant score by adding 5 points
+            const currentScore = participantData?.score || 0;
+            const newScore = currentScore + 5;
+            
+            // Check if all problems are solved after this submission
+            const totalProblems = problems.length;
+            const solvedProblems = await getSolvedProblemsCount(userData.id, contestId);
+            isAllProblemsSolved = solvedProblems + 1 >= totalProblems;
+            
+            const { error: updateScoreError } = await supabase
+              .from('contest_participants')
+              .update({
+                score: newScore,
+                status: isAllProblemsSolved ? 'completed' : 'in_progress',
+                updated_at: new Date().toISOString()
+              })
+              .eq('contest_id', contestId)
+              .eq('user_id', userData.id);
+              
+            if (updateScoreError) throw updateScoreError;
+          }
+          
+          const pointsMessage = isAllProblemsSolved ? 
+            'Solution submitted successfully! +5 points earned! Contest completed!' : 
+            'Solution submitted successfully! +5 points earned!';
+          
+          showNotification(pointsMessage, 'success');
+        } catch (scoreError) {
+          console.error('Error updating score:', scoreError);
+          // Still show success notification even if score update fails
+          showNotification('Solution submitted successfully!', 'success');
+        }
       }
     } catch (error) {
       console.error('Error submitting solution:', error);
-      setSubmissionStatus({
-        type: 'error',
-        message: error.message || 'Failed to submit solution. Please try again.'
-      });
+      showNotification(error.message || 'Failed to submit solution. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -960,6 +1079,54 @@ sys.stdin = StringIO('${escapedInput}')
             </div>
           </div>
         </header>
+
+        {/* Notification Component */}
+        {notification && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 1000,
+            backgroundColor: notification.type === 'success' ? '#28a745' : 
+                           notification.type === 'error' ? '#dc3545' : '#17a2b8',
+            color: 'white',
+            padding: '15px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            minWidth: '300px',
+            maxWidth: '400px',
+            fontSize: '14px',
+            fontWeight: '500',
+            animation: 'slideIn 0.3s ease-out'
+          }}>
+            <span style={{ flex: 1 }}>{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '0',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <section className="ud-content">
           <div style={{
