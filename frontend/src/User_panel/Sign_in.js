@@ -9,9 +9,9 @@ import { updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
 import './Sign_in.css';
 
-const SignIn = ({ onClose }) => {
+const SignIn = ({ onClose, isSignUpMode = false }) => {
   const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(isSignUpMode);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -33,6 +33,7 @@ const SignIn = ({ onClose }) => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const checkPasswordStrength = (password) => {
     return {
@@ -249,7 +250,27 @@ const SignIn = ({ onClose }) => {
   // Function to handle role-based navigation
   const handleRoleBasedNavigation = async (firebaseUser) => {
     try {
-      const userRole = await getUserRole(firebaseUser.uid);
+      // Get user data including is_active status
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('role, is_active')
+        .eq('firebase_uid', firebaseUser.uid)
+        .single();
+      
+      if (error) throw error;
+      
+      console.log('User data:', userData);
+      
+      // Check if account is active
+      if (!userData.is_active) {
+        // Sign out the user if account is not active
+        await auth.signOut();
+        setAuthError('Your account has been restricted. Please contact the administrator.');
+        return;
+      }
+      
+      // If account is active, proceed with role-based navigation
+      const userRole = userData.role;
       console.log('User role:', userRole);
       
       if (userRole === 'admin') {
@@ -435,74 +456,75 @@ const SignIn = ({ onClose }) => {
                   <option disabled value="">Select User Type</option>
                   <option value="user">User</option>
                   <option value="moderator">Question Setter</option>
-                  <option value="admin">Admin</option>
                 </select>
               </div>
             )}
-            <div className="form-group password-input-container">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                minLength="6"
-                className="password-input"
-              />
-              <button 
-                type="button" 
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
+            <div className="form-group password-group">
+              <label>Password</label>
+              <div className="password-input-container">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => setTimeout(() => setIsPasswordFocused(false), 200)}
+                  placeholder="Enter your password"
+                  required
+                />
+                <button 
+                  type="button" 
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+                {isPasswordFocused && isSignUp && (
+                  <div className={`password-requirements ${isPasswordFocused ? 'visible' : ''}`}>
+                    <div className="requirement-title">Password must contain:</div>
+                    <div className={`requirement ${passwordStrength.hasMinLength ? 'met' : ''}`}>
+                      {passwordStrength.hasMinLength ? '✓' : '•'} At least 8 characters
+                    </div>
+                    <div className={`requirement ${passwordStrength.hasUpperCase ? 'met' : ''}`}>
+                      {passwordStrength.hasUpperCase ? '✓' : '•'} At least one uppercase letter
+                    </div>
+                    <div className={`requirement ${passwordStrength.hasLowerCase ? 'met' : ''}`}>
+                      {passwordStrength.hasLowerCase ? '✓' : '•'} At least one lowercase letter
+                    </div>
+                    <div className={`requirement ${passwordStrength.hasNumber ? 'met' : ''}`}>
+                      {passwordStrength.hasNumber ? '✓' : '•'} At least one number
+                    </div>
+                    <div className={`requirement ${passwordStrength.hasSpecialChar ? 'met' : ''}`}>
+                      {passwordStrength.hasSpecialChar ? '✓' : '•'} At least one special character
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            
             {isSignUp && (
-              <>
-                <div className="form-group password-input-container">
+              <div className="form-group">
+                <label>Confirm Password</label>
+                <div className="password-input-container">
                   <input
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
-                    placeholder="Confirm Password"
+                    placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    required={isSignUp}
-                    minLength="6"
-                    className={`password-input ${passwordError ? 'error' : ''}`}
+                    required
                   />
                   <button 
                     type="button" 
                     className="password-toggle"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
-                  {passwordError && <div className="error-message">{passwordError}</div>}
                 </div>
-                
-                <div className="password-requirements">
-                  <div className="requirement-title">Password must contain:</div>
-                  <div className={`requirement ${passwordStrength.hasMinLength ? 'met' : ''}`}>
-                    {passwordStrength.hasMinLength ? '✓' : '•'} At least 8 characters
-                  </div>
-                  <div className={`requirement ${passwordStrength.hasUpperCase ? 'met' : ''}`}>
-                    {passwordStrength.hasUpperCase ? '✓' : '•'} At least one uppercase letter
-                  </div>
-                  <div className={`requirement ${passwordStrength.hasLowerCase ? 'met' : ''}`}>
-                    {passwordStrength.hasLowerCase ? '✓' : '•'} At least one lowercase letter
-                  </div>
-                  <div className={`requirement ${passwordStrength.hasNumber ? 'met' : ''}`}>
-                    {passwordStrength.hasNumber ? '✓' : '•'} At least one number
-                  </div>
-                  <div className={`requirement ${passwordStrength.hasSpecialChar ? 'met' : ''}`}>
-                    {passwordStrength.hasSpecialChar ? '✓' : '•'} At least one special character
-                  </div>
-                </div>
-              </>
+                {passwordError && <div className="error-message">{passwordError}</div>}
+              </div>
             )}
             
             {authError && <div className="error-message auth-error">{authError}</div>}
@@ -524,20 +546,22 @@ const SignIn = ({ onClose }) => {
             <span>OR</span>
           </div>
 
+          <p className="social-text">Sign up with</p>
+
           <div className="social-login">
             <button 
               className="social-btn google" 
               onClick={handleGoogleSignIn}
               disabled={isLoading}
             >
-              <FaGoogle /> {isSignUp ? 'Sign up with Google' : 'Sign in with Google'}
+              <FaGoogle />
             </button>
             <button 
               className="social-btn github" 
               onClick={handleGithubSignIn}
               disabled={isLoading}
             >
-              <FaGithub /> {isSignUp ? 'Sign up with GitHub' : 'Sign in with GitHub'}
+              <FaGithub />
             </button>
           </div>
 

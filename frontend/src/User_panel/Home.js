@@ -45,7 +45,7 @@ const Home = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [showSignIn, setShowSignIn] = useState(false);
-
+    const [isSignUpMode, setIsSignUpMode] = useState(false);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -57,10 +57,20 @@ const Home = () => {
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
+    const handleSignInClick = () => {
+        setIsSignUpMode(false);
+        setShowSignIn(true);
+    };
+
+    const handleGetStartedClick = () => {
+        setIsSignUpMode(true);
+        setShowSignIn(true);
+    };
+
     return (
         <div className="home">
             {/* Navbar */}
-            <Navbar onSignInClick={() => setShowSignIn(true)} />
+            <Navbar onSignInClick={handleSignInClick} onGetStartedClick={handleGetStartedClick} />
 
             {/* Hero Section */}
             <section className="hero">
@@ -261,7 +271,7 @@ const Home = () => {
             <Footer />
 
             {/* SignIn Modal */}
-            {showSignIn && <SignIn onClose={() => setShowSignIn(false)} />}
+            {showSignIn && <SignIn onClose={() => setShowSignIn(false)} isSignUpMode={isSignUpMode} />}
         </div>
     );
 };
