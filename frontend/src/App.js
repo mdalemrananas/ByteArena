@@ -30,6 +30,8 @@ import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
 import PrivateRoute from './components/PrivateRoute.js';
 import RoleBasedRoute from './components/RoleBasedRoute.js';
 import AdminDashboard from './Admin_Panel/Admin_Dashboard.js';
+import Admin_Leaderboard from './Admin_Panel/Admin_Leaderboard.js';
+import Admin_Contest from './Admin_Panel/Admin_Contest.js';
 import './App.css';
 
 // Wrapper component to handle loading bar
@@ -213,6 +215,8 @@ const AppContent = () => {
         <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_leaderboard" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Leaderboard /></RoleBasedRoute>} />
+        <Route path="/admin_contest" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
       </Routes>
     </>
   );

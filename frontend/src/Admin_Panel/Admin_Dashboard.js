@@ -32,6 +32,7 @@ const menuItems = [
   { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
   { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
   { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
   { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
   { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
@@ -249,15 +250,17 @@ function AdminDashboard() {
                 } else {
                   setActive(item.key);
                   if (item.key === 'home') {
-                    navigate('/admin/dashboard');
+                    navigate('/admin_dashboard');
                   } else if (item.key === 'users') {
                     navigate('/admin/users');
                   } else if (item.key === 'contests') {
-                    navigate('/admin/contests');
+                    navigate('/admin_contest');
                   } else if (item.key === 'problems') {
                     navigate('/admin/problems');
                   } else if (item.key === 'analytics') {
                     navigate('/admin/analytics');
+                  } else if (item.key === 'leaderboard') {
+                    navigate('/admin_leaderboard');
                   } else if (item.key === 'settings') {
                     navigate('/admin/settings');
                   }
