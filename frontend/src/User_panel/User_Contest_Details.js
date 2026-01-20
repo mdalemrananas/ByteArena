@@ -74,7 +74,7 @@ const User_Contest_Details = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(3);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
@@ -322,7 +322,8 @@ const User_Contest_Details = () => {
     
     setLeaderboardLoading(true);
     try {
-      const { data, error } = await supabase
+      // First fetch participants with their user info
+      const { data: participants, error: participantsError } = await supabase
         .from('contest_participants')
         .select(`
           id,
@@ -341,20 +342,43 @@ const User_Contest_Details = () => {
         .eq('status', 'completed')
         .order('score', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching leaderboard data:', error);
+      if (participantsError) {
+        console.error('Error fetching participants:', participantsError);
         setLeaderboardData([]);
         return;
       }
 
+      // Fetch problems solved count for each participant
+      const participantsWithSolvedCount = await Promise.all(
+        participants.map(async (participant) => {
+          const { count, error: countError } = await supabase
+            .from('contest_question_solves')
+            .select('*', { count: 'exact', head: true })
+            .eq('participate_id', participant.user_id);
+
+          if (countError) {
+            console.error('Error fetching solved count for user:', participant.user_id, countError);
+            return {
+              ...participant,
+              problemsSolved: 0
+            };
+          }
+
+          return {
+            ...participant,
+            problemsSolved: count || 0
+          };
+        })
+      );
+
       // Transform data for the leaderboard display
-      const transformedData = data.map((participant, index) => ({
+      const transformedData = participantsWithSolvedCount.map((participant, index) => ({
         rank: participant.rank || (index + 1),
         name: participant.users.display_name || 'Unknown User',
         username: participant.users.username ? `@${participant.users.username}` : '@user',
         score: participant.score || 0,
         level: participant.rank || 1, // Use rank as level since rank is stored in level column
-        problemsSolved: 0, // Default problems solved since column doesn't exist
+        problemsSolved: participant.problemsSolved,
         badge: 'Bronze', // Default badge since column doesn't exist
         avatar: participant.users.display_name ? participant.users.display_name.charAt(0).toUpperCase() : 'U'
       }));
@@ -737,7 +761,7 @@ const User_Contest_Details = () => {
                                       textTransform: 'uppercase',
                                       letterSpacing: '0.05em'
                                     }}>
-                                      Player
+                                      Competitor Name
                                     </TableCell>
                                     <TableCell sx={{ 
                                       fontWeight: '600', 
@@ -754,18 +778,6 @@ const User_Contest_Details = () => {
                                     <TableCell sx={{ 
                                       fontWeight: '600', 
                                       color: '#475569', 
-                                      minWidth: 100, 
-                                      backgroundColor: '#f8fafc',
-                                      borderBottom: '2px solid #e2e8f0',
-                                      fontSize: '0.875rem',
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.05em'
-                                    }}>
-                                      Level
-                                    </TableCell>
-                                    <TableCell sx={{ 
-                                      fontWeight: '600', 
-                                      color: '#475569', 
                                       minWidth: 120, 
                                       backgroundColor: '#f8fafc',
                                       borderBottom: '2px solid #e2e8f0',
@@ -775,18 +787,6 @@ const User_Contest_Details = () => {
                                     }}>
                                       Problems
                                     </TableCell>
-                                    <TableCell sx={{ 
-                                      fontWeight: '600', 
-                                      color: '#475569', 
-                                      minWidth: 100, 
-                                      backgroundColor: '#f8fafc',
-                                      borderBottom: '2px solid #e2e8f0',
-                                      fontSize: '0.875rem',
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.05em'
-                                    }}>
-                                      Badge
-                                    </TableCell>
                                   </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -795,6 +795,18 @@ const User_Contest_Details = () => {
                                       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                       user.username.toLowerCase().includes(searchTerm.toLowerCase())
                                     )
+                                    .sort((a, b) => {
+                                      if (sortBy === 'score') {
+                                        return b.score - a.score;
+                                      } else if (sortBy === 'problems') {
+                                        return b.problemsSolved - a.problemsSolved;
+                                      } else if (sortBy === 'name') {
+                                        return a.name.localeCompare(b.name);
+                                      } else if (sortBy === 'level') {
+                                        return b.rank - a.rank;
+                                      }
+                                      return 0;
+                                    })
                                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                     .map((user) => (
                                       <TableRow 
@@ -849,41 +861,9 @@ const User_Contest_Details = () => {
                                           </Typography>
                                         </TableCell>
                                         <TableCell>
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
-                                              {user.level}
-                                            </Typography>
-                                            <Box sx={{ display: 'flex', gap: 0.25 }}>
-                                              {[...Array(5)].map((_, i) => (
-                                                <StarIcon 
-                                                  key={i} 
-                                                  sx={{ 
-                                                    fontSize: 10,
-                                                    color: i < Math.floor(user.level / 20) ? '#FFD700' : '#e2e8f0'
-                                                  }} 
-                                                />
-                                              ))}
-                                            </Box>
-                                          </Box>
-                                        </TableCell>
-                                        <TableCell>
                                           <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
                                             {user.problemsSolved}
                                           </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                          <Chip 
-                                            label={user.badge} 
-                                            color={getBadgeColor(user.badge)}
-                                            size="small"
-                                            variant="filled"
-                                            sx={{ 
-                                              fontWeight: '600',
-                                              fontSize: '0.75rem',
-                                              height: 24,
-                                              borderRadius: 1.5
-                                            }}
-                                          />
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -923,11 +903,54 @@ const User_Contest_Details = () => {
                                     }
                                   }}
                                 >
+                                  <MenuItem value={3}>3</MenuItem>
                                   <MenuItem value={5}>5</MenuItem>
                                   <MenuItem value={10}>10</MenuItem>
                                   <MenuItem value={25}>25</MenuItem>
                                   <MenuItem value={50}>50</MenuItem>
                                 </Select>
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => setPage(page - 1)}
+                                    disabled={page === 0}
+                                    sx={{
+                                      px: 2,
+                                      py: 1,
+                                      border: '1px solid rgba(226, 232, 240, 0.8)',
+                                      borderRadius: 1,
+                                      backgroundColor: page === 0 ? '#f1f5f9' : 'white',
+                                      color: page === 0 ? '#94a3b8' : '#64748b',
+                                      cursor: page === 0 ? 'not-allowed' : 'pointer',
+                                      fontSize: '0.875rem',
+                                      '&:hover': {
+                                        backgroundColor: page === 0 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                                        borderColor: page === 0 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                                      }
+                                    }}
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    onClick={() => setPage(page + 1)}
+                                    disabled={page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1}
+                                    sx={{
+                                      px: 2,
+                                      py: 1,
+                                      border: '1px solid rgba(226, 232, 240, 0.8)',
+                                      borderRadius: 1,
+                                      backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : 'white',
+                                      color: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#94a3b8' : '#64748b',
+                                      cursor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer',
+                                      fontSize: '0.875rem',
+                                      '&:hover': {
+                                        backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                                        borderColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                                      }
+                                    }}
+                                  >
+                                    Next
+                                  </button>
+                                </Box>
                                 <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
                                   Page {page + 1} of {Math.ceil(leaderboardData.length / rowsPerPage)}
                                 </Typography>

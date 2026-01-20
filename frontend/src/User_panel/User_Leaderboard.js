@@ -72,7 +72,7 @@ const User_Leaderboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(3);
   const [active, setActive] = useState('leaderboard');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -606,6 +606,18 @@ const User_Leaderboard = () => {
                     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     user.username.toLowerCase().includes(searchTerm.toLowerCase())
                   )
+                  .sort((a, b) => {
+                    if (sortBy === 'score') {
+                      return b.score - a.score;
+                    } else if (sortBy === 'level') {
+                      return b.level - a.level;
+                    } else if (sortBy === 'problems') {
+                      return b.problemsSolved - a.problemsSolved;
+                    } else if (sortBy === 'name') {
+                      return a.name.localeCompare(b.name);
+                    }
+                    return 0;
+                  })
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((user) => (
                     <TableRow 
@@ -734,11 +746,54 @@ const User_Leaderboard = () => {
                         }
                       }}
                     >
+                      <MenuItem value={3}>3</MenuItem>
                       <MenuItem value={5}>5</MenuItem>
                       <MenuItem value={10}>10</MenuItem>
                       <MenuItem value={25}>25</MenuItem>
                       <MenuItem value={50}>50</MenuItem>
                     </Select>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <button
+                        onClick={() => setPage(page - 1)}
+                        disabled={page === 0}
+                        sx={{
+                          px: 2,
+                          py: 1,
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          borderRadius: 1,
+                          backgroundColor: page === 0 ? '#f1f5f9' : 'white',
+                          color: page === 0 ? '#94a3b8' : '#64748b',
+                          cursor: page === 0 ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                          '&:hover': {
+                            backgroundColor: page === 0 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                            borderColor: page === 0 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                          }
+                        }}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setPage(page + 1)}
+                        disabled={page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1}
+                        sx={{
+                          px: 2,
+                          py: 1,
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          borderRadius: 1,
+                          backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : 'white',
+                          color: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#94a3b8' : '#64748b',
+                          cursor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                          '&:hover': {
+                            backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                            borderColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                          }
+                        }}
+                      >
+                        Next
+                      </button>
+                    </Box>
                     <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
                       Page {page + 1} of {Math.ceil(leaderboardData.length / rowsPerPage)}
                     </Typography>

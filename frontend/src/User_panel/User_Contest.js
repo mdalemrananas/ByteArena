@@ -27,6 +27,8 @@ import {
   FaFire as FireIcon,
   FaBolt as BoltIcon,
   FaStar as StarIcon,
+  FaChevronLeft,
+  FaChevronRight,
   FaChevronLeft as ChevronLeftIcon,
   FaChevronRight as ChevronRightIcon
 } from 'react-icons/fa';
@@ -71,6 +73,8 @@ const User_Contest = () => {
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const cardsPerPage = 8; // 2 rows with 4 cards each
 
   // Fetch user's registered contests
   const fetchRegisteredContests = async (userId) => {
@@ -261,10 +265,16 @@ const User_Contest = () => {
       filteredContests = contests;
     }
     
-    // Filter by category
-    if (categoryFilter !== 'all') {
-      filteredContests = filteredContests.filter(contest => 
-        contest.contest_category && contest.contest_category.toLowerCase() === categoryFilter.toLowerCase()
+    // Apply category-based sorting or filtering
+    if (categoryFilter === 'Registration End') {
+      // Sort by registration end date (soonest first)
+      filteredContests = [...filteredContests].sort((a, b) => 
+        new Date(a.registration_end) - new Date(b.registration_end)
+      );
+    } else if (categoryFilter === 'Prize') {
+      // Sort by prize amount (highest first)
+      filteredContests = [...filteredContests].sort((a, b) => 
+        (b.prize_money || 0) - (a.prize_money || 0)
       );
     }
     
@@ -324,7 +334,7 @@ const User_Contest = () => {
     return searchTerm || categoryFilter !== 'all' || difficultyFilter !== 'all';
   };
 
-  const categories = ['all', 'C/C++', 'Java', 'PHP', 'HTML, CSS', 'JavaScript', 'Python'];
+  const categories = ['all', 'Registration End', 'Prize'];
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -843,7 +853,9 @@ const User_Contest = () => {
               </Box>
             ) : (
               <Grid container spacing={3}>
-                {getFilteredContests.map((contest) => (
+                {getFilteredContests
+                  .slice(currentPage * cardsPerPage, (currentPage + 1) * cardsPerPage)
+                  .map((contest) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
                   <div className="contest-card-wrapper">
                     <Card 
@@ -996,25 +1008,80 @@ const User_Contest = () => {
               ))}
             </Grid>
             )}
-          </Box>
-
-          {/* Pagination */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<ChevronLeftIcon />}
-              disabled
-            >
-              Previous
-            </Button>
-            <Button variant="contained" sx={{ minWidth: '40px' }}>1</Button>
-            <Button variant="outlined" sx={{ minWidth: '40px' }}>2</Button>
-            <Button
-              variant="outlined"
-              endIcon={<ChevronRightIcon />}
-            >
-              Next
-            </Button>
+            
+            {/* Pagination Controls */}
+            {getFilteredContests.length > cardsPerPage && (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: 2, 
+                mt: 4,
+                '& button': {
+                  minWidth: '36px',
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e5e7eb',
+                  backgroundColor: 'white',
+                  color: '#4b5563',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    backgroundColor: '#f3f4f6',
+                    borderColor: '#d1d5db'
+                  },
+                  '&:disabled': {
+                    opacity: 0.5,
+                    cursor: 'not-allowed',
+                    backgroundColor: '#f9fafb'
+                  },
+                  '&.active': {
+                    backgroundColor: '#6366f1',
+                    color: 'white',
+                    borderColor: '#6366f1'
+                  }
+                },
+                '& .pagination-arrow': {
+                  '&:hover': {
+                    backgroundColor: '#f3f4f6',
+                    borderColor: '#d1d5db'
+                  }
+                }
+              }}>
+                <button 
+                  className="pagination-arrow"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 0))}
+                  disabled={currentPage === 0}
+                  aria-label="Previous page"
+                >
+                  <FaChevronLeft />
+                </button>
+                
+                {Array.from({ length: Math.ceil(getFilteredContests.length / cardsPerPage) }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i)}
+                    className={currentPage === i ? 'active' : ''}
+                    aria-label={`Page ${i + 1}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                
+                <button 
+                  className="pagination-arrow"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(getFilteredContests.length / cardsPerPage) - 1))}
+                  disabled={currentPage >= Math.ceil(getFilteredContests.length / cardsPerPage) - 1}
+                  aria-label="Next page"
+                >
+                  <FaChevronRight />
+                </button>
+              </Box>
+            )}
           </Box>
         </Container>
       </main>
