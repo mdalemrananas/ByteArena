@@ -48,23 +48,12 @@ export const signUpWithEmail = async (email, password, name) => {
     console.log('User created successfully, updating profile...');
     // Update user profile with display name
     await updateProfile(result.user, { displayName: name });
-    
-    console.log('Saving user data to Supabase...');
-    // Save user data to Supabase
-    const { error: supabaseError } = await supabase
-      .from('users')
-      .insert({
-        firebase_uid: result.user.uid,
-        email: result.user.email,
-        display_name: name,
-        created_at: new Date().toISOString(),
-        last_login: new Date().toISOString()
-      });
-    
-    if (supabaseError) {
-      console.error('Error saving to Supabase:', supabaseError);
-      // Don't fail the signup if Supabase fails, but log the error
-    }
+
+    // IMPORTANT:
+    // Do NOT insert into Supabase `users` table here.
+    // The app's signup UI controls role selection (user vs moderator/question setter)
+    // and performs the authoritative insert including `role`.
+    // Inserting here without `role` can cause new question setters to be treated as normal users.
     
     console.log('Sign up completed successfully');
     return { success: true, user: result.user };

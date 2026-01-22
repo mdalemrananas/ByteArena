@@ -30,8 +30,6 @@ import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
 import PrivateRoute from './components/PrivateRoute.js';
 import RoleBasedRoute from './components/RoleBasedRoute.js';
 import AdminDashboard from './Admin_Panel/Admin_Dashboard.js';
-import Admin_Leaderboard from './Admin_Panel/Admin_Leaderboard.js';
-import Admin_Contest from './Admin_Panel/Admin_Contest.js';
 import './App.css';
 
 // Wrapper component to handle loading bar
@@ -205,6 +203,7 @@ const AppContent = () => {
         <Route path="/question-setter/create" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateQuestion /></RoleBasedRoute>} />
         <Route path="/question-setter/create-competition" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateCompetition /></RoleBasedRoute>} />
         <Route path="/question-setter/question/:questionId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterQuestionDetails /></RoleBasedRoute>} />
+        <Route path="/question-setter/submission/:contestId/:participantId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterSubmissionDetails /></RoleBasedRoute>} />
         <Route path="/question-setter/submission/:questionId/:userId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterSubmissionDetails /></RoleBasedRoute>} />
         
         {/* Admin Routes - Only accessible by admins */}
@@ -215,8 +214,6 @@ const AppContent = () => {
         <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
-        <Route path="/admin_leaderboard" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Leaderboard /></RoleBasedRoute>} />
-        <Route path="/admin_contest" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
       </Routes>
     </>
   );
