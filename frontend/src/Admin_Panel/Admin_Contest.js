@@ -434,8 +434,8 @@ const Admin_Contest = () => {
   };
 
   const handleRegister = (contestId) => {
-    console.log('Registering for contest:', contestId);
-    navigate(`/contest/${contestId}`);
+    console.log('Viewing contest details:', contestId);
+    navigate(`/admin_contest/${contestId}`);
   };
 
   const getDifficultyColor = (difficulty) => {
@@ -1074,31 +1074,19 @@ const Admin_Contest = () => {
                           {getRegistrationStatus(contest.registration_start, contest.registration_end)}
                         </Typography>
                       </Box>
-                      {shouldShowRegisterButton(contest) ? (
-                        <Button 
-                          variant="contained" 
-                          onClick={() => handleRegister(contest.id)}
-                          sx={{
+                      <Button 
+                        variant="contained" 
+                        onClick={() => handleRegister(contest.id)}
+                        sx={{
+                          backgroundColor: '#635BFF',
+                          '&:hover': {
                             backgroundColor: '#635BFF',
-                            '&:hover': {
-                              backgroundColor: '#635BFF',
-                              opacity: 0.9
-                            }
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      ) : (
-                        <Box 
-                          sx={{ 
-                            width: '100px',  // Match button width
-                            height: '36px',   // Match button height
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        />
-                      )}
+                            opacity: 0.9
+                          }
+                        }}
+                      >
+                        View Details
+                      </Button>
                     </Box>
                   </CardContent>
                 </Card>

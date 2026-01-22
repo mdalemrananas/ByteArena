@@ -5,6 +5,7 @@ import {
   FaCode,
   FaCoins,
   FaChartLine,
+  FaEye,
   FaFire,
   FaHome,
   FaListOl,
@@ -19,6 +20,7 @@ import {
   FaClock,
   FaTag,
   FaBolt,
+  FaCog,
 } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -46,30 +48,31 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, FilterList, Star as StarIcon } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
-import './User_Dashboard.css';
-import './User_Contest_Details.css';
+import './Admin_Dashboard.css';
+import './Admin_Contest_Details.css';
 
 const menuItems = [
-  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
-  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'practice', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
+  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'analytics', name: 'Analytics', icon: <FaChartLine className="menu-icon" /> },
+  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
-const User_Contest_Details = () => {
+const Admin_Contest_Details = () => {
   const navigate = useNavigate();
   const { contestId } = useParams();
-  const [active, setActive] = useState('contest');
+  const [active, setActive] = useState('contests');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isAnimating] = useState(false);
   const [contestData, setContestData] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [participantCount, setParticipantCount] = useState(0);
 
   // Leaderboard state
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,68 +81,6 @@ const User_Contest_Details = () => {
   const [rowsPerPage, setRowsPerPage] = useState(3);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-
-  // Check if user is already registered for this contest
-  const checkRegistrationStatus = async (userId, contestId) => {
-    try {
-      // First get user's UUID from users table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('firebase_uid', userId)
-        .single();
-
-      if (userError || !userData) {
-        console.log('User not found in users table, trying direct Firebase UID check');
-        // Try with Firebase UID directly
-        const { data, error } = await supabase
-          .from('contest_participants')
-          .select('id')
-          .eq('contest_id', contestId)
-          .eq('user_id', userId)
-          .single();
-
-        if (!error && data) {
-          setIsRegistered(true);
-        }
-      } else {
-        // Use proper UUID
-        const { data, error } = await supabase
-          .from('contest_participants')
-          .select('id')
-          .eq('contest_id', contestId)
-          .eq('user_id', userData.id)
-          .single();
-
-        if (!error && data) {
-          setIsRegistered(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking registration status:', error);
-    }
-  };
-
-  // Function to get participant count for a contest (excluding only null/invalid statuses)
-  const getParticipantCount = async (contestId) => {
-    try {
-      const { data, error } = await supabase
-        .from('contest_participants')
-        .select('id')
-        .eq('contest_id', contestId)
-        .in('status', ['registered', 'in_progress', 'completed', 'disqualified']);
-
-      if (error) {
-        console.error('Error fetching participants:', error);
-        return 0;
-      }
-
-      return data ? data.length : 0;
-    } catch (error) {
-      console.error('Error in getParticipantCount:', error);
-      return 0;
-    }
-  };
 
   // Fetch contest details from Supabase
   const fetchContestDetails = async (id) => {
@@ -157,15 +98,6 @@ const User_Contest_Details = () => {
 
       console.log('Contest details fetched from Supabase:', data);
       setContestData(data);
-      
-      // Fetch participant count for this contest
-      const count = await getParticipantCount(id);
-      setParticipantCount(count);
-      
-      // Check if user is already registered
-      if (user) {
-        await checkRegistrationStatus(user.uid, id);
-      }
     } catch (error) {
       console.error('Error in fetchContestDetails:', error);
     }
@@ -174,15 +106,13 @@ const User_Contest_Details = () => {
   // Helper function to format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Helper function to calculate registration status
@@ -213,12 +143,6 @@ const User_Contest_Details = () => {
     return () => unsubscribe();
   }, [navigate, contestId]);
 
-  useEffect(() => {
-    if (user && contestData && contestId) {
-      checkRegistrationStatus(user.uid, contestId);
-    }
-  }, [user, contestData, contestId]);
-
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -226,95 +150,6 @@ const User_Contest_Details = () => {
     } catch (error) {
       console.error('Logout error:', error);
       navigate('/');
-    }
-  };
-
-  const handleRegister = async () => {
-    if (!user || !contestData) {
-      console.error('User or contest data not available');
-      return;
-    }
-
-    setIsAnimating(true);
-    
-    try {
-      // First, get the user's UUID from the users table using Firebase UID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('firebase_uid', user.uid) // Assuming there's a firebase_uid column
-        .single();
-
-      if (userError || !userData) {
-        console.error('Error fetching user UUID:', userError);
-        // Try alternative approach - maybe the user_id column stores the Firebase UID directly
-        console.log('Attempting to register with Firebase UID directly...');
-      }
-
-      // Use the Supabase UUID if found, otherwise try with Firebase UID
-      const userIdToUse = userData?.id || user.uid;
-
-      // Insert registration data into contest_participants table
-      const { data, error } = await supabase
-        .from('contest_participants')
-        .insert({
-          contest_id: contestData.id,
-          user_id: userIdToUse,
-          status: 'registered'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error registering for contest:', error);
-        
-        // Check if it's a duplicate registration error
-        if (error.code === '23505') {
-          console.log('User already registered for this contest');
-          setIsRegistered(true);
-          setNotification({
-            type: 'info',
-            message: 'You are already registered for this contest!'
-          });
-        } else {
-          setNotification({
-            type: 'error',
-            message: 'Registration failed. Please try again.'
-          });
-        }
-      } else {
-        console.log('Successfully registered for contest:', data);
-        setIsRegistered(true);
-        
-        // Show success notification
-        setNotification({
-          type: 'success',
-          message: '🎉 Registration completed successfully! Good luck!'
-        });
-        
-        // Optionally update the contest's total_register count
-        await supabase
-          .from('contests')
-          .update({ 
-            total_register: (contestData.total_register || 0) + 1 
-          })
-          .eq('id', contestData.id);
-      }
-    } catch (error) {
-      console.error('Error in handleRegister:', error);
-      setNotification({
-        type: 'error',
-        message: 'An error occurred during registration.'
-      });
-    } finally {
-      setIsAnimating(false);
-      
-      // Auto-hide notification after 5 seconds
-      if (notification) {
-        setTimeout(() => {
-          setNotification(null);
-        }, 5000);
-      }
     }
   };
 
@@ -401,6 +236,7 @@ const User_Contest_Details = () => {
 
       // Transform data for the leaderboard display
       const transformedData = participantsWithSolvedCount.map((participant, index) => ({
+        id: participant.user_id, // Add user_id for navigation
         rank: participant.rank || (index + 1),
         name: participant.users.display_name || 'Unknown User',
         username: participant.users.username ? `@${participant.users.username}` : '@user',
@@ -446,26 +282,32 @@ const User_Contest_Details = () => {
         <div className="ud-logo">
           <span className="byte">Byte</span>
           <span className="arena">Arena</span>
+          <span className="admin-badge">ADMIN</span>
         </div>
         <nav className="ud-nav">
           {menuItems.map((item) => (
             <button
               key={item.key}
-              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${item.danger ? 'danger' : ''
-                }`}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${item.danger ? 'danger' : ''}`}
               onClick={() => {
                 if (item.key === 'logout') {
                   handleLogout();
                 } else {
                   setActive(item.key);
                   if (item.key === 'home') {
-                    navigate('/dashboard');
-                  } else if (item.key === 'contest') {
-                    navigate('/contest');
-                  } else if (item.key === 'practice') {
-                    navigate('/practice');
+                    navigate('/admin_dashboard');
+                  } else if (item.key === 'users') {
+                    navigate('/admin/users');
+                  } else if (item.key === 'contests') {
+                    navigate('/admin_contest');
+                  } else if (item.key === 'problems') {
+                    navigate('/admin/problems');
+                  } else if (item.key === 'analytics') {
+                    navigate('/admin/analytics');
                   } else if (item.key === 'leaderboard') {
-                    navigate('/leaderboard');
+                    navigate('/admin_leaderboard');
+                  } else if (item.key === 'settings') {
+                    navigate('/admin/settings');
                   }
                 }
               }}
@@ -489,28 +331,14 @@ const User_Contest_Details = () => {
             </button>
             <div className="search">
               <FaSearch className="search-icon" />
-              <input type="text" placeholder="Search quizzes, categories, creators..." />
+              <input type="text" placeholder="Search users, contests, problems..." />
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button
-              className="icon-btn"
-              onClick={() => {
-                console.log('Home button clicked, navigating to /');
-                navigate('/');
-              }}
-              data-tooltip="Home"
-            >
-              <FaHome />
-            </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="badge">4</span>
+              <span className="badge">3</span>
             </button>
-            <div className="balance" data-tooltip="Reward Coins">
-              <FaCoins className="balance-icon" />
-              <span>1200.00</span>
-            </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
@@ -519,7 +347,7 @@ const User_Contest_Details = () => {
                   <FaUser />
                 )}
               </div>
-              <span>{user?.displayName || 'User'}</span>
+              <span>{user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </header>
@@ -546,11 +374,11 @@ const User_Contest_Details = () => {
                   </div>
                   <div className="contest-meta-item">
                     <FaUsers className="icon" />
-                    <span>{participantCount} participants</span>
+                    <span>{contestData.total_register || 0} participants</span>
                   </div>
                   <div className="contest-meta-item">
                     <FaCoins className="icon" />
-                    <span>{contestData.prize_money || 0} Points</span>
+                    <span>${contestData.prize_money || 0} prize</span>
                   </div>
                 </div>
 
@@ -572,29 +400,6 @@ const User_Contest_Details = () => {
                 <div className="countdown-text">
                   {getRegistrationStatus(contestData.registration_start, contestData.registration_end)}
                 </div>
-
-                <button 
-                  className={`register-button ${isAnimating ? 'animating' : ''} ${isRegistered ? 'participate' : ''}`}
-                  onClick={() => {
-                    if (isRegistered) {
-                      navigate(`/contest/participate/${contestId}`);
-                    } else {
-                      handleRegister();
-                    }
-                  }}
-                  disabled={isAnimating}
-                >
-                  {isAnimating ? (
-                    <span className="button-content">
-                      <span className="spinner"></span>
-                      Registering...
-                    </span>
-                  ) : isRegistered ? (
-                    'Participate'
-                  ) : (
-                    'Register Now'
-                  )}
-                </button>
               </div>
             )}
 
@@ -813,7 +618,20 @@ const User_Contest_Details = () => {
                                       textTransform: 'uppercase',
                                       letterSpacing: '0.05em'
                                     }}>
-                                      Problems
+                                      Problems Solve
+                                    </TableCell>
+                                    <TableCell sx={{ 
+                                      fontWeight: '600', 
+                                      color: '#475569', 
+                                      minWidth: 100, 
+                                      backgroundColor: '#f8fafc',
+                                      borderBottom: '2px solid #e2e8f0',
+                                      fontSize: '0.875rem',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.05em',
+                                      textAlign: 'center'
+                                    }}>
+                                      View Code
                                     </TableCell>
                                   </TableRow>
                                 </TableHead>
@@ -892,6 +710,34 @@ const User_Contest_Details = () => {
                                           <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
                                             {user.problemsSolved}
                                           </Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          <button 
+                                            className="view-code-button"
+                                            onClick={() => {
+                                              navigate(`/admin_contest/${contestId}/code/${user.id}`, {
+                                                state: {
+                                                  contestId: contestId,
+                                                  userId: user.id,
+                                                  username: user.username || 'Admin',
+                                                  problemId: contestData?.question_problem || 1 // Pass the first problem ID
+                                                }
+                                              });
+                                            }}
+                                            style={{
+                                              background: 'none',
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                              color: '#6366F1',
+                                              padding: '4px 8px',
+                                              borderRadius: '4px',
+                                              '&:hover': {
+                                                backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                                              }
+                                            }}
+                                          >
+                                            <FaEye size={18} />
+                                          </button>
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -997,10 +843,10 @@ const User_Contest_Details = () => {
                     <div>
                       <h3 className="section-subtitle">Prize Distribution</h3>
                       <ul className="bullet-list">
-                        <li>1st Place: ৳500 + Trophy + Certificate</li>
-                        <li>2nd Place: ৳300 + Medal + Certificate</li>
-                        <li>3rd Place: ৳200 + Medal + Certificate</li>
-                        <li>4th-10th Place: ৳50 each + Certificate</li>
+                        <li>1st Place: $500 + Trophy + Certificate</li>
+                        <li>2nd Place: $300 + Medal + Certificate</li>
+                        <li>3rd Place: $200 + Medal + Certificate</li>
+                        <li>4th-10th Place: $50 each + Certificate</li>
                       </ul>
                     </div>
                   </>
@@ -1015,11 +861,11 @@ const User_Contest_Details = () => {
                     <h3 className="sidebar-card-title">Contest Stats</h3>
                     <div className="stat-item">
                       <span className="stat-label">Participants</span>
-                      <span className="stat-value">{participantCount}</span>
+                      <span className="stat-value">{contestData.total_register || 0}</span>
                     </div>
                     <div className="stat-item">
                       <span className="stat-label">Prize Pool</span>
-                      <span className="stat-value">{contestData.prize_money || 0}</span>
+                      <span className="stat-value">${contestData.prize_money || 0}</span>
                     </div>
                     <div className="stat-item">
                       <span className="stat-label">Difficulty</span>
@@ -1043,9 +889,7 @@ const User_Contest_Details = () => {
                     <div className="date-item">
                       <span className="date-label">Registration Period</span>
                       <span className="date-value">
-                        {formatDate(contestData.registration_start)} -
-                        <br></br>
-                        {formatDate(contestData.registration_end)}
+                        {formatDate(contestData.registration_start)} - {formatDate(contestData.registration_end)}
                       </span>
                     </div>
                     <div className="date-item">
@@ -1125,4 +969,4 @@ const User_Contest_Details = () => {
   );
 };
 
-export default User_Contest_Details;
+export default Admin_Contest_Details;
