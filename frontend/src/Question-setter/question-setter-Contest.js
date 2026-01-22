@@ -1,39 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaChevronDown,
-  FaChevronLeft, FaChevronRight, FaClock, FaCoins, FaEye, FaEdit, FaTrash
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Grid,
+  LinearProgress,
+  Menu,
+  MenuItem,
+  Typography,
+} from '@mui/material';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase';
+import {
+  FaBars,
+  FaBell,
+  FaCode,
+  FaChevronLeft,
+  FaChevronRight,
+  FaClock as ClockIcon,
+  FaCoins as CoinsIcon,
+  FaHome,
+  FaSearch,
+  FaSignOutAlt,
+  FaTrophy as TrophyIcon,
+  FaUser,
+  FaUsers as UsersIcon,
 } from 'react-icons/fa';
 import { logoutUser } from '../services/authService';
-import './question-setter-Contest.css';
+import { supabase } from '../services/supabaseClient';
+import { getUserByFirebaseUid } from '../services/userService';
+import '../User_panel/User_Dashboard.css';
+import '../User_panel/User_Contest.css';
 
 const QuestionSetterContest = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedContest, setSelectedContest] = useState('All Contest');
-  const [contestView, setContestView] = useState('All Contest'); // 'All Contest' or 'My Contest'
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [allTournaments, setAllTournaments] = useState([]);
+  const [active, setActive] = useState('contest');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [contestView, setContestView] = useState('All Contests'); // All Contests | My Contests
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.qs-action-dropdown')) {
-        setOpenDropdown(null);
-      }
-    };
+  const [contests, setContests] = useState([]);
+  const [featuredContest, setFeaturedContest] = useState(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const cardsPerPage = 8;
 
-    if (openDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuContest, setMenuContest] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contestToDelete, setContestToDelete] = useState(null);
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [openDropdown]);
+  const [currentUserId, setCurrentUserId] = useState(null); // UUID from users table
 
   const handleLogout = async () => {
     try {
@@ -44,657 +71,736 @@ const QuestionSetterContest = () => {
     }
   };
 
-  const handleDropdownToggle = (contestId, e) => {
-    if (e) e.stopPropagation();
-    setOpenDropdown(openDropdown === contestId ? null : contestId);
+  const ensureUserExists = async (firebaseUser) => {
+    // First try to get user
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('firebase_uid', firebaseUser.uid)
+      .single();
+    
+    if (!fetchError && existingUser) {
+      return existingUser.id;
+    }
+    
+    // User doesn't exist, create them
+    if (fetchError?.code === 'PGRST116') {
+      const userProfile = {
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        display_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Question Setter',
+        auth_provider: 'email',
+        last_login: new Date().toISOString()
+      };
+      
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([userProfile])
+        .select('id')
+        .single();
+      
+      if (!insertError && newUser) {
+        console.log('Created new user in database:', newUser.id);
+        return newUser.id;
+      } else {
+        console.error('Error creating user:', insertError);
+        return null;
+      }
+    }
+    
+    return null;
+  };
+
+  const fetchContests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contests')
+        .select('*')
+        .order('registration_end', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching contests:', error);
+        return;
+      }
+
+      setContests(data || []);
+
+      const now = new Date();
+      const upcomingContests =
+        data?.filter((contest) => new Date(contest.registration_end) > now) || [];
+      const sortedUpcoming = upcomingContests.sort(
+        (a, b) => new Date(a.registration_end) - new Date(b.registration_end),
+      );
+      setFeaturedContest(sortedUpcoming.length > 0 ? sortedUpcoming[0] : null);
+    } catch (error) {
+      console.error('Error in fetchContests:', error);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        const userObj = {
+          displayName: currentUser.displayName || 'Question Setter',
+          email: currentUser.email,
+          photoURL:
+            currentUser.photoURL ||
+            `https://ui-avatars.com/api/?name=${currentUser.displayName || 'Question Setter'}&background=random`,
+          uid: currentUser.uid,
+        };
+        setUser(userObj);
+        // Ensure user exists in database and get their UUID
+        const userId = await ensureUserExists(currentUser);
+        if (userId) {
+          setCurrentUserId(userId);
+        } else {
+          console.error('Failed to get or create user UUID');
+        }
+        fetchContests();
+      } else {
+        setUser(null);
+        setCurrentUserId(null);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Refetch when coming back from create/edit.
+    if (currentUserId) {
+      fetchContests();
+    }
+  }, [location.pathname, location.state]);
+
+  useEffect(() => {
+    // Refetch contests when currentUserId changes to ensure proper filtering
+    if (currentUserId) {
+      fetchContests();
+    }
+  }, [currentUserId]);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getRegistrationStatus = (registrationStart, registrationEnd) => {
+    const now = new Date();
+    const start = new Date(registrationStart);
+    const end = new Date(registrationEnd);
+    if (now < start) return 'Upcoming';
+    if (now > end) return 'Closed';
+    return 'Registration Open';
+  };
+
+  const getDifficultyColor = (difficulty) => {
+    switch ((difficulty || '').toLowerCase()) {
+      case 'easy':
+        return '#4CAF50';
+      case 'medium':
+        return '#FF9800';
+      case 'hard':
+        return '#F44336';
+      default:
+        return '#9E9E9E';
+    }
+  };
+
+  const isMyContest = (contest) => {
+    if (!currentUserId || !contest?.created_by) {
+      return false;
+    }
+    // Ensure both are strings for comparison
+    const contestCreatedBy = String(contest.created_by);
+    const userId = String(currentUserId);
+    return contestCreatedBy === userId;
+  };
+
+  const filteredContests = useMemo(() => {
+    const now = new Date();
+    const activeAndUpcoming = contests.filter((c) => new Date(c.registration_end) > now);
+    if (contestView === 'My Contests') {
+      return activeAndUpcoming.filter((c) => isMyContest(c));
+    }
+    return activeAndUpcoming;
+  }, [contests, contestView, currentUserId]);
+
+  const handleOpenMenu = (event, contest) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuContest(contest);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
+    setMenuContest(null);
   };
 
   const handleView = (contestId) => {
-    setOpenDropdown(null);
+    handleCloseMenu();
     navigate(`/question-setter/contest/${contestId}`);
   };
 
   const handleEdit = (contestId) => {
-    setOpenDropdown(null);
-    // Find the contest data
-    const contest = allTournaments.find(t => t.id === contestId);
-    if (contest) {
-      // Save contest data to localStorage for editing
-      localStorage.setItem('qs-editing-contest', JSON.stringify(contest));
-      // Navigate to create competition page with edit mode
-      navigate(`/question-setter/create-competition?editContest=${contestId}`);
-    }
+    handleCloseMenu();
+    navigate(`/question-setter/create-competition?editContest=${contestId}`);
   };
 
-  const handleDelete = (contestId) => {
-    setOpenDropdown(null);
-    if (window.confirm('Are you sure you want to delete this contest?')) {
-      // Remove from tournaments list
-      const updatedTournaments = allTournaments.filter(t => t.id !== contestId);
-      setAllTournaments(updatedTournaments);
-      // Save to localStorage
-      localStorage.setItem('qs-contests', JSON.stringify(updatedTournaments));
-    }
+  const handleAskDelete = (contest) => {
+    handleCloseMenu();
+    setContestToDelete(contest);
+    setDeleteDialogOpen(true);
   };
 
-  const categories = ['All Categories', 'C/C++', 'Java'];
-  
-  // Load tournaments from localStorage or use default
-  useEffect(() => {
-    const defaultTournaments = [
-      {
-        id: 1,
-        title: 'Code Clash Championship',
-        description: 'Test your coding skills in intense problem-solving battles and competitions.',
-        date: 'Dec 4, 2025',
-        time: '7:00 PM - 9:00 PM',
-        prize: '৳1,000 prize',
-        participants: '342 participants',
-        closesIn: 'Closes in 2 days',
-        status: 'Registration Open',
-        difficulty: 'Medium',
-        image: 'Competitive Programming Tournament',
-        createdBy: 'user1'
-      },
-      {
-        id: 2,
-        title: 'Algorithm Arena',
-        description: 'Solve challenging algorithms under time pressure to prove your coding mastery.',
-        date: 'Dec 4, 2025',
-        time: '7:00 PM - 9:00 PM',
-        prize: '৳750 prize',
-        participants: '215 participants',
-        closesIn: 'Closes in 2 days',
-        status: 'Upcoming',
-        difficulty: 'Hard',
-        image: 'Competitive Programming Tournament',
-        createdBy: 'other'
-      },
-      {
-        id: 3,
-        title: 'Byte Battle League',
-        description: 'Compete with top programmers in fast-paced coding challenges worldwide.',
-        date: 'Dec 4, 2025',
-        time: '7:00 PM - 9:00 PM',
-        prize: '৳1,500 prize',
-        participants: '567 participants',
-        closesIn: 'Closes in 2 days',
-        status: 'Ongoing',
-        difficulty: 'Easy',
-        image: 'Competitive Programming Tournament',
-        createdBy: 'user1'
-      },
-      {
-        id: 4,
-        title: 'Hacker\'s Gauntlet',
-        description: 'Push your programming limits with real-time contests and coding duels.',
-        date: 'Dec 4, 2025',
-        time: '7:00 PM - 9:00 PM',
-        prize: '৳1,200 prize',
-        participants: '215 participants',
-        closesIn: 'Closes in 2 days',
-        status: 'Registration Open',
-        difficulty: 'Medium',
-        image: 'Competitive Programming Tournament',
-        createdBy: 'other'
-      },
-      {
-        id: 5,
-        title: 'Global Knowledge Championship',
-        description: 'Test your knowledge against the best question enthusiasts from around the world.',
-        date: 'Dec 10, 2025',
-        time: '7:00 PM - 9:00 PM',
-        prize: '৳5,000 prize',
-        participants: '1,248 participants',
-        closesIn: 'Closes in 2 days',
-        status: 'Registration Open',
-        difficulty: 'Medium',
-        image: 'Competitive Programming Tournament',
-        createdBy: 'user1'
+  const handleConfirmDelete = async () => {
+    if (!contestToDelete?.id) return;
+    try {
+      const { error } = await supabase.from('contests').delete().eq('id', contestToDelete.id);
+      if (error) {
+        console.error('Error deleting contest:', error);
+        return;
       }
-    ];
-
-    const savedContests = JSON.parse(localStorage.getItem('qs-contests') || '[]');
-    if (savedContests.length > 0) {
-      // Merge saved contests with defaults, prioritizing saved ones
-      const merged = [...defaultTournaments];
-      savedContests.forEach(saved => {
-        const index = merged.findIndex(t => t.id === saved.id);
-        if (index !== -1) {
-          merged[index] = { ...merged[index], ...saved };
-        } else {
-          merged.push(saved);
-        }
-      });
-      setAllTournaments(merged);
-    } else {
-      setAllTournaments(defaultTournaments);
-    }
-  }, []);
-
-  // Listen for navigation events to refresh data
-  useEffect(() => {
-    const handleFocus = () => {
-      const savedContests = JSON.parse(localStorage.getItem('qs-contests') || '[]');
-      if (savedContests.length > 0) {
-        const defaultTournaments = [
-          {
-            id: 1,
-            title: 'Code Clash Championship',
-            description: 'Test your coding skills in intense problem-solving battles and competitions.',
-            date: 'Dec 4, 2025',
-            time: '7:00 PM - 9:00 PM',
-            prize: '৳1,000 prize',
-            participants: '342 participants',
-            closesIn: 'Closes in 2 days',
-            status: 'Registration Open',
-            difficulty: 'Medium',
-            image: 'Competitive Programming Tournament',
-            createdBy: 'user1'
-          },
-          {
-            id: 2,
-            title: 'Algorithm Arena',
-            description: 'Solve challenging algorithms under time pressure to prove your coding mastery.',
-            date: 'Dec 4, 2025',
-            time: '7:00 PM - 9:00 PM',
-            prize: '৳750 prize',
-            participants: '215 participants',
-            closesIn: 'Closes in 2 days',
-            status: 'Upcoming',
-            difficulty: 'Hard',
-            image: 'Competitive Programming Tournament',
-            createdBy: 'other'
-          },
-          {
-            id: 3,
-            title: 'Byte Battle League',
-            description: 'Compete with top programmers in fast-paced coding challenges worldwide.',
-            date: 'Dec 4, 2025',
-            time: '7:00 PM - 9:00 PM',
-            prize: '৳1,500 prize',
-            participants: '567 participants',
-            closesIn: 'Closes in 2 days',
-            status: 'Ongoing',
-            difficulty: 'Easy',
-            image: 'Competitive Programming Tournament',
-            createdBy: 'user1'
-          },
-          {
-            id: 4,
-            title: 'Hacker\'s Gauntlet',
-            description: 'Push your programming limits with real-time contests and coding duels.',
-            date: 'Dec 4, 2025',
-            time: '7:00 PM - 9:00 PM',
-            prize: '৳1,200 prize',
-            participants: '215 participants',
-            closesIn: 'Closes in 2 days',
-            status: 'Registration Open',
-            difficulty: 'Medium',
-            image: 'Competitive Programming Tournament',
-            createdBy: 'other'
-          },
-          {
-            id: 5,
-            title: 'Global Knowledge Championship',
-            description: 'Test your knowledge against the best question enthusiasts from around the world.',
-            date: 'Dec 10, 2025',
-            time: '7:00 PM - 9:00 PM',
-            prize: '৳5,000 prize',
-            participants: '1,248 participants',
-            closesIn: 'Closes in 2 days',
-            status: 'Registration Open',
-            difficulty: 'Medium',
-            image: 'Competitive Programming Tournament',
-            createdBy: 'user1'
-          }
-        ];
-        const merged = [...defaultTournaments];
-        savedContests.forEach(saved => {
-          const index = merged.findIndex(t => t.id === saved.id);
-          if (index !== -1) {
-            merged[index] = { ...merged[index], ...saved };
-          } else {
-            merged.push(saved);
-          }
-        });
-        setAllTournaments(merged);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
-  // Reload tournaments when returning to this page
-  useEffect(() => {
-    const savedContests = JSON.parse(localStorage.getItem('qs-contests') || '[]');
-    if (savedContests.length > 0) {
-      const defaultTournaments = [
-        {
-          id: 1,
-          title: 'Code Clash Championship',
-          description: 'Test your coding skills in intense problem-solving battles and competitions.',
-          date: 'Dec 4, 2025',
-          time: '7:00 PM - 9:00 PM',
-          prize: '৳1,000 prize',
-          participants: '342 participants',
-          closesIn: 'Closes in 2 days',
-          status: 'Registration Open',
-          difficulty: 'Medium',
-          image: 'Competitive Programming Tournament',
-          createdBy: 'user1'
-        },
-        {
-          id: 2,
-          title: 'Algorithm Arena',
-          description: 'Solve challenging algorithms under time pressure to prove your coding mastery.',
-          date: 'Dec 4, 2025',
-          time: '7:00 PM - 9:00 PM',
-          prize: '৳750 prize',
-          participants: '215 participants',
-          closesIn: 'Closes in 2 days',
-          status: 'Upcoming',
-          difficulty: 'Hard',
-          image: 'Competitive Programming Tournament',
-          createdBy: 'other'
-        },
-        {
-          id: 3,
-          title: 'Byte Battle League',
-          description: 'Compete with top programmers in fast-paced coding challenges worldwide.',
-          date: 'Dec 4, 2025',
-          time: '7:00 PM - 9:00 PM',
-          prize: '৳1,500 prize',
-          participants: '567 participants',
-          closesIn: 'Closes in 2 days',
-          status: 'Ongoing',
-          difficulty: 'Easy',
-          image: 'Competitive Programming Tournament',
-          createdBy: 'user1'
-        },
-        {
-          id: 4,
-          title: 'Hacker\'s Gauntlet',
-          description: 'Push your programming limits with real-time contests and coding duels.',
-          date: 'Dec 4, 2025',
-          time: '7:00 PM - 9:00 PM',
-          prize: '৳1,200 prize',
-          participants: '215 participants',
-          closesIn: 'Closes in 2 days',
-          status: 'Registration Open',
-          difficulty: 'Medium',
-          image: 'Competitive Programming Tournament',
-          createdBy: 'other'
-        },
-        {
-          id: 5,
-          title: 'Global Knowledge Championship',
-          description: 'Test your knowledge against the best question enthusiasts from around the world.',
-          date: 'Dec 10, 2025',
-          time: '7:00 PM - 9:00 PM',
-          prize: '৳5,000 prize',
-          participants: '1,248 participants',
-          closesIn: 'Closes in 2 days',
-          status: 'Registration Open',
-          difficulty: 'Medium',
-          image: 'Competitive Programming Tournament',
-          createdBy: 'user1'
-        }
-      ];
-      const merged = [...defaultTournaments];
-      savedContests.forEach(saved => {
-        const index = merged.findIndex(t => t.id === saved.id);
-        if (index !== -1) {
-          merged[index] = { ...merged[index], ...saved };
-        } else {
-          merged.push(saved);
-        }
-      });
-      setAllTournaments(merged);
-    }
-  }, [location.pathname]);
-
-  // Filter tournaments based on view
-  const tournaments = contestView === 'My Contest' 
-    ? allTournaments.filter(t => t.createdBy === 'user1')
-    : allTournaments;
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Registration Open':
-        return '#16a34a';
-      case 'Upcoming':
-        return '#f59e0b';
-      case 'Ongoing':
-        return '#3b82f6';
-      default:
-        return '#64748b';
+      setContests((prev) => prev.filter((c) => c.id !== contestToDelete.id));
+      setDeleteDialogOpen(false);
+      setContestToDelete(null);
+    } catch (e) {
+      console.error('Error deleting contest:', e);
     }
   };
 
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'Easy':
-        return '#16a34a';
-      case 'Medium':
-        return '#f59e0b';
-      case 'Hard':
-        return '#ef4444';
-      default:
-        return '#64748b';
-    }
-  };
+  if (loading) {
+    return (
+      <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+        <aside className="ud-sidebar">
+          <div className="ud-logo">
+            <span className="byte">Byte</span>
+            <span className="arena">Arena</span>
+          </div>
+        </aside>
+        <main
+          className="ud-main"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}
+        >
+          <div>Loading...</div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="qs-contest-layout">
-      {/* Sidebar */}
-      <aside className="qs-sidebar">
-        <div className="qs-sidebar-logo">
-          <span className="qs-logo-byte">Byte</span>
-          <span className="qs-logo-arena">Arena</span>
+    <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+      <aside className="ud-sidebar">
+        <div className="ud-logo">
+          <span className="byte">Byte</span>
+          <span className="arena">Arena</span>
         </div>
-        <nav className="qs-sidebar-nav">
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter')}
-          >
-            <FaHome className="qs-nav-icon" />
-            <span className="qs-nav-text">Home</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/explore')}
-          >
-            <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
-          </button>
-          <button 
-            className="qs-nav-item active"
-            onClick={() => navigate('/question-setter/contest')}
-          >
-            <FaTrophy className="qs-nav-icon" />
-            <span className="qs-nav-text">Contest</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/leaderboard')}
-          >
-            <FaUsers className="qs-nav-icon" />
-            <span className="qs-nav-text">Leaderboard</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/profile')}
-          >
-            <FaUserCircle className="qs-nav-icon" />
-            <span className="qs-nav-text">Profile</span>
-          </button>
-          <button 
-            className="qs-nav-item qs-nav-logout"
-            onClick={handleLogout}
-          >
-            <FaSignOutAlt className="qs-nav-icon" />
-            <span className="qs-nav-text">Logout</span>
-          </button>
+        <nav className="ud-nav">
+          {[
+            { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
+            { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
+            { key: 'contest', name: 'Contest', icon: <TrophyIcon className="menu-icon" /> },
+            { key: 'leaderboard', name: 'Leaderboard', icon: <UsersIcon className="menu-icon" /> },
+            { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
+            { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
+          ].map((item) => (
+            <button
+              key={item.key}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${
+                item.danger ? 'danger' : ''
+              }`}
+              onClick={() => {
+                if (item.key === 'logout') return handleLogout();
+                setActive(item.key);
+                if (item.key === 'home') navigate('/question-setter');
+                if (item.key === 'practice') navigate('/question-setter/explore');
+                if (item.key === 'contest') navigate('/question-setter/contest');
+                if (item.key === 'leaderboard') navigate('/question-setter/leaderboard');
+                if (item.key === 'profile') navigate('/question-setter/profile');
+              }}
+            >
+              <span className="icon" style={{ marginRight: '12px' }}>
+                {item.icon}
+              </span>
+              <span className="label" style={{ textAlign: 'left', flex: 1 }}>
+                {item.name}
+              </span>
+            </button>
+          ))}
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="qs-main-content">
-        {/* Header */}
-        <header className="qs-header">
-          <div className="qs-header-left">
-            <div className="qs-logo-header">
-              <span className="qs-logo-byte-header">Byte</span>
-              <span className="qs-logo-arena-header">Arena</span>
-            </div>
-            <div className="qs-search-bar">
-              <FaSearch className="qs-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search Questions, Contest, Leaderboard..." 
-                className="qs-search-input"
-              />
+      <main className="ud-main">
+        <header className="ud-topbar">
+          <div className="ud-topbar-left">
+            <button
+              className="ud-toggle"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <FaBars />
+            </button>
+            <div className="search">
+              <FaSearch className="search-icon" />
+              <input type="text" placeholder="Search contests..." />
             </div>
           </div>
-          <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
+          <div className="ud-topbar-right">
+            <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+              <FaHome />
             </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
+            <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="qs-notification-badge">1</span>
+              <span className="badge">4</span>
             </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
-            </button>
-            <button 
-              className="qs-header-icon-btn qs-notification-btn" 
-              title="Profile"
+            <div
+              className="profile"
               onClick={() => navigate('/question-setter/profile')}
+              style={{ cursor: 'pointer' }}
+              data-tooltip="Profile"
             >
-              <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
-            </button>
+              <div className="avatar">
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt="avatar"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://ui-avatars.com/api/?name=${
+                        user.displayName || 'Question Setter'
+                      }&background=random`;
+                    }}
+                  />
+                ) : (
+                  <FaUser />
+                )}
+              </div>
+              <span>{user?.displayName || 'Question Setter'}</span>
+            </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="qs-contest-content-area">
-          {/* Page Title */}
-          <div className="qs-contest-page-header">
-            <h1 className="qs-contest-page-title">Contest</h1>
-            <p className="qs-contest-page-subtitle">Compete against other quiz enthusiasts and win amazing prizes.</p>
-          </div>
+        <Container
+          maxWidth={false}
+          sx={{
+            px: { xs: 1, sm: 2, md: 3, lg: 4 },
+            py: { xs: 2, sm: 3 },
+            width: '100%',
+          }}
+        >
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>
+              Contests
+            </Typography>
+            <Typography variant="h6" color="text.secondary">
+              Create and manage competitive programming contests
+            </Typography>
+          </Box>
 
-          {/* Upcoming Tournament Banner */}
-          <div className="qs-upcoming-tournament">
-            <div className="qs-upcoming-tag">Upcoming Tournament</div>
-            <div className="qs-upcoming-content">
-              <div className="qs-upcoming-left">
-                <h2 className="qs-upcoming-title">Global Knowledge Championship</h2>
-                <p className="qs-upcoming-description">
-                  Test your knowledge against the best question enthusiasts from around the world in this premier tournament with multiple rounds of challenging questions.
-                </p>
-                <div className="qs-upcoming-details">
-                  <div className="qs-upcoming-detail-item">
-                    <span className="qs-upcoming-detail-label">Date:</span>
-                    <span className="qs-upcoming-detail-value">Dec 10, 2025</span>
-                  </div>
-                  <div className="qs-upcoming-detail-item">
-                    <span className="qs-upcoming-detail-label">Time:</span>
-                    <span className="qs-upcoming-detail-value">7:00 PM - 9:00 PM</span>
-                  </div>
-                  <div className="qs-upcoming-detail-item">
-                    <FaUsers className="qs-upcoming-icon" />
-                    <span className="qs-upcoming-detail-value">1,248 participants</span>
-                  </div>
-                  <div className="qs-upcoming-detail-item">
-                    <FaTrophy className="qs-upcoming-icon" />
-                    <span className="qs-upcoming-detail-value">৳5,000 prize money</span>
-                  </div>
-                </div>
-                <button 
-                  className="qs-create-competition-btn"
-                  onClick={() => navigate('/question-setter/create-competition')}
+          {featuredContest && (
+            <Card
+              sx={{
+                mb: 4,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <CardContent sx={{ p: 4 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    mb: 3,
+                    gap: 3,
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  Create Competitions →
-                </button>
-              </div>
-              <div className="qs-upcoming-stats">
-                <div className="qs-stat-item">
-                  <span className="qs-stat-value">3 Rounds</span>
-                </div>
-                <div className="qs-stat-item">
-                  <span className="qs-stat-value">2 Questions</span>
-                </div>
-                <div className="qs-stat-item qs-stat-difficulty">
-                  <span className="qs-stat-value">Medium Difficulty</span>
-                </div>
-                <div className="qs-stat-closing">
-                  <FaClock className="qs-stat-clock-icon" />
-                  <span>Registration closes in</span>
-                  <span className="qs-stat-time">2 days</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                  <Box sx={{ flex: 1, minWidth: 260 }}>
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', mb: 2, color: 'white' }}>
+                      {featuredContest.title}
+                    </Typography>
+                    <Typography variant="h6" sx={{ mb: 3, opacity: 0.9, color: 'white' }}>
+                      {featuredContest.title_description}
+                    </Typography>
 
-          {/* All Tournaments Section */}
-          <div className="qs-all-tournaments">
-            <div className="qs-tournaments-header">
-              <h2 className="qs-all-tournaments-title">All Tournaments</h2>
-              <div className="qs-contest-view-tabs">
+                    <Grid container spacing={3} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box component="span" sx={{ color: 'white' }}>
+                            📅
+                          </Box>
+                          <Typography variant="body2" sx={{ opacity: 0.9, color: 'white' }}>
+                            {formatDate(featuredContest.registration_start)} - {formatDate(featuredContest.registration_end)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <UsersIcon style={{ color: 'white' }} />
+                          <Typography variant="body2" sx={{ color: 'white' }}>
+                            {featuredContest.total_register || 0} participants
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CoinsIcon style={{ color: 'white' }} />
+                          <Typography variant="body2" sx={{ color: 'white' }}>
+                            Prize pool ${featuredContest.prize_money || '0'}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+
+                    <Box sx={{ mb: 3 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
+                          {getRegistrationStatus(featuredContest.registration_start, featuredContest.registration_end)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8, color: 'white' }}>
+                          {(featuredContest.contest_difficulty || '').toString()}
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={75}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                          '& .MuiLinearProgress-bar': { backgroundColor: 'white' },
+                        }}
+                      />
+                    </Box>
+
+                    <Grid container spacing={2} sx={{ mb: 3 }}>
+                      <Grid item xs={12} sm={4}>
+                        <Chip
+                          label={`${featuredContest.question_problem} Questions`}
+                          sx={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Chip
+                          label={`${featuredContest.time_limit_qs}s per question`}
+                          sx={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Chip
+                          label={(featuredContest.contest_difficulty || '').toString()}
+                          sx={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', sm: 'flex-end' }, width: { xs: '100%', sm: 'auto' } }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      sx={{
+                        backgroundColor: 'white',
+                        color: '#764ba2',
+                        fontWeight: 'bold',
+                        px: 4,
+                        py: 1.5,
+                        width: { xs: '100%', sm: 'auto' },
+                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.9)' },
+                      }}
+                      onClick={() => navigate('/question-setter/create-competition')}
+                    >
+                      Create Contest
+                    </Button>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          <Box sx={{ mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant={contestView === 'All Contests' ? 'contained' : 'outlined'}
+              onClick={() => setContestView('All Contests')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              All Contests
+            </Button>
+            <Button
+              variant={contestView === 'My Contests' ? 'contained' : 'outlined'}
+              onClick={() => setContestView('My Contests')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              My Contests
+            </Button>
+          </Box>
+
+          <Box sx={{ mb: 4, maxWidth: '1400px', mx: 'auto' }}>
+            <Grid container spacing={3}>
+              {filteredContests
+                .slice(currentPage * cardsPerPage, (currentPage + 1) * cardsPerPage)
+                .map((contest) => {
+                  const canManage = isMyContest(contest);
+                  return (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
+                      <div className="contest-card-wrapper">
+                        <Card
+                          sx={{
+                            width: '330px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            transition: 'all 0.3s ease',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+                          }}
+                          onClick={() => navigate(`/question-setter/contest/${contest.id}`)}
+                        >
+                          <Box
+                            sx={{
+                              height: 160,
+                              backgroundImage: contest.cover_image
+                                ? `url(${contest.cover_image})`
+                                : 'url(/Contest_Cover.jpg)',
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              position: 'relative',
+                              flexShrink: 0,
+                              '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background:
+                                  'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))',
+                              },
+                            }}
+                          >
+                            <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}>
+                              <Chip
+                                label={contest.contest_difficulty}
+                                size="small"
+                                sx={{
+                                  backgroundColor: getDifficultyColor(contest.contest_difficulty),
+                                  color: 'white',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          <CardContent
+                            sx={{
+                              flex: 1,
+                              p: 2,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 2 }}>
+                              <Typography
+                                variant="h6"
+                                component="h3"
+                                sx={{ fontWeight: 'bold', flex: 1, fontSize: '1.1rem', lineHeight: 1.3 }}
+                              >
+                                {contest.title}
+                              </Typography>
+                            </Box>
+
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mb: 2,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                lineHeight: 1.4,
+                                maxHeight: '2.8em',
+                              }}
+                            >
+                              {contest.title_description}
+                            </Typography>
+
+                            <Box sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <Box component="span" sx={{ fontSize: 12, color: '#666' }}>
+                                  📅
+                                </Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatDate(contest.registration_start)} - {formatDate(contest.registration_end)}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <UsersIcon style={{ fontSize: 14, color: '#666' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    {contest.total_register || 0} participants
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <CoinsIcon style={{ fontSize: 14, color: '#666' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    ${contest.prize_money || 0} prize
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ClockIcon style={{ fontSize: 14, color: '#666' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {getRegistrationStatus(contest.registration_start, contest.registration_end)}
+                                </Typography>
+                              </Box>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                onClick={(e) => handleOpenMenu(e, contest)}
+                                sx={{
+                                  backgroundColor: '#635BFF',
+                                  textTransform: 'none',
+                                  fontWeight: 700,
+                                  '&:hover': { backgroundColor: '#635BFF', opacity: 0.9 },
+                                }}
+                              >
+                                Actions
+                              </Button>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </Grid>
+                  );
+                })}
+            </Grid>
+
+            {filteredContests.length > cardsPerPage && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 2,
+                  mt: 4,
+                  '& button': {
+                    minWidth: '36px',
+                    height: '36px',
+                    padding: '0 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e5e7eb',
+                    backgroundColor: 'white',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': { backgroundColor: '#f3f4f6', borderColor: '#d1d5db' },
+                    '&:disabled': { opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#f9fafb' },
+                    '&.active': { backgroundColor: '#6366f1', color: 'white', borderColor: '#6366f1' },
+                  },
+                }}
+              >
                 <button
-                  className={`qs-contest-view-tab ${contestView === 'All Contest' ? 'active' : ''}`}
-                  onClick={() => setContestView('All Contest')}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
+                  disabled={currentPage === 0}
+                  aria-label="Previous page"
                 >
-                  All Contest
+                  <FaChevronLeft />
                 </button>
-                <button
-                  className={`qs-contest-view-tab ${contestView === 'My Contest' ? 'active' : ''}`}
-                  onClick={() => setContestView('My Contest')}
-                >
-                  My Contest
-                </button>
-              </div>
-            </div>
-            
-            {/* Filters */}
-            <div className="qs-tournament-filters">
-              <div className="qs-category-filters">
-                {categories.map((category) => (
+
+                {Array.from({ length: Math.ceil(filteredContests.length / cardsPerPage) }, (_, i) => (
                   <button
-                    key={category}
-                    className={`qs-category-filter-btn ${selectedCategory === category ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(category)}
+                    key={i}
+                    onClick={() => setCurrentPage(i)}
+                    className={currentPage === i ? 'active' : ''}
+                    aria-label={`Page ${i + 1}`}
                   >
-                    {category}
+                    {i + 1}
                   </button>
                 ))}
-              </div>
-              <div className="qs-contest-dropdown">
-                <select
-                  value={selectedContest}
-                  onChange={(e) => setSelectedContest(e.target.value)}
-                  className="qs-contest-select"
-                >
-                  <option value="All Contest">All Contest</option>
-                  <option value="Upcoming">Upcoming</option>
-                  <option value="Ongoing">Ongoing</option>
-                  <option value="Completed">Completed</option>
-                </select>
-                <FaChevronDown className="qs-dropdown-arrow" />
-              </div>
-            </div>
 
-            {/* Tournament Cards */}
-            <div className="qs-tournament-cards">
-              {tournaments.map((tournament) => (
-                <div key={tournament.id} className="qs-tournament-card">
-                  <div 
-                    className="qs-tournament-status"
-                    style={{ backgroundColor: getStatusColor(tournament.status) }}
-                  >
-                    {tournament.status}
-                  </div>
-                  <div className="qs-tournament-image">
-                    <div className="qs-tournament-image-placeholder">
-                      {tournament.image}
-                    </div>
-                    <div 
-                      className="qs-tournament-difficulty"
-                      style={{ backgroundColor: getDifficultyColor(tournament.difficulty) }}
-                    >
-                      {tournament.difficulty}
-                    </div>
-                  </div>
-                  <div className="qs-tournament-content">
-                    <h3 className="qs-tournament-card-title">{tournament.title}</h3>
-                    <p className="qs-tournament-card-description">{tournament.description}</p>
-                    <div className="qs-tournament-card-details">
-                      <div className="qs-tournament-card-time">
-                        {tournament.time} || {tournament.date}
-                      </div>
-                      <div className="qs-tournament-card-prize">
-                        <FaCoins className="qs-prize-icon" />
-                        {tournament.prize}
-                      </div>
-                      <div className="qs-tournament-card-participants">
-                        <FaUsers className="qs-participants-icon" />
-                        {tournament.participants}
-                      </div>
-                      <div className="qs-tournament-card-closing">
-                        <FaClock className="qs-closing-icon" />
-                        {tournament.closesIn}
-                      </div>
-                    </div>
-                    <div className="qs-tournament-card-actions">
-                      <div className="qs-action-dropdown">
-                        <button
-                          className={`qs-action-btn ${openDropdown === tournament.id ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDropdownToggle(tournament.id, e);
-                          }}
-                        >
-                          Actions <FaChevronDown className={`qs-action-chevron ${openDropdown === tournament.id ? 'rotate' : ''}`} />
-                        </button>
-                        {openDropdown === tournament.id && (
-                          <div className="qs-dropdown-menu">
-                            <button onClick={(e) => { e.stopPropagation(); handleView(tournament.id); }}>
-                              <FaEye /> View
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleEdit(tournament.id); }}>
-                              <FaEdit /> Edit
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(tournament.id); }} className="qs-delete-btn">
-                              <FaTrash /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(prev + 1, Math.ceil(filteredContests.length / cardsPerPage) - 1),
+                    )
+                  }
+                  disabled={currentPage >= Math.ceil(filteredContests.length / cardsPerPage) - 1}
+                  aria-label="Next page"
+                >
+                  <FaChevronRight />
+                </button>
+              </Box>
+            )}
+          </Box>
+        </Container>
 
-            {/* Pagination */}
-            <div className="qs-tournament-pagination">
-              <button 
-                className="qs-pagination-btn"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                <FaChevronLeft /> Previous
-              </button>
-              <div className="qs-pagination-numbers">
-                <button 
-                  className={`qs-pagination-number ${currentPage === 1 ? 'active' : ''}`}
-                  onClick={() => setCurrentPage(1)}
-                >
-                  1
-                </button>
-                <button 
-                  className={`qs-pagination-number ${currentPage === 2 ? 'active' : ''}`}
-                  onClick={() => setCurrentPage(2)}
-                >
-                  2
-                </button>
-              </div>
-              <button 
-                className="qs-pagination-btn"
-                onClick={() => setCurrentPage(Math.min(2, currentPage + 1))}
-                disabled={currentPage === 2}
-              >
-                Next <FaChevronRight />
-              </button>
-            </div>
-          </div>
-        </div>
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleCloseMenu}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MenuItem onClick={() => handleView(menuContest?.id)}>View</MenuItem>
+          {menuContest && isMyContest(menuContest) && (
+            <>
+              <MenuItem onClick={() => handleEdit(menuContest.id)}>Edit</MenuItem>
+              <MenuItem onClick={() => handleAskDelete(menuContest)} sx={{ color: '#dc2626' }}>
+                Delete
+              </MenuItem>
+            </>
+          )}
+        </Menu>
+
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+          <DialogTitle>Delete contest</DialogTitle>
+          <DialogContent>
+            <DialogContentText>Are you sure you want to delete this contest?</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>No</Button>
+            <Button onClick={handleConfirmDelete} color="error" variant="contained">
+              Yes
+            </Button>
+          </DialogActions>
+        </Dialog>
       </main>
     </div>
   );
