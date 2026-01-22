@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaChevronDown,
+  FaBars, FaHome, FaSearch, FaBell, FaCog, FaUserCircle,
+  FaSignOutAlt, FaTrophy, FaComments, FaChevronDown,
   FaCheckCircle, FaStar, FaFire, FaMedal, FaEdit, FaEye, FaEyeSlash,
   FaLock, FaEnvelope, FaGlobe, FaCodeBranch, FaTimes, FaPlus,
-  FaTrophy as FaTrophyIcon, FaCode, FaChartLine
+  FaTrophy as FaTrophyIcon, FaCode, FaChartLine, FaListOl, FaUser
 } from 'react-icons/fa';
 import { 
   Target, 
@@ -20,7 +20,17 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
 import './question-setter-Profile.css';
+
+const menuItems = [
+  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
+  { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
+  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
+  { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
+];
 
 const AccountSettings = ({ user, userData, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState('Profile');
@@ -613,6 +623,8 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
 const QuestionSetterProfile = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [active, setActive] = useState('profile');
   const [user, setUser] = useState({
     uid: null,
     displayName: 'Alex Johnson',
@@ -757,104 +769,99 @@ const QuestionSetterProfile = () => {
 
   if (loading) {
     return (
-      <div className="qs-profile-layout">
-        <div className="qs-loading">Loading...</div>
+      <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+        <aside className="ud-sidebar">
+          <div className="ud-logo">
+            <span className="byte">Byte</span>
+            <span className="arena">Arena</span>
+          </div>
+        </aside>
+        <main className="ud-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="qs-profile-layout">
-      {/* Sidebar */}
-      <aside className="qs-sidebar">
-        <div className="qs-sidebar-logo">
-          <span className="qs-logo-byte">Byte</span>
-          <span className="qs-logo-arena">Arena</span>
+    <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+      <aside className="ud-sidebar">
+        <div className="ud-logo">
+          <span className="byte">Byte</span>
+          <span className="arena">Arena</span>
         </div>
-        <nav className="qs-sidebar-nav">
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter')}
-          >
-            <FaHome className="qs-nav-icon" />
-            <span className="qs-nav-text">Home</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/explore')}
-          >
-            <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/contest')}
-          >
-            <FaTrophy className="qs-nav-icon" />
-            <span className="qs-nav-text">Contest</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/leaderboard')}
-          >
-            <FaUsers className="qs-nav-icon" />
-            <span className="qs-nav-text">Leaderboard</span>
-          </button>
-          <button 
-            className="qs-nav-item active"
-            onClick={() => navigate('/question-setter/profile')}
-          >
-            <FaUserCircle className="qs-nav-icon" />
-            <span className="qs-nav-text">Profile</span>
-          </button>
-          <button 
-            className="qs-nav-item qs-nav-logout"
-            onClick={handleLogout}
-          >
-            <FaSignOutAlt className="qs-nav-icon" />
-            <span className="qs-nav-text">Logout</span>
-          </button>
+        <nav className="ud-nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${item.danger ? 'danger' : ''}`}
+              onClick={() => {
+                if (item.key === 'logout') {
+                  handleLogout();
+                } else {
+                  setActive(item.key);
+                  if (item.key === 'home') {
+                    navigate('/question-setter');
+                  } else if (item.key === 'contest') {
+                    navigate('/question-setter/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/question-setter/explore');
+                  } else if (item.key === 'leaderboard') {
+                    navigate('/question-setter/leaderboard');
+                  } else if (item.key === 'profile') {
+                    navigate('/question-setter/profile');
+                  }
+                }
+              }}
+            >
+              <span className="icon" style={{ marginRight: '12px' }}>{item.icon}</span>
+              <span className="label" style={{ textAlign: 'left', flex: 1 }}>{item.name}</span>
+            </button>
+          ))}
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="qs-main-content">
-        {/* Header */}
-        <header className="qs-header">
-          <div className="qs-header-left">
-            <div className="qs-logo-header">
-              <span className="qs-logo-byte-header">Byte</span>
-              <span className="qs-logo-arena-header">Arena</span>
-            </div>
-            <div className="qs-search-bar">
-              <FaSearch className="qs-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search Questions, Contest, Leaderboard..." 
-                className="qs-search-input"
-              />
+      <main className="ud-main">
+        <header className="ud-topbar">
+          <div className="ud-topbar-left">
+            <button
+              className="ud-toggle"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <FaBars />
+            </button>
+            <div className="search">
+              <FaSearch className="search-icon" />
+              <input type="text" placeholder="Search problems, contests, creators..." />
             </div>
           </div>
-          <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
+          <div className="ud-topbar-right">
+            <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+              <FaHome />
             </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
+            <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="qs-notification-badge">1</span>
+              <span className="badge">4</span>
             </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
-            </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Profile">
-              <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
-            </button>
+            <div
+              className="profile"
+              onClick={() => navigate('/question-setter/profile')}
+              style={{ cursor: 'pointer' }}
+              data-tooltip="Profile"
+            >
+              <div className="avatar">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="avatar" />
+                ) : (
+                  <FaUser />
+                )}
+              </div>
+              <span>{user?.displayName || 'Question Setter'}</span>
+            </div>
           </div>
         </header>
 
-        {/* Content Area */}
         <div className="qs-profile-content-area">
           <ProfileContent 
             user={user} 
