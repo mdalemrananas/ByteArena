@@ -1,250 +1,768 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaChevronDown,
-  FaChevronLeft, FaChevronRight, FaStar, FaChartLine, FaGem, FaMedal
+  Container, 
+  Typography, 
+  Paper, 
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Avatar,
+  Chip,
+  Box,
+  Card,
+  CardContent,
+  Fade,
+  alpha
+} from '@mui/material';
+import { 
+  Search as SearchIcon,
+  MilitaryTech as TrophyIcon,
+  Star as StarIcon,
+  EmojiEvents as MedalIcon,
+  TrendingUp,
+  FilterList
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import {
+  FaBars,
+  FaBell,
+  FaCode,
+  FaFire,
+  FaHome,
+  FaListOl,
+  FaSearch,
+  FaSignOutAlt,
+  FaTrophy,
+  FaUser,
 } from 'react-icons/fa';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
-import './question-setter-Leaderboard.css';
+import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
+
+const menuItems = [
+  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
+  { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
+  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
+  { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
+];
 
 const QuestionSetterLeaderboard = () => {
   const navigate = useNavigate();
-  const [leaderboardSort, setLeaderboardSort] = useState('Score');
-  const [leaderboardSearch, setLeaderboardSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('score');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [active, setActive] = useState('leaderboard');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [statsData, setStatsData] = useState([]);
+
+  // Fetch leaderboard data from Supabase
+  const fetchLeaderboardData = async () => {
+    try {
+      console.log('Fetching leaderboard data...');
+      
+      const { data: testData, error: testError } = await supabase
+        .from('leaderboard')
+        .select('id, score, level, problem_solve, badge, participate_id')
+        .limit(1);
+
+      console.log('Table test result:', { testData, testError });
+
+      if (testError) {
+        console.error('Table access error:', testError);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select(`
+          *,
+          users:participate_id (
+            id,
+            display_name,
+            email,
+            avatar_url
+          )
+        `)
+        .order('score', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching leaderboard data:', error);
+        
+        console.log('Trying fallback query without user join...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .order('score', { ascending: false });
+
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          return;
+        }
+
+        console.log('Fallback data fetched:', fallbackData);
+        
+        if (fallbackData && fallbackData.length > 0) {
+          const transformedData = fallbackData.map((entry, index) => ({
+            rank: index + 1,
+            id: entry.id,
+            name: 'Anonymous User',
+            username: '@anonymous',
+            score: entry.score,
+            level: entry.level,
+            problemsSolved: entry.problem_solve,
+            badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1),
+            avatar: 'AU',
+            userId: entry.participate_id
+          }));
+
+          setLeaderboardData(transformedData);
+          return;
+        }
+      }
+
+      console.log('Leaderboard data fetched:', data);
+
+      if (data && data.length > 0) {
+        const transformedData = data.map((entry, index) => ({
+          rank: index + 1,
+          id: entry.id,
+          name: entry.users?.display_name || 'Anonymous User',
+          username: entry.users?.email ? `@${entry.users.email.split('@')[0]}` : '@anonymous',
+          score: entry.score,
+          level: entry.level,
+          problemsSolved: entry.problem_solve,
+          badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1),
+          avatar: entry.users?.display_name 
+            ? entry.users.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+            : 'AU',
+          userId: entry.participate_id
+        }));
+
+        console.log('Transformed leaderboard data:', transformedData);
+        setLeaderboardData(transformedData);
+
+        const totalPlayers = transformedData.length;
+        const avgScore = Math.round(transformedData.reduce((sum, player) => sum + player.score, 0) / totalPlayers);
+        const totalProblems = transformedData.reduce((sum, player) => sum + player.problemsSolved, 0);
+
+        setStatsData([
+          { label: 'Total Players', value: totalPlayers.toLocaleString(), change: '+12%', icon: <FaUser />, color: '#6366F1' },
+          { label: 'Avg Score', value: avgScore.toLocaleString(), change: '+5%', icon: <TrendingUp />, color: '#10B981' },
+          { label: 'Problems Solved', value: totalProblems.toLocaleString(), change: '+8%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Active Players', value: Math.round(totalPlayers * 0.8).toLocaleString(), change: '+3%', icon: <FaTrophy />, color: '#EF4444' }
+        ]);
+      } else {
+        console.log('No leaderboard data found');
+        setLeaderboardData([]);
+        setStatsData([
+          { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
+          { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
+          { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error in fetchLeaderboardData:', error);
+      setLeaderboardData([]);
+      setStatsData([
+        { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
+        { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
+        { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+        { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
+      ]);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setLoading(false);
+        fetchLeaderboardData();
+      } else {
+        navigate('/');
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
   const handleLogout = async () => {
     try {
       await logoutUser();
       navigate('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Logout error:', error);
+      navigate('/');
     }
   };
 
-  const leaderboardData = [
-    { rank: 1, name: 'User1', country: 'Bangladesh', score: 9850, level: 78, problemsSolved: 42, badge: 'Diamond', avatar: 'U1', active: true },
-    { rank: 2, name: 'User2', country: 'Bangladesh', score: 8720, level: 65, problemsSolved: 38, badge: 'Platinum', avatar: 'U2', active: true },
-    { rank: 3, name: 'User3', country: 'Bangladesh', score: 7640, level: 59, problemsSolved: 35, badge: 'Gold', avatar: 'U3', active: true },
-    { rank: 4, name: 'User4', country: 'Bangladesh', score: 6980, level: 52, problemsSolved: 31, badge: 'Gold', avatar: 'U4', active: true },
-    { rank: 5, name: 'User5', country: 'Bangladesh', score: 6540, level: 48, problemsSolved: 29, badge: 'Silver', avatar: 'U5', active: true },
-    { rank: 6, name: 'User6', country: 'Bangladesh', score: 5920, level: 45, problemsSolved: 27, badge: 'Silver', avatar: 'U6', active: false },
-    { rank: 7, name: 'User7', country: 'Bangladesh', score: 5480, level: 41, problemsSolved: 25, badge: 'Bronze', avatar: 'U7', active: false },
-    { rank: 8, name: 'User8', country: 'Bangladesh', score: 5120, level: 38, problemsSolved: 23, badge: 'Bronze', avatar: 'U8', active: false },
-    { rank: 9, name: 'User9', country: 'Bangladesh', score: 4780, level: 36, problemsSolved: 21, badge: 'Bronze', avatar: 'U9', active: false },
-    { rank: 10, name: 'User10', country: 'Bangladesh', score: 4350, level: 33, problemsSolved: 19, badge: 'Bronze', avatar: 'U10', active: false }
-  ];
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+
+  const getBadgeColor = (badge) => {
+    switch(badge) {
+      case 'Bronze': return 'default';
+      case 'Silver': return 'secondary';
+      case 'Elite': return 'error';
+      case 'Master': return 'warning';
+      default: return 'default';
+    }
+  };
+
+  const getRankIcon = (rank) => {
+    if (rank === 1) return <TrophyIcon sx={{ color: '#FFD700', fontSize: 20 }} />;
+    if (rank === 2) return <MedalIcon sx={{ color: '#C0C0C0', fontSize: 20 }} />;
+    if (rank === 3) return <MedalIcon sx={{ color: '#CD7F32', fontSize: 20 }} />;
+    return <Typography variant="body2" fontWeight="bold" color="text.secondary">#{rank}</Typography>;
+  };
+
+  const getRankBackgroundColor = (rank) => {
+    if (rank === 1) return '#FFF3E0';
+    if (rank === 2) return '#F5F5F5';
+    if (rank === 3) return '#FFF8E1';
+    return 'transparent';
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   return (
-    <div className="qs-leaderboard-layout">
-      {/* Sidebar */}
-      <aside className="qs-sidebar">
-        <div className="qs-sidebar-logo">
-          <span className="qs-logo-byte">Byte</span>
-          <span className="qs-logo-arena">Arena</span>
+    <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+      <aside className="ud-sidebar">
+        <div className="ud-logo">
+          <span className="byte">Byte</span>
+          <span className="arena">Arena</span>
         </div>
-        <nav className="qs-sidebar-nav">
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter')}
-          >
-            <FaHome className="qs-nav-icon" />
-            <span className="qs-nav-text">Home</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/explore')}
-          >
-            <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/contest')}
-          >
-            <FaTrophy className="qs-nav-icon" />
-            <span className="qs-nav-text">Contest</span>
-          </button>
-          <button 
-            className="qs-nav-item active"
-            onClick={() => navigate('/question-setter/leaderboard')}
-          >
-            <FaUsers className="qs-nav-icon" />
-            <span className="qs-nav-text">Leaderboard</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/profile')}
-          >
-            <FaUserCircle className="qs-nav-icon" />
-            <span className="qs-nav-text">Profile</span>
-          </button>
-          <button 
-            className="qs-nav-item qs-nav-logout"
-            onClick={handleLogout}
-          >
-            <FaSignOutAlt className="qs-nav-icon" />
-            <span className="qs-nav-text">Logout</span>
-          </button>
+        <nav className="ud-nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${item.danger ? 'danger' : ''}`}
+              onClick={() => {
+                if (item.key === 'logout') {
+                  handleLogout();
+                } else {
+                  setActive(item.key);
+                  if (item.key === 'home') {
+                    navigate('/question-setter');
+                  } else if (item.key === 'contest') {
+                    navigate('/question-setter/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/question-setter/explore');
+                  } else if (item.key === 'leaderboard') {
+                    navigate('/question-setter/leaderboard');
+                  } else if (item.key === 'profile') {
+                    navigate('/question-setter/profile');
+                  }
+                }
+              }}
+            >
+              <span className="icon" style={{ marginRight: '12px' }}>{item.icon}</span>
+              <span className="label" style={{ textAlign: 'left', flex: 1 }}>{item.name}</span>
+            </button>
+          ))}
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="qs-main-content">
-        {/* Header */}
-        <header className="qs-header">
-          <div className="qs-header-left">
-            <div className="qs-logo-header">
-              <span className="qs-logo-byte-header">Byte</span>
-              <span className="qs-logo-arena-header">Arena</span>
-            </div>
-            <div className="qs-search-bar">
-              <FaSearch className="qs-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search Questions, Contest, Leaderboard..." 
-                className="qs-search-input"
-              />
+      <main className="ud-main">
+        <header className="ud-topbar">
+          <div className="ud-topbar-left">
+            <button
+              className="ud-toggle"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <FaBars />
+            </button>
+            <div className="search">
+              <FaSearch className="search-icon" />
+              <input type="text" placeholder="Search problems, contests, creators..." />
             </div>
           </div>
-          <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
-            </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
-              <FaBell />
-              <span className="qs-notification-badge">1</span>
-            </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
-            </button>
-            <button 
-              className="qs-header-icon-btn qs-notification-btn" 
-              title="Profile"
-              onClick={() => navigate('/question-setter/profile')}
+          <div className="ud-topbar-right">
+            <button
+              className="icon-btn"
+              onClick={() => navigate('/')}
+              data-tooltip="Home"
             >
-              <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
+              <FaHome />
             </button>
+            <button className="icon-btn" data-tooltip="Notifications">
+              <FaBell />
+              <span className="badge">4</span>
+            </button>
+            <div className="profile" onClick={() => navigate('/question-setter/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
+              <div className="avatar">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="avatar" />
+                ) : (
+                  <FaUser />
+                )}
+              </div>
+              <span>{user?.displayName || 'Question Setter'}</span>
+            </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="qs-leaderboard-content-area">
-          {/* Page Header */}
-          <div className="qs-leaderboard-page-header">
-            <h1 className="qs-leaderboard-page-title">Leaderboard</h1>
-            <p className="qs-leaderboard-page-subtitle">See who's leading the pack in our global quiz rankings.</p>
-          </div>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+          minHeight: 'calc(100vh - 80px)',
+        }}>
+          <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 }, py: 4 }}>
+            {/* Header Section */}
+            <Fade in timeout={800}>
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h3" component="h1" sx={{ 
+                  fontWeight: 'bold', 
+                  color: '#000000',
+                  mb: 1
+                }}>
+                  Global Leaderboard
+                </Typography>
+                <Typography variant="body1" color="#64748b" sx={{ mb: 3 }}>
+                  Track your progress and compete with the best players worldwide
+                </Typography>
+              </Box>
+            </Fade>
 
-          {/* Global Leaderboard Banner */}
-          <div className="qs-global-leaderboard-banner">
-            <h2 className="qs-banner-title">Global Leaderboard</h2>
-            <p className="qs-banner-description">Compete with the best quiz masters from around the world.</p>
-          </div>
+            {/* Stats Cards */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 3, mb: 4 }}>
+              {statsData.map((stat, index) => (
+                <Fade in timeout={1000 + index * 200} key={stat.label}>
+                  <Card 
+                    sx={{ 
+                      background: 'white',
+                      borderRadius: 3,
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                      border: '1px solid rgba(226, 232, 240, 0.8)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        borderColor: stat.color
+                      }
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ 
+                          p: 1.5, 
+                          borderRadius: 2, 
+                          backgroundColor: alpha(stat.color, 0.1),
+                          color: stat.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {stat.icon}
+                        </Box>
+                        <Chip 
+                          label={stat.change} 
+                          size="small" 
+                          sx={{ 
+                            backgroundColor: alpha('#10B981', 0.1),
+                            color: '#10B981',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem'
+                          }} 
+                        />
+                      </Box>
+                      <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', color: '#1e293b', mb: 0.5 }}>
+                        {stat.value}
+                      </Typography>
+                      <Typography variant="body2" color="#64748b">
+                        {stat.label}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Fade>
+              ))}
+            </Box>
 
-          {/* Search and Sort */}
-          <div className="qs-leaderboard-filters">
-            <div className="qs-search-filter">
-              <FaSearch className="qs-filter-search-icon" />
-              <input
-                type="text"
-                placeholder="Search competitor..."
-                value={leaderboardSearch}
-                onChange={(e) => setLeaderboardSearch(e.target.value)}
-                className="qs-filter-search-input"
-              />
-            </div>
-            <div className="qs-sort-filter">
-              <label>Sort by:</label>
-              <select
-                value={leaderboardSort}
-                onChange={(e) => setLeaderboardSort(e.target.value)}
-                className="qs-sort-select"
+            {/* Search and Sort Bar */}
+            <Fade in timeout={1200}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: { xs: 2, sm: 3 }, 
+                  mb: 4, 
+                  borderRadius: 3,
+                  background: 'white',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}
               >
-                <option value="Score">Score</option>
-                <option value="Level">Level</option>
-                <option value="Problems">Problems</option>
-              </select>
-              <FaChevronDown className="qs-sort-arrow" />
-            </div>
-          </div>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <TextField
+                    placeholder="Search players by name or username..."
+                    variant="outlined"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    sx={{ 
+                      flex: 1,
+                      minWidth: { xs: '100%', sm: '300px' },
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2.5,
+                        backgroundColor: alpha('#6366F1', 0.02),
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        '&:hover': {
+                          borderColor: '#6366F1',
+                          backgroundColor: alpha('#6366F1', 0.04)
+                        },
+                        '&.Mui-focused': {
+                          borderColor: '#6366F1',
+                          backgroundColor: 'white',
+                          boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                        }
+                      }
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ color: '#64748b' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <FormControl sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      sx={{ 
+                        borderRadius: 2.5,
+                        backgroundColor: alpha('#6366F1', 0.02),
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        '&:hover': {
+                          borderColor: '#6366F1',
+                          backgroundColor: alpha('#6366F1', 0.04)
+                        },
+                        '&.Mui-focused': {
+                          borderColor: '#6366F1',
+                          backgroundColor: 'white',
+                          boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                        }
+                      }}
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <FilterList sx={{ color: '#64748b', mr: 1 }} />
+                        </InputAdornment>
+                      }
+                    >
+                      <MenuItem value="score">Sort by Score</MenuItem>
+                      <MenuItem value="level">Sort by Level</MenuItem>
+                      <MenuItem value="problems">Sort by Problems</MenuItem>
+                      <MenuItem value="name">Sort by Name</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Paper>
+            </Fade>
 
-          {/* Leaderboard Table */}
-          <div className="qs-table-container">
-            <table className="qs-leaderboard-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>User</th>
-                  <th>Score</th>
-                  <th>Level</th>
-                  <th>Problem Solve</th>
-                  <th>Badge</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboardData.map((user) => (
-                  <tr key={user.rank}>
-                    <td className="qs-rank-cell">
-                      <div className={`qs-rank-badge ${user.rank <= 2 ? 'qs-rank-highlight' : ''}`}>
-                        {user.rank}
-                      </div>
-                    </td>
-                    <td className="qs-user-cell">
-                      <div className="qs-user-info">
-                        <div className="qs-user-avatar">{user.avatar}</div>
-                        <div className="qs-user-details">
-                          <span className="qs-user-name">{user.name}</span>
-                          <span className="qs-user-country">{user.country}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="qs-score-cell">{user.score.toLocaleString()}</td>
-                    <td className="qs-level-cell">
-                      <FaStar className="qs-star-icon" />
-                      {user.level}
-                    </td>
-                    <td className="qs-problems-cell">
-                      <div className="qs-problems-info">
-                        <span>{user.problemsSolved}</span>
-                        {user.active && (
-                          <div className="qs-active-status">
-                            <span>Active</span>
-                            <FaChartLine className="qs-active-icon" />
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="qs-badge-cell">
-                      <span className={`qs-achievement-badge qs-badge-${user.badge.toLowerCase()}`}>
-                        {user.badge === 'Diamond' && <FaGem />}
-                        {user.badge === 'Platinum' && <FaMedal />}
-                        {user.badge === 'Gold' && <FaMedal />}
-                        {user.badge === 'Silver' && <FaMedal />}
-                        {user.badge === 'Bronze' && <FaMedal />}
-                        {user.badge}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="qs-table-pagination">
-            <span className="qs-pagination-info">Showing 1-10 of 15 users</span>
-            <div className="qs-pagination-controls">
-              <button className="qs-pagination-btn" disabled>
-                <FaChevronLeft /> Previous
-              </button>
-              <button className="qs-pagination-btn">
-                Next <FaChevronRight />
-              </button>
-            </div>
-          </div>
+            {/* Leaderboard Table */}
+            <Fade in timeout={1400}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  background: 'white',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}
+              >
+                <TableContainer sx={{ maxHeight: 'calc(100vh - 400px)' }}>
+                  <Table sx={{ minWidth: { xs: 600, sm: 800, md: 1000 } }} stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 80, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Rank
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 200, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Player
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 100, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Score
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 100, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Level
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 120, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Problems
+                        </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 100, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          Badge
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {leaderboardData
+                        .filter(user => 
+                          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          user.username.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .sort((a, b) => {
+                          if (sortBy === 'score') {
+                            return b.score - a.score;
+                          } else if (sortBy === 'level') {
+                            return b.level - a.level;
+                          } else if (sortBy === 'problems') {
+                            return b.problemsSolved - a.problemsSolved;
+                          } else if (sortBy === 'name') {
+                            return a.name.localeCompare(b.name);
+                          }
+                          return 0;
+                        })
+                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                        .map((user) => (
+                          <TableRow 
+                            key={user.rank}
+                            sx={{ 
+                              backgroundColor: getRankBackgroundColor(user.rank),
+                              '&:hover': {
+                                backgroundColor: alpha('#6366F1', 0.04),
+                                '& .MuiTableCell-root': {
+                                  color: '#1e293b'
+                                }
+                              },
+                              transition: 'all 0.2s ease-in-out',
+                              borderBottom: '1px solid rgba(226, 232, 240, 0.6)'
+                            }}
+                          >
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {getRankIcon(user.rank)}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Avatar 
+                                  sx={{ 
+                                    width: 40, 
+                                    height: 40,
+                                    background: user.rank <= 3 
+                                      ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' 
+                                      : 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.875rem',
+                                    boxShadow: user.rank <= 3 ? '0 4px 12px rgba(255, 215, 0, 0.4)' : '0 2px 8px rgba(99, 102, 241, 0.3)'
+                                  }}
+                                >
+                                  {user.avatar}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b' }}>
+                                    {user.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="#64748b" sx={{ fontSize: '0.75rem' }}>
+                                    {user.username}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="600" sx={{ color: '#6366F1', fontSize: '0.875rem' }}>
+                                {user.score.toLocaleString()}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
+                                  {user.level}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.25 }}>
+                                  {[...Array(5)].map((_, i) => (
+                                    <StarIcon 
+                                      key={i} 
+                                      sx={{ 
+                                        fontSize: 10,
+                                        color: i < Math.floor(user.level / 20) ? '#FFD700' : '#e2e8f0'
+                                      }} 
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
+                                {user.problemsSolved}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={user.badge} 
+                                color={getBadgeColor(user.badge)}
+                                size="small"
+                                variant="filled"
+                                sx={{ 
+                                  fontWeight: '600',
+                                  fontSize: '0.75rem',
+                                  height: 24,
+                                  borderRadius: 1.5
+                                }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                
+                {/* Pagination */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  p: { xs: 2, sm: 3 }, 
+                  flexWrap: 'wrap', 
+                  gap: 2,
+                  backgroundColor: '#f8fafc',
+                  borderTop: '1px solid rgba(226, 232, 240, 0.8)'
+                }}>
+                  <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+                    Showing {page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, leaderboardData.length)} of {leaderboardData.length} players
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Typography variant="body2" color="#64748b" sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.875rem' }}>
+                      Rows per page:
+                    </Typography>
+                    <Select
+                      value={rowsPerPage}
+                      onChange={handleChangeRowsPerPage}
+                      size="small"
+                      sx={{ 
+                        minWidth: 60,
+                        borderRadius: 2,
+                        backgroundColor: 'white',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        '&:hover': {
+                          borderColor: '#6366F1'
+                        }
+                      }}
+                    >
+                      <MenuItem value={3}>3</MenuItem>
+                      <MenuItem value={5}>5</MenuItem>
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={25}>25</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <button
+                        onClick={() => setPage(page - 1)}
+                        disabled={page === 0}
+                        style={{
+                          padding: '8px 16px',
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          borderRadius: '8px',
+                          backgroundColor: page === 0 ? '#f1f5f9' : 'white',
+                          color: page === 0 ? '#94a3b8' : '#64748b',
+                          cursor: page === 0 ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setPage(page + 1)}
+                        disabled={page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1}
+                        style={{
+                          padding: '8px 16px',
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          borderRadius: '8px',
+                          backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : 'white',
+                          color: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#94a3b8' : '#64748b',
+                          cursor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        Next
+                      </button>
+                    </Box>
+                    <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+                      Page {page + 1} of {Math.max(1, Math.ceil(leaderboardData.length / rowsPerPage))}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            </Fade>
+          </Container>
         </div>
       </main>
     </div>
@@ -252,4 +770,3 @@ const QuestionSetterLeaderboard = () => {
 };
 
 export default QuestionSetterLeaderboard;
-

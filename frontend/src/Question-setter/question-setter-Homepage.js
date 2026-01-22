@@ -1,493 +1,1472 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaChevronLeft, FaChevronRight, FaSignOutAlt, FaPlus, FaEye,
-  FaTrophy, FaStar, FaUsers, FaCode, FaDatabase, FaBolt
+  FaBars,
+  FaBell,
+  FaCode,
+  FaHome,
+  FaListOl,
+  FaSearch,
+  FaSignOutAlt,
+  FaTrophy,
+  FaUser,
+  FaUsers,
 } from 'react-icons/fa';
+import { ChevronLeft, ChevronRight, Trophy, Users, Clock, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
 import './question-setter-Homepage.css';
 
-const QuestionSetterHomepage = () => {
+const qsMenuItems = [
+  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
+  { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
+  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
+  { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
+];
+
+const categories = [
+  {
+    title: 'JAVASCRIPT 30 DAYS CHALLENGE',
+    tag: 'Javascript',
+    badge: '1',
+    image: '/JavaScript_Cover.jpg',
+  },
+  {
+    title: 'Database',
+    tag: 'Database',
+    badge: '2',
+    image: '/Datbase_Cover.jpg',
+  },
+  {
+    title: 'ALGORITHMS',
+    tag: 'Algorithms',
+    badge: '3',
+    image: '/Algorithms_Cover.jpg',
+  },
+  {
+    title: 'CONCURRENCY',
+    tag: 'Concurrency',
+    badge: '4',
+    image: '/Concurrency_Cover.jpg',
+  },
+];
+
+function QuestionSetterHomepage() {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState('All');
-  const categoriesScrollRef = useRef(null);
-  const problemsScrollRef = useRef(null);
-  const contestScrollRef = useRef(null);
-  const competitorsScrollRef = useRef(null);
-  const winnersScrollRef = useRef(null);
+  const [active, setActive] = useState('home');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [contestCardIndex, setContestCardIndex] = useState(0);
+  const [contests, setContests] = useState([]);
+  const [contestsLoading, setContestsLoading] = useState(false);
+  const [contestsError, setContestsError] = useState(null);
+  const [practiceProblems, setPracticeProblems] = useState([]);
+  const [practiceProblemsLoading, setPracticeProblemsLoading] = useState(false);
+  const [practiceProblemsError, setPracticeProblemsError] = useState(null);
+  const [topProgrammers, setTopProgrammers] = useState([]);
+  const [topProgrammersLoading, setTopProgrammersLoading] = useState(false);
 
-  // Helper to correctly resolve public assets in any deployment base path
-  const getImageUrl = (path) => `${process.env.PUBLIC_URL || ''}${path}`;
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setLoading(false);
+      } else {
+        navigate('/');
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
 
-  // Dummy data
-  const categories = [
-    { id: 1, name: 'JavaScript', title: 'JAVASCRIPT 30 DAYS CHALLENGE', icon: <FaCode />, bgColor: '#1e3a8a', image: getImageUrl('/JavaScript_Cover.jpg') },
-    { id: 2, name: 'Database', title: 'Database', icon: <FaDatabase />, bgColor: '#1e3a8a', image: getImageUrl('/Datbase_Cover.jpg') },
-    { id: 3, name: 'Algorithms', title: 'ALGORITHMS', icon: <FaBolt />, bgColor: '#ffffff', textColor: '#000', image: getImageUrl('/Algorithms_Cover.jpg') },
-    { id: 4, name: 'Concurrency', title: 'CONCURRENCY', icon: <FaBolt />, bgColor: '#6d55ff', image: getImageUrl('/Concurrency_Cover.jpg') },
-  ];
+  // Fetch contests data from Supabase
+  useEffect(() => {
+    const fetchContests = async () => {
+      setContestsLoading(true);
+      setContestsError(null);
 
-  const latestProblems = [
-    { id: 1, title: 'Maximum Subarray Sum With Length Divisible By K', difficulty: 'Medium', difficultyColor: '#fbbf24', image: getImageUrl('/Latest Problem 1.png') },
-    { id: 2, title: 'Regular Expression Matching', difficulty: 'Hard', difficultyColor: '#ef4444', image: getImageUrl('/Latest Problem 2.png') },
-    { id: 3, title: 'Remove Duplicates from Sorted Array', difficulty: 'Easy', difficultyColor: '#10b981', image: getImageUrl('/Latest Problem 3.png') },
-    { id: 4, title: 'N-Queens II', difficulty: 'Hard', difficultyColor: '#3b82f6', image: getImageUrl('/Latest Problem 4.png') },
-  ];
+      try {
+        const { data, error } = await supabase
+          .from('contests')
+          .select('*')
+          .order('contest_created_at', { ascending: false });
 
-  const contests = [
-    {
-      id: 1, 
-      title: 'Science Quiz: Space Exploration', 
-      creator: 'Alex Smith', 
-      rating: 4.9, 
-      prize: 'Win Money ৳5000',
-      players: '2.5k',
-      space: '500',
-      tag: '2 DAYS LEFT',
-      tagColor: '#3b82f6',
-      trending: false,
-      image: getImageUrl('/Contest 1.png')
-    },
-    {
-      id: 2, 
-      title: 'World Geography Challenge: Capitals & Geography', 
-      creator: 'Alex Smith', 
-      rating: 4.8, 
-      prize: 'Win Money ৳5000',
-      players: '1.9k',
-      space: '200',
-      tag: '1 DAY LEFT',
-      tagColor: '#3b82f6',
-      trending: false,
-      image: getImageUrl('/Contest 2.png')
-    },
-    {
-      id: 3, 
-      title: 'Brain Teasers & Logic Puzzles', 
-      creator: 'Alex Smith', 
-      rating: 4.7, 
-      prize: 'Win Money ৳5000',
-      players: '3.2k',
-      space: '800',
-      tag: 'TRENDING',
-      tagColor: '#f59e0b',
-      trending: true,
-      image: getImageUrl('/Contest 3.png')
-    },
-    { 
-      id: 4, 
-      title: 'History\'s Greatest Mysteries', 
-      creator: 'Alex Smith', 
-      rating: 4.9, 
-      prize: 'Win Money ৳5000',
-      players: '1.9k',
-      space: '500',
-      tag: 'EDITOR\'S CHOICE',
-      tagColor: '#14b8a6',
-      trending: false,
-      image: getImageUrl('/Contest 4.png')
-    },
-  ];
+        if (error) {
+          throw error;
+        }
 
-  const topCompetitors = [
-    { id: 1, name: 'Imran', country: 'Bangladesh', rank: 1, problems: 42, points: 1250, tag: null, avatar: 'I', image: getImageUrl('/Top programmer 1.png') },
-    { id: 2, name: 'Lamia', country: 'Bangladesh', rank: 2, problems: 38, points: 980, tag: null, avatar: 'L', image: getImageUrl('/Top programmer 2.png') },
-    { id: 3, name: 'Ananna', country: 'Bangladesh', rank: 3, problems: 35, points: 875, tag: null, avatar: 'A', image: getImageUrl('/Top programmer 3.png') },
-    { id: 4, name: 'Mohin', country: 'Bangladesh', rank: 4, problems: 31, points: 720, tag: null, avatar: 'M', image: getImageUrl('/Top programmer 4.png') },
-  ];
+        const now = new Date();
+        const activeAndUpcomingContests =
+          data?.filter((contest) => new Date(contest.registration_end) > now) || [];
 
-  const liveWinners = [
-    { id: 1, name: 'Palak', time: '1 week ago', prize: 'Won ৳5000 playing \'Sports Trivia\'', avatar: 'P' },
-    { id: 2, name: 'Lamia', time: '2 weeks ago', prize: 'Won ৳5000 playing \'Music Masters\'', avatar: 'L' },
-    { id: 3, name: 'Imran', time: '3 weeks ago', prize: 'Won ৳5000 playing \'Science Trivia\'', avatar: 'I' },
-    { id: 4, name: 'Ananna', time: '4 weeks ago', prize: 'Won ৳5000 playing \'Pop Culture Quiz\'', avatar: 'A' },
-    { id: 5, name: 'Mohin', time: '1 month ago', prize: 'Won ৳5000 playing \'Geography Challenge\'', avatar: 'M' },
-  ];
+        setContests(activeAndUpcomingContests);
+      } catch (error) {
+        console.error('Error fetching contests:', error);
+        setContestsError('Failed to load contests');
+      } finally {
+        setContestsLoading(false);
+      }
+    };
+
+    fetchContests();
+  }, []);
+
+  // Fetch practice problems data from Supabase
+  useEffect(() => {
+    const fetchPracticeProblems = async () => {
+      setPracticeProblemsLoading(true);
+      setPracticeProblemsError(null);
+
+      try {
+        const { data, error } = await supabase
+          .from('practice_problem')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        setPracticeProblems(data || []);
+      } catch (error) {
+        console.error('Error fetching practice problems:', error);
+        setPracticeProblemsError('Failed to load practice problems');
+      } finally {
+        setPracticeProblemsLoading(false);
+      }
+    };
+
+    fetchPracticeProblems();
+  }, []);
+
+  // Fetch top programmers from leaderboard
+  useEffect(() => {
+    const fetchTopProgrammers = async () => {
+      setTopProgrammersLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('leaderboard')
+          .select(`
+            *,
+            users:participate_id (
+              id,
+              display_name,
+              email,
+              avatar_url
+            )
+          `)
+          .order('score', { ascending: false })
+          .limit(5);
+
+        if (error) {
+          console.error('Error fetching top programmers:', error);
+          setTopProgrammers([]);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const transformedData = data.map((entry, index) => ({
+            id: entry.id,
+            rank: index + 1,
+            name: entry.users?.display_name || 'Anonymous User',
+            email: entry.users?.email || '',
+            score: entry.score || 0,
+            level: entry.level || 0,
+            problemsSolved: entry.problem_solve || 0,
+            badge: entry.badge || 'Bronze',
+            avatar: entry.users?.display_name 
+              ? entry.users.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+              : 'AU',
+            userId: entry.participate_id
+          }));
+
+          setTopProgrammers(transformedData);
+        } else {
+          setTopProgrammers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching top programmers:', error);
+        setTopProgrammers([]);
+      } finally {
+        setTopProgrammersLoading(false);
+      }
+    };
+
+    fetchTopProgrammers();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleNextSlide();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [practiceProblems.length]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleContestNextSlide();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [contests.length]);
+
+  const handleNextSlide = () => {
+    if (practiceProblems.length > 0) {
+      const maxIndex = Math.max(0, Math.ceil(practiceProblems.length / 4) - 1);
+      setCurrentCardIndex((prevIndex) => (prevIndex >= maxIndex ? 0 : prevIndex + 1));
+    }
+  };
+
+  const handlePrevSlide = () => {
+    if (practiceProblems.length > 0) {
+      const maxIndex = Math.max(0, Math.ceil(practiceProblems.length / 4) - 1);
+      setCurrentCardIndex((prevIndex) => (prevIndex <= 0 ? maxIndex : prevIndex - 1));
+    }
+  };
+
+  const handleContestNextSlide = () => {
+    if (contests.length > 0) {
+      const maxIndex = Math.max(0, Math.ceil(contests.length / 4) - 1);
+      setContestCardIndex((prevIndex) => (prevIndex >= maxIndex ? 0 : prevIndex + 1));
+    }
+  };
+
+  const handleContestPrevSlide = () => {
+    if (contests.length > 0) {
+      const maxIndex = Math.max(0, Math.ceil(contests.length / 4) - 1);
+      setContestCardIndex((prevIndex) => (prevIndex <= 0 ? maxIndex : prevIndex - 1));
+    }
+  };
 
   const handleLogout = async () => {
     try {
       await logoutUser();
       navigate('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Logout error:', error);
+      navigate('/');
     }
   };
 
-  const scroll = (ref, direction) => {
-    if (ref.current) {
-      const scrollAmount = 400;
-      ref.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="qs-homepage-layout">
-      {/* Sidebar */}
-      <aside className="qs-sidebar">
-        <div className="qs-sidebar-logo">
-          <span className="qs-logo-byte">Byte</span>
-          <span className="qs-logo-arena">Arena</span>
+    <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+      <aside className="ud-sidebar">
+        <div className="ud-logo">
+          <span className="byte">Byte</span>
+          <span className="arena">Arena</span>
             </div>
-        <nav className="qs-sidebar-nav">
+        <nav className="ud-nav">
+          {qsMenuItems.map((item) => (
           <button 
-            className="qs-nav-item active"
-            onClick={() => navigate('/question-setter')}
-          >
-            <FaHome className="qs-nav-icon" />
-            <span className="qs-nav-text">Home</span>
+              key={item.key}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${
+                item.danger ? 'danger' : ''
+              }`}
+              onClick={() => {
+                if (item.key === 'logout') {
+                  handleLogout();
+                } else {
+                  setActive(item.key);
+                  if (item.key === 'home') {
+                    navigate('/question-setter');
+                  } else if (item.key === 'contest') {
+                    navigate('/question-setter/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/question-setter/explore');
+                  } else if (item.key === 'leaderboard') {
+                    navigate('/question-setter/leaderboard');
+                  } else if (item.key === 'profile') {
+                    navigate('/question-setter/profile');
+                  }
+                }
+              }}
+            >
+              <span className="icon" style={{ marginRight: '12px' }}>
+                {item.icon}
+              </span>
+              <span className="label" style={{ textAlign: 'left', flex: 1 }}>
+                {item.name}
+              </span>
           </button>
-              <button 
-            className="qs-nav-item"
-                onClick={() => navigate('/question-setter/explore')}
-              >
-            <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/contest')}
-          >
-            <FaTrophy className="qs-nav-icon" />
-            <span className="qs-nav-text">Contest</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/leaderboard')}
-          >
-            <FaUsers className="qs-nav-icon" />
-            <span className="qs-nav-text">Leaderboard</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/profile')}
-          >
-            <FaUserCircle className="qs-nav-icon" />
-            <span className="qs-nav-text">Profile</span>
-          </button>
-          <button 
-            className="qs-nav-item qs-nav-logout"
-            onClick={handleLogout}
-          >
-            <FaSignOutAlt className="qs-nav-icon" />
-            <span className="qs-nav-text">Logout</span>
-          </button>
+          ))}
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="qs-main-content">
-        {/* Header */}
-        <header className="qs-header">
-          <div className="qs-header-left">
-            <div className="qs-logo-header">
-              <span className="qs-logo-byte-header">Byte</span>
-              <span className="qs-logo-arena-header">Arena</span>
-            </div>
-            <div className="qs-search-bar">
-              <FaSearch className="qs-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search Questions, Contest, Leaderboard..." 
-                className="qs-search-input"
+      <main className="ud-main">
+        <header className="ud-topbar">
+          <div className="ud-topbar-left">
+              <button 
+              className="ud-toggle"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+              <FaBars />
+          </button>
+            <div className="search">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search problems, contests, creators..."
               />
             </div>
           </div>
-          <div className="qs-header-right">
-            <button className="qs-header-icon-btn" title="Notifications">
+          <div className="ud-topbar-right">
+          <button 
+              className="icon-btn"
+              onClick={() => navigate('/')}
+              data-tooltip="Home"
+          >
+              <FaHome />
+          </button>
+            <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-            </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
-            </button>
-            <button className="qs-header-icon-btn" title="Help">
-              <FaQuestionCircle />
-              </button>
-              <button 
-              className="qs-header-icon-btn qs-notification-btn" 
-              title="Profile"
-              onClick={() => navigate('/question-setter/profile')}
+              <span className="badge">4</span>
+          </button>
+            <div
+              className="profile"
+            onClick={() => navigate('/question-setter/profile')}
+              style={{ cursor: 'pointer' }}
+              data-tooltip="Profile"
             >
-              <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
-            </button>
+              <div className="avatar">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="avatar" />
+                ) : (
+                  <FaUser />
+                )}
+              </div>
+              <span>{user?.displayName || 'Question Setter'}</span>
+            </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="qs-content-area">
-          {/* Hero Banner */}
-          <section
-            className="qs-hero-banner"
+        <section className="ud-hero qs-hero-overlay">
+          <div className="hero-text">
+            <p className="eyebrow">Byte Arena · Question Setter</p>
+            <h1>Design Problems that Challenge the Arena</h1>
+            <h2>Create, curate, and manage competitive programming tasks</h2>
+            <p className="sub">
+              Build engaging problems for thousands of learners and track how they perform in real
+              contests.
+            </p>
+          <button 
+              className="primary-btn"
+              onClick={() => navigate('/question-setter/explore')}
+          >
+              Go to Practice Problems
+          </button>
+          </div>
+        </section>
+
+        <section className="ud-section">
+          <div className="section-head">
+            <h3>Problem Categories</h3>
+            <div className="arrows">
+              <button>‹</button>
+              <button>›</button>
+            </div>
+            </div>
+          <div className="ud-cards">
+            {categories.map((cat) => (
+              <div
+                key={cat.title}
+                className="ud-card"
+                style={{ backgroundImage: `url(${cat.image})` }}
+              >
+                <div className="card-top">
+                  <span className="pill">{cat.tag}</span>
+                  <span className="badge">{cat.badge}</span>
+          </div>
+                <div className="card-title">{cat.title}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div
             style={{
-              backgroundImage: `url(${getImageUrl('/Dashboard_Banner.jpg')})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+            width: '100%',
+            height: '1px',
+            backgroundColor: '#e5e7eb',
+            margin: '2rem 0',
+          }}
+        ></div>
+
+        <section className="ud-section">
+          <div
+            style={{
+              minHeight: '100vh',
+              backgroundColor: '#f5f5f5',
+              padding: '2rem',
+              margin: '-2rem',
             }}
           >
-            <div className="qs-hero-content">
-              <h1 className="qs-hero-title">Your questions Adventure Starts Here: Share, Learn, Enjoy!</h1>
-              <p className="qs-hero-subtitle">Build engaging problems, challenge others.</p>
-              <button 
-                className="qs-hero-btn"
-                onClick={() => navigate('/question-setter/create')}
-              >
-                <FaPlus /> Create Questions
-              </button>
-            </div>
-          </section>
-
-          {/* Problems Categories */}
-          <section className="qs-section">
-            <h2 className="qs-section-title">Problems Categories</h2>
-            <div className="qs-categories-container">
-              <button 
-                className="qs-scroll-btn qs-scroll-left"
-                onClick={() => scroll(categoriesScrollRef, 'left')}
-              >
-                <FaChevronLeft />
-              </button>
-              <div className="qs-categories-scroll" ref={categoriesScrollRef}>
-                {categories.map((category) => (
-                  <div 
-                    key={category.id} 
-                    className="qs-category-card"
-                    style={{ 
-                      backgroundImage: `url(${category.image})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      color: category.textColor || '#fff'
-                    }}
-                    onClick={() => navigate(`/question-setter/explore?category=${category.name}`)}
-                  >
-                    <div className="qs-category-overlay"></div>
-                    <div className="qs-category-icon">{category.icon}</div>
-                    <div className="qs-category-title">{category.title}</div>
-                  </div>
-                ))}
-              </div>
-              <button 
-                className="qs-scroll-btn qs-scroll-right"
-                onClick={() => scroll(categoriesScrollRef, 'right')}
-              >
-                <FaChevronRight />
-              </button>
-            </div>
-          </section>
-
-          {/* Latest Problems */}
-          <section className="qs-section">
-            <div className="qs-section-header">
-              <h2 className="qs-section-title">Latest Problems</h2>
-              <button 
-                className="qs-view-all-btn"
-                onClick={() => navigate('/question-setter/explore')}
-              >
-                View All Problems
-              </button>
-            </div>
-            <div className="qs-categories-container">
-              <button 
-                className="qs-scroll-btn qs-scroll-left"
-                onClick={() => scroll(problemsScrollRef, 'left')}
-              >
-                <FaChevronLeft />
-              </button>
-              <div className="qs-categories-scroll" ref={problemsScrollRef}>
-                {latestProblems.map((problem) => (
-                  <div 
-                    key={problem.id} 
-                    className="qs-category-card qs-card-with-button"
-                    style={{ 
-                      backgroundImage: `url(${problem.image})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                      color: '#fff'
-                    }}
-                    onClick={() => navigate(`/question-setter/explore?problem=${problem.id}`)}
-                  >
-                    <div className="qs-category-overlay"></div>
-                    <button 
-                      className="qs-problem-view-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/question-setter/explore?problem=${problem.id}`);
-                      }}
-                    >
-                      <FaEye /> View Details
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button 
-                className="qs-scroll-btn qs-scroll-right"
-                onClick={() => scroll(problemsScrollRef, 'right')}
-              >
-                <FaChevronRight />
-              </button>
-            </div>
-          </section>
-
-          {/* Contest Section */}
-          <section className="qs-section">
-            <div className="qs-section-header">
-              <div>
-                <h2 className="qs-section-title">Contest</h2>
-                <p className="qs-section-subtitle">Specially selected quizzes you don't want to miss.</p>
-              </div>
-              <div className="qs-filter-tabs">
-                {['All', 'Hot', 'Trending', "Editor's Choice"].map((filter) => (
-                  <button
-                    key={filter}
-                    className={`qs-filter-tab ${activeFilter === filter ? 'active' : ''}`}
-                    onClick={() => setActiveFilter(filter)}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="qs-categories-container">
-              <button 
-                className="qs-scroll-btn qs-scroll-left"
-                onClick={() => scroll(contestScrollRef, 'left')}
-              >
-                <FaChevronLeft />
-              </button>
-              <div className="qs-categories-scroll" ref={contestScrollRef}>
-                {contests.map((contest) => (
-                  <div 
-                    key={contest.id} 
-                    className="qs-category-card qs-card-with-button"
-                    style={{ 
-                      backgroundImage: `url(${contest.image})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                      color: '#fff'
-                    }}
-                    onClick={() => navigate(`/question-setter/contest/${contest.id}`)}
-                  >
-                    <div className="qs-category-overlay"></div>
-                    {contest.tag && (
-                      <div className="qs-contest-tag-overlay" style={{ backgroundColor: contest.tagColor }}>
-                        {contest.tag}
-                      </div>
-                    )}
-                    <button 
-                      className="qs-problem-view-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/question-setter/contest/${contest.id}`);
-                      }}
-                    >
-                      View Details
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button 
-                className="qs-scroll-btn qs-scroll-right"
-                onClick={() => scroll(contestScrollRef, 'right')}
-              >
-                <FaChevronRight />
-              </button>
-            </div>
-          </section>
-
-          {/* Top Competitors */}
-          <section className="qs-section">
-        <div className="qs-section-header">
-              <h2 className="qs-section-title">Top Competitors</h2>
-              <div className="qs-section-actions">
-                <button 
-                  className="qs-view-all-btn"
-                  onClick={() => navigate('/question-setter/leaderboard')}
+            <div>
+              {/* Latest Problems Section */}
+              <div style={{ marginBottom: '3rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem',
+                  }}
                 >
-                  View Full Leaderboard
-                </button>
-                <div className="qs-scroll-controls">
-                  <button onClick={() => scroll(competitorsScrollRef, 'left')}>
-                    <FaChevronLeft />
-                  </button>
-                  <button onClick={() => scroll(competitorsScrollRef, 'right')}>
-                    <FaChevronRight />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="qs-competitors-container">
-              <div className="qs-competitors-scroll" ref={competitorsScrollRef}>
-              {topCompetitors.map((competitor) => (
                   <div
-                    key={competitor.id}
-                    className="qs-competitor-card"
                     style={{
-                      backgroundImage: `url(${competitor.image})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
                     }}
                   >
-                    <div className="qs-competitor-overlay"></div>
-                    <div className="qs-competitor-content">
-                      <div className="qs-competitor-avatar">{competitor.avatar}</div>
-                      {competitor.tag && (
-                        <div className="qs-competitor-tag">{competitor.tag}</div>
-                      )}
-                      <h3 className="qs-competitor-name">{competitor.name}</h3>
-                      <p className="qs-competitor-country">{competitor.country}</p>
-                      <div className="qs-competitor-stats">
-                        <div className="qs-competitor-stat">
-                          <span className="qs-stat-label">Rank</span>
-                          <span className="qs-stat-value">#{competitor.rank}</span>
-                        </div>
-                        <div className="qs-competitor-stat">
-                          <span className="qs-stat-label">Problems Solved</span>
-                          <span className="qs-stat-value">{competitor.problems}</span>
-                        </div>
-                        <div className="qs-competitor-stat">
-                          <span className="qs-stat-label">Points</span>
-                          <span className="qs-stat-value">{competitor.points.toLocaleString()}</span>
-                        </div>
+                    <FaCode size={24} color="#6366f1" />
+                    <h2
+                      style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '700',
+                        color: '#1f2937',
+                        margin: 0,
+                      }}
+                    >
+                      Latest Practice Problems
+                    </h2>
+                  </div>
+              <button 
+                    onClick={() => navigate('/question-setter/explore')}
+                    style={{
+                      color: '#6366f1',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      textDecoration: 'none',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    View All Problems
+              </button>
+            </div>
+
+                <div
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '12px',
+                  }}
+                >
+                  {practiceProblemsLoading ? (
+                    <div
+                    style={{ 
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#6b7280',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            border: '4px solid #e5e7eb',
+                            borderTop: '4px solid #6366f1',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            margin: '0 auto 1rem',
+                          }}
+                        ></div>
+                        <div>Loading problems...</div>
+                  </div>
+              </div>
+                  ) : practiceProblemsError ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#fef2f2',
+                        borderRadius: '12px',
+                        border: '1px solid #fecaca',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#dc2626',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '1.5rem',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          ⚠️
+            </div>
+                        <div>{practiceProblemsError}</div>
                       </div>
                     </div>
+                  ) : practiceProblems.length === 0 ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#6b7280',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '1.5rem',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          📝
             </div>
-          ))}
+                        <div>No problems available</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: '1.5rem',
+                        transition: 'transform 0.5s ease-in-out',
+                        transform: `translateX(-${currentCardIndex * 25}%)`,
+                      }}
+                    >
+                      {practiceProblems
+                        .slice(currentCardIndex, currentCardIndex + 4)
+                        .map((problem, index) => (
+                          <div
+                            key={problem.problem_id}
+                    style={{ 
+                              backgroundColor: 'white',
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              transition: 'transform 0.2s, box-shadow 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-4px)';
+                              e.currentTarget.style.boxShadow =
+                                '0 4px 12px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow =
+                                '0 1px 3px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '160px',
+                                background:
+                                  'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                position: 'relative',
+                                padding: '1rem',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '0.75rem',
+                                  left: '0.75rem',
+                                  backgroundColor:
+                                    problem.difficulty === 'Hard' ||
+                                    problem.difficulty === 'HARD'
+                                      ? '#ef4444'
+                                      : problem.difficulty === 'Medium' ||
+                                        problem.difficulty === 'MEDIUM'
+                                      ? '#f59e0b'
+                                      : '#10b981',
+                                  color: 'white',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {(problem.difficulty || 'MEDIUM').toUpperCase()}
+                  </div>
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '0.75rem',
+                                  right: '0.75rem',
+                                  backgroundColor: '#6366f1',
+                                  color: 'white',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {(problem.problem_language || 'GENERAL').toUpperCase()}
+                              </div>
+                              <div
+                                style={{
+                                  color: 'rgba(255,255,255,0.6)',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  marginBottom: '0.5rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                }}
+                              >
+                                Competitive Programming
+                              </div>
+                              <div
+                                style={{
+                                  color: 'rgba(255,255,255,0.8)',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Problem
+                              </div>
+                            </div>
+                            <div style={{ padding: '1rem' }}>
+                              <div
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                  marginBottom: '0.5rem',
+                                }}
+                              >
+                                {currentCardIndex + index + 1}.{' '}
+                                {problem.problem_title || 'Untitled Problem'}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '0.7rem',
+                                  color: '#6b7280',
+                                  marginBottom: '1rem',
+                                  lineHeight: '1.4',
+                                }}
+                              >
+                                {problem.problem_description
+                                  ? `${problem.problem_description.substring(0, 80)}...`
+                                  : 'No description available'}
+                              </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  marginBottom: '1rem',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    color: '#6b7280',
+                                  }}
+                                >
+                                  ⏱️ {problem.time_limit || 'N/A'}s
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    color: '#6b7280',
+                                  }}
+                                >
+                                  🏆 {problem.points || '0'} pts
+                                </div>
               </div>
-        </div>
-      </section>
+              <button 
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem',
+                                  backgroundColor: '#6366f1',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.2s',
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.target.style.backgroundColor = '#4f46e5')
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.target.style.backgroundColor = '#6366f1')
+                                }
+                                onClick={() => navigate('/question-setter/explore')}
+                              >
+                                View Details
+              </button>
+            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          {/* Live Winners */}
-          <section className="qs-section">
-        <div className="qs-section-header">
-              <h2 className="qs-section-title">Live Winners</h2>
-              <button className="qs-view-all-btn">5 recent winners</button>
-        </div>
-            <div className="qs-winners-container">
-              <div className="qs-winners-scroll" ref={winnersScrollRef}>
-                {liveWinners.map((winner) => (
-                  <div key={winner.id} className="qs-winner-card">
-                    <div className="qs-winner-trophy">
-                      <FaTrophy />
+              {/* Contest Separator */}
+              <div
+                style={{
+                  width: '100%',
+                  height: '1px',
+                  backgroundColor: '#e5e7eb',
+                  margin: '2rem 0',
+                }}
+              ></div>
+
+          {/* Contest Section */}
+              <div style={{ marginBottom: '3rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1rem',
+                    }}
+                  >
+                    <FaTrophy size={24} color="#6366f1" />
+              <div>
+                      <h2
+                        style={{
+                          fontSize: '1.5rem',
+                          fontWeight: '700',
+                          color: '#1f2937',
+                          margin: '0 0 0.25rem 0',
+                        }}
+                      >
+                        Contests
+                      </h2>
               </div>
-                    <div className="qs-winner-avatar">{winner.avatar}</div>
-                    <h3 className="qs-winner-name">{winner.name}</h3>
-                    <p className="qs-winner-prize">{winner.prize}</p>
-                    <p className="qs-winner-time">{winner.time}</p>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                  <button
+                        onClick={handleContestPrevSlide}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <ChevronLeft size={16} />
+                  </button>
+                      <button
+                        onClick={handleContestNextSlide}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#fff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+              </div>
             </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      alignItems: 'center',
+                    }}
+                  >
+              <button 
+                      onClick={() => navigate('/question-setter/contest')}
+                      style={{
+                        color: '#6366f1',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textDecoration: 'none',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      View All Contests
+              </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '12px',
+                  }}
+                >
+                  {contestsLoading ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#6b7280',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            border: '4px solid #e5e7eb',
+                            borderTop: '4px solid #6366f1',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            margin: '0 auto 1rem',
+                          }}
+                        ></div>
+                        <div>Loading contests...</div>
+                      </div>
+                    </div>
+                  ) : contestsError ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#fef2f2',
+                        borderRadius: '12px',
+                        border: '1px solid #fecaca',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#dc2626',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '1.5rem',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          ⚠️
+                        </div>
+                        <div>{contestsError}</div>
+                      </div>
+                    </div>
+                  ) : contests.length === 0 ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '400px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          color: '#6b7280',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '1.5rem',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          🏆
+                        </div>
+                        <div>No contests available</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: '1.5rem',
+                        transition: 'transform 0.5s ease-in-out',
+                        transform: `translateX(-${contestCardIndex * 25}%)`,
+                      }}
+                    >
+                      {contests.slice(contestCardIndex, contestCardIndex + 4).map((contest) => {
+                        const now = new Date();
+                        const regStart = new Date(contest.registration_start);
+                        const regEnd = new Date(contest.registration_end);
+                        let status = 'UPCOMING';
+                        let statusColor = '#3b82f6';
+
+                        if (now >= regStart && now <= regEnd) {
+                          status = 'ACTIVE';
+                          statusColor = '#ef4444';
+                        } else if (now > regEnd) {
+                          status = 'COMPLETED';
+                          statusColor = '#f59e0b';
+                        }
+
+                        return (
+                  <div 
+                    key={contest.id} 
+                    style={{ 
+                              backgroundColor: 'white',
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              transition: 'transform 0.2s, box-shadow 0.2s',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => navigate(`/question-setter/contest/${contest.id}`)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-4px)';
+                              e.currentTarget.style.boxShadow =
+                                '0 4px 12px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow =
+                                '0 1px 3px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '140px',
+                                backgroundImage: contest.cover_image
+                                  ? `url(${contest.cover_image})`
+                                  : 'none',
+                                backgroundColor: contest.cover_image ? 'transparent' : '#1e293b',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                position: 'relative',
+                                padding: '1rem',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '0.75rem',
+                                  left: '0.75rem',
+                                  backgroundColor: statusColor,
+                                  color: 'white',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {status}
+                      </div>
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '0.75rem',
+                                  right: '0.75rem',
+                                  backgroundColor:
+                                    contest.contest_difficulty === 'hard'
+                                      ? '#ef4444'
+                                      : contest.contest_difficulty === 'medium'
+                                      ? '#f59e0b'
+                                      : '#10b981',
+                                  color: 'white',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {contest.contest_difficulty?.toUpperCase()}
+                  </div>
+              </div>
+                            <div style={{ padding: '1rem' }}>
+                              <h3
+                                style={{
+                                  fontSize: '0.95rem',
+                                  fontWeight: '600',
+                                  color: '#1f2937',
+                                  margin: '0 0 1rem 0',
+                                }}
+                              >
+                                {contest.title}
+                              </h3>
+                              <div
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                  marginBottom: '1rem',
+                                  lineHeight: '1.4',
+                                }}
+                              >
+                                {contest.description
+                                  ? `${contest.description.substring(0, 100)}...`
+                                  : 'No description available'}
+            </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  marginBottom: '1rem',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '50%',
+                                      backgroundColor: '#e5e7eb',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    <Trophy size={16} color="#6366f1" />
+                </div>
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        color: '#1f2937',
+                                      }}
+                                    >
+                                      {contest.question_problem} Problems
+              </div>
+                                    <div
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        color: '#6b7280',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                      }}
+                                    >
+                                      <Clock size={12} /> {contest.time_limit_qs}s per problem
+            </div>
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div
+                    style={{
+                                      fontSize: '0.875rem',
+                                      fontWeight: '700',
+                                      color: '#10b981',
+                                    }}
+                                  >
+                                    ${contest.prize_money}
+                        </div>
+                                  <div
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      color: '#6b7280',
+                                    }}
+                                  >
+                                    Prize Money
+                        </div>
+                        </div>
+                      </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem',
+                                  backgroundColor: '#f9fafb',
+                                  borderRadius: '6px',
+                                  marginBottom: '1rem',
+                                }}
+                              >
+                                <Users size={16} color="#6366f1" />
+                                <div
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    color: '#6b7280',
+                                  }}
+                                >
+                                  {contest.total_register} participants registered
+                    </div>
+            </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem',
+                                  backgroundColor: '#f9fafb',
+                                  borderRadius: '6px',
+                                  marginBottom: '1rem',
+                                }}
+                              >
+                                <Calendar size={16} color="#6366f1" />
+                                <div
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    color: '#6b7280',
+                                  }}
+                                >
+                                  {new Date(
+                                    contest.registration_start,
+                                  ).toLocaleDateString()}{' '}
+                                  - {new Date(contest.registration_end).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <button
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem',
+                                  backgroundColor: '#6366f1',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.2s',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/question-setter/contest/${contest.id}`);
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.target.style.backgroundColor = '#4f46e5')
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.target.style.backgroundColor = '#6366f1')
+                                }
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {!contestsLoading && !contestsError && contests.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      marginTop: '1rem',
+                    }}
+                  >
+                    {Array.from({
+                      length: Math.max(1, Math.ceil(contests.length / 4)),
+                    }).map((_, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor:
+                            contestCardIndex === index ? '#6366f1' : '#d1d5db',
+                          transition: 'background-color 0.3s ease',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setContestCardIndex(index)}
+                      />
           ))}
               </div>
+                )}
+        </div>
+
+              {/* Top Competitors Separator */}
+              <div
+                style={{
+                  width: '100%',
+                  height: '1px',
+                  backgroundColor: '#e5e7eb',
+                  margin: '2rem 0',
+                }}
+              ></div>
+
+              {/* Top Competitors Section - Fetched from leaderboard */}
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: '700',
+                      color: '#1f2937',
+                      margin: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <Trophy size={24} />
+                    Top 5 Competitors
+                  </h2>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <button
+                      onClick={() => navigate('/question-setter/leaderboard')}
+                      style={{
+                        color: '#6366f1',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        textDecoration: 'none',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      View Full Leaderboard
+                    </button>
+                  </div>
+                </div>
+
+                {topProgrammersLoading ? (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '2rem',
+                    color: '#6b7280'
+                  }}>
+                    Loading top programmers...
+                  </div>
+                ) : topProgrammers.length === 0 ? (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '2rem',
+                    color: '#6b7280'
+                  }}>
+                    No leaderboard data available
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '1rem'
+                  }}>
+                    {topProgrammers.map((competitor) => (
+                      <div key={competitor.id} style={{
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                      }}>
+                        <div style={{
+                          height: '80px',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden'
+                        }}>
+                          <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              zIndex: 0
+                            }}
+                          >
+                            <source src="/Profile cover banner.mp4" type="video/mp4" />
+                          </video>
+                          <div style={{
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            backgroundColor: competitor.rank <= 3 ? '#fbbf24' : '#6366f1',
+                            color: 'white',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '3px',
+                            fontSize: '0.65rem',
+                            fontWeight: '600',
+                            zIndex: 10
+                          }}>
+                            #{competitor.rank}
+                          </div>
+                          <div style={{
+                            width: '50px',
+                            height: '50px',
+                            borderRadius: '50%',
+                            border: '3px solid white',
+                            overflow: 'hidden',
+                            backgroundColor: 'white',
+                            position: 'relative',
+                            zIndex: 10
+                          }}>
+                            <img 
+                              src={`https://ui-avatars.com/api/?name=${competitor.name.replace(' ', '+')}&background=6366f1&color=fff&size=50`} 
+                              alt={competitor.name}
+                              style={{ width: '100%', height: '100%' }} 
+                            />
+                          </div>
+                        </div>
+                        <div style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <h3 style={{
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            color: '#1f2937',
+                            margin: '0 0 0.25rem 0'
+                          }}>
+                            {competitor.name}
+                          </h3>
+                          <div style={{
+                            fontSize: '0.65rem',
+                            color: '#6b7280',
+                            marginBottom: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.25rem'
+                          }}>
+                            <span>{competitor.email ? `@${competitor.email.split('@')[0]}` : '@user'}</span>
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-around',
+                            paddingTop: '0.75rem',
+                            borderTop: '1px solid #e5e7eb'
+                          }}>
+                            <div>
+                              <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
+                                {competitor.rank}
+                              </div>
+                              <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Rank</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
+                                {competitor.problemsSolved}
+                              </div>
+                              <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Problems</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
+                                {competitor.score}
+                              </div>
+                              <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Score</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+          </div>
         </div>
       </section>
-        </div>
       </main>
     </div>
   );
-};
+}
 
 export default QuestionSetterHomepage;

@@ -73,18 +73,62 @@ const problemSolutionsService = {
         }
     },
 
-    // Create or update solution
+    // Create or update solution WITHOUT relying on a DB UNIQUE constraint.
+    // (Supabase upsert requires a unique/exclusion constraint on the conflict target.)
     async upsertSolution(solutionData) {
         try {
+            const problemId = solutionData?.problem_id;
+            if (!problemId) {
+                return { success: false, error: 'problem_id is required' };
+            }
+
+            // Check if a solution row already exists for this problem
+            const { data: existing, error: fetchError } = await supabase
+                .from('problem_solution')
+                .select('problem_id')
+                .eq('problem_id', problemId)
+                .maybeSingle();
+
+            if (fetchError) {
+                console.error('Error checking existing solution:', fetchError);
+                return { success: false, error: fetchError.message };
+            }
+
+            if (existing?.problem_id) {
+                const { data, error } = await supabase
+                    .from('problem_solution')
+                    .update({
+                        solution_code: solutionData.solution_code,
+                        video_link: solutionData.video_link,
+                        solution_article: solutionData.solution_article,
+                    })
+                    .eq('problem_id', problemId)
+                    .select('*')
+                    .single();
+
+                if (error) {
+                    console.error('Error updating solution:', error);
+                    return { success: false, error: error.message };
+                }
+
+                return { success: true, data };
+            }
+
             const { data, error } = await supabase
                 .from('problem_solution')
-                .upsert(solutionData, {
-                    onConflict: 'problem_id',
-                    returning: '*'
-                });
+                .insert([
+                    {
+                        problem_id: problemId,
+                        solution_code: solutionData.solution_code,
+                        video_link: solutionData.video_link,
+                        solution_article: solutionData.solution_article,
+                    },
+                ])
+                .select('*')
+                .single();
 
             if (error) {
-                console.error('Error upserting solution:', error);
+                console.error('Error creating solution:', error);
                 return { success: false, error: error.message };
             }
 

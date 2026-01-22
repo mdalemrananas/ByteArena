@@ -324,6 +324,13 @@
   cursor: pointer;
 }
 
+.qs-field-error {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
 .qs-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
