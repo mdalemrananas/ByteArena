@@ -2,7 +2,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
+import './App.css';
 import LoadingBar from 'react-top-loading-bar';
+import PrivateRoute from './components/PrivateRoute.js';
+import RoleBasedRoute from './components/RoleBasedRoute.js';
+import sessionTimeoutService from './services/sessionTimeoutService';
+
+//User Panel
 import Home from './User_panel/Home.js';
 import Dashboard from './User_panel/User_Dashboard.js';
 import UserProfile from './User_panel/User_Profile.js';
@@ -10,6 +16,14 @@ import UserLeaderboard from './User_panel/User_Leaderboard.js';
 import UserContest from './User_panel/User_Contest.js';
 import User_Contest_Details from './User_panel/User_Contest_Details.js';
 import User_Contest_Participate from './User_panel/User_Contest_Participate.js';
+import PracticeProblem from './User_panel/PracticeProblem.js';
+import SolveProblem from './User_panel/SolveProblem.js';
+import Submissions from './User_panel/Submissions.js';
+import ViewSubmission from './User_panel/ViewSubmission.js';
+import Editorial from './User_panel/Editorial.js';
+import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
+
+//Question Setter Panel
 import QuestionSetterHomepage from './Question-setter/question-setter-Homepage.js';
 import QuestionSetterExploreQuestions from './Question-setter/question-setter-ExploreQuestions.js';
 import QuestionSetterCreateQuestion from './Question-setter/question-setter-CreateQuestion.js';
@@ -20,17 +34,20 @@ import QuestionSetterContest from './Question-setter/question-setter-Contest.js'
 import QuestionSetterContestDetails from './Question-setter/question-setter-ContestDetails.js';
 import QuestionSetterLeaderboard from './Question-setter/question-setter-Leaderboard.js';
 import QuestionSetterProfile from './Question-setter/question-setter-Profile.js';
-import sessionTimeoutService from './services/sessionTimeoutService';
-import PracticeProblem from './User_panel/PracticeProblem.js';
-import SolveProblem from './User_panel/SolveProblem.js';
-import Submissions from './User_panel/Submissions.js';
-import ViewSubmission from './User_panel/ViewSubmission.js';
-import Editorial from './User_panel/Editorial.js';
-import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
-import PrivateRoute from './components/PrivateRoute.js';
-import RoleBasedRoute from './components/RoleBasedRoute.js';
+
+
+
+//Admin Panel
 import AdminDashboard from './Admin_Panel/Admin_Dashboard.js';
+<<<<<<< HEAD
+import Admin_Leaderboard from './Admin_Panel/Admin_Leaderboard.js';
+import Admin_Contest from './Admin_Panel/Admin_Contest.js';
+import Admin_Contest_Details from './Admin_Panel/Admin_Contest_Details.js';
+import Admin_Contest_ViewCode from './Admin_Panel/Admin_Contest_View Code.js';
+
+=======
 import './App.css';
+>>>>>>> 7731161cd291e52f7bde167ba9108336136db7d6
 
 // Wrapper component to handle loading bar
 const AppContent = () => {
@@ -213,7 +230,14 @@ const AppContent = () => {
         <Route path="/admin_problems" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+<<<<<<< HEAD
+        <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Details /></RoleBasedRoute>} />
+        <Route path="/admin_leaderboard" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Leaderboard /></RoleBasedRoute>} />
+        <Route path="/admin_contest" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
+        <Route path="/admin_contest/:contestId/code/:userId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_ViewCode /></RoleBasedRoute>} />
+=======
         <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+>>>>>>> 7731161cd291e52f7bde167ba9108336136db7d6
       </Routes>
     </>
   );

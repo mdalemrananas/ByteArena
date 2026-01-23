@@ -73,6 +73,7 @@ const User_Contest = () => {
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
+  const [participantCounts, setParticipantCounts] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 8; // 2 rows with 4 cards each
 
@@ -133,6 +134,15 @@ const User_Contest = () => {
       console.log('Contests fetched from Supabase:', data);
       setContests(data || []);
 
+      // Fetch participant counts for all contests
+      if (data && data.length > 0) {
+        const counts = {};
+        for (const contest of data) {
+          counts[contest.id] = await getParticipantCount(contest.id);
+        }
+        setParticipantCounts(counts);
+      }
+
       // Filter for upcoming contests (registration_end > now) and find the one ending soonest
       const now = new Date();
       const upcomingContests = data?.filter(contest => 
@@ -149,6 +159,27 @@ const User_Contest = () => {
       }
     } catch (error) {
       console.error('Error in fetchContests:', error);
+    }
+  };
+
+  // Function to get participant count for a contest (excluding only null/invalid statuses)
+  const getParticipantCount = async (contestId) => {
+    try {
+      const { data, error } = await supabase
+        .from('contest_participants')
+        .select('id')
+        .eq('contest_id', contestId)
+        .in('status', ['registered', 'in_progress', 'completed', 'disqualified']);
+
+      if (error) {
+        console.error('Error fetching participants:', error);
+        return 0;
+      }
+
+      return data ? data.length : 0;
+    } catch (error) {
+      console.error('Error in getParticipantCount:', error);
+      return 0;
     }
   };
 
@@ -529,7 +560,7 @@ const User_Contest = () => {
                           <UsersIcon sx={{ color: 'white' }} />
                           <Box>
                             <Typography variant="body2" sx={{ color: 'white' }}>
-                              {featuredContest.total_register || 0} participants
+                              {featuredContest ? (participantCounts[featuredContest.id] || 0) : 0} participants
                             </Typography>
                           </Box>
                         </Box>
@@ -539,7 +570,7 @@ const User_Contest = () => {
                           <CoinsIcon sx={{ color: 'white' }} />
                           <Box>
                             <Typography variant="body2" sx={{ color: 'white' }}>
-                              Prize pool ${featuredContest.prize_money || '0'}
+                              {featuredContest.prize_money || '0'} Points
                             </Typography>
                           </Box>
                         </Box>
@@ -956,13 +987,13 @@ const User_Contest = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <UsersIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            {contest.total_register || 0} participants
+                            {participantCounts[contest.id] || 0} participants
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CoinsIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            ${contest.prize_money || 0} prize
+                            {contest.prize_money || 0} Points
                           </Typography>
                         </Box>
                       </Box>
