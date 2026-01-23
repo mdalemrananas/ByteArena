@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fa';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { practiceSubmissionsService } from '../services/practiceSubmissionsService';
 import './question-setter-QuestionDetails.css';
 import './question-setter-ExploreQuestions.css';
 
@@ -23,6 +24,8 @@ const QuestionSetterQuestionDetails = () => {
   const [submissions, setSubmissions] = useState([]);
   const [submissionSearch, setSubmissionSearch] = useState('');
   const [leaderboardSearch, setLeaderboardSearch] = useState('');
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
 
   // Code viewer modal
   const [codeModalOpen, setCodeModalOpen] = useState(false);
@@ -65,7 +68,7 @@ const QuestionSetterQuestionDetails = () => {
         const { data, error: sErr } = await supabase
           .from('practice_submission')
           .select(
-            'id, problem_id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code',
+            'submission_id, problem_id, problem_solver_id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code',
           )
           .eq('problem_id', questionId)
           .order('submitted_at', { ascending: false });
@@ -81,8 +84,37 @@ const QuestionSetterQuestionDetails = () => {
       }
     };
 
-    if (activeTab === 'Submissions' || activeTab === 'Leaderboard') {
+    if (activeTab === 'Submissions') {
       loadSubmissions();
+    }
+  }, [activeTab, questionId]);
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      if (!questionId) return;
+      setLeaderboardLoading(true);
+      setError('');
+      try {
+        const result = await practiceSubmissionsService.getLeaderboardOptimized(questionId);
+        
+        if (result.success) {
+          setLeaderboard(result.data || []);
+        } else {
+          console.error('Failed to load leaderboard:', result.error);
+          setLeaderboard([]);
+          setError(result.error || 'Failed to load leaderboard');
+        }
+      } catch (e) {
+        console.error('Failed to load leaderboard:', e);
+        setLeaderboard([]);
+        setError(e?.message || 'Failed to load leaderboard');
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    };
+
+    if (activeTab === 'Leaderboard') {
+      loadLeaderboard();
     }
   }, [activeTab, questionId]);
 
@@ -97,25 +129,15 @@ const QuestionSetterQuestionDetails = () => {
     });
   }, [submissions, submissionSearch]);
 
-  const leaderboardRows = useMemo(() => {
+  const filteredLeaderboard = useMemo(() => {
     const q = leaderboardSearch.trim().toLowerCase();
-    const base = [...submissions].sort((a, b) => {
-      const ptsA = Number(a.points) || 0;
-      const ptsB = Number(b.points) || 0;
-      if (ptsA !== ptsB) return ptsB - ptsA; // points DESC
-      const tA = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
-      const tB = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
-      return tA - tB; // submitted_at ASC
-    });
-
-    const ranked = base.map((s, idx) => ({ ...s, _rank: idx + 1 }));
-    if (!q) return ranked;
-    return ranked.filter((s) => {
-      const name = (s.problem_solver_name || '').toLowerCase();
-      const country = (s.country || '').toLowerCase();
+    if (!q) return leaderboard;
+    return leaderboard.filter((entry) => {
+      const name = (entry.problem_solver_name || '').toLowerCase();
+      const country = (entry.country || '').toLowerCase();
       return name.includes(q) || country.includes(q);
     });
-  }, [submissions, leaderboardSearch]);
+  }, [leaderboard, leaderboardSearch]);
 
   const openCodeModal = async (submission) => {
     setSelectedSubmission(null);
@@ -124,15 +146,17 @@ const QuestionSetterQuestionDetails = () => {
 
     try {
       // If code was included in list fetch, just use it.
-      if (submission?.submitted_code !== undefined) {
+      if (submission?.submitted_code !== undefined && submission?.submitted_code !== null) {
         setSelectedSubmission(submission);
+        setCodeModalLoading(false);
         return;
       }
 
+      // Fetch the full submission with code
       const { data, error: sErr } = await supabase
         .from('practice_submission')
-        .select('id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code')
-        .eq('id', submission.id)
+        .select('submission_id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code')
+        .eq('submission_id', submission.submission_id)
         .single();
 
       if (sErr) throw sErr;
@@ -378,7 +402,7 @@ const QuestionSetterQuestionDetails = () => {
                             </tr>
                           ) : (
                             filteredSubmissions.slice(0, itemsPerPage).map((s) => (
-                              <tr key={s.id}>
+                              <tr key={s.submission_id}>
                                 <td className="qs-user-cell">{s.problem_solver_name || '-'}</td>
                                 <td className="qs-language-cell">{s.country || '-'}</td>
                                 <td className="qs-language-cell">{s.language || '-'}</td>
@@ -392,7 +416,7 @@ const QuestionSetterQuestionDetails = () => {
                                 </td>
                                 <td className="qs-actions-cell">
                                   <button className="qs-view-btn" onClick={() => openCodeModal(s)}>
-                                    View
+                                    View Code
                                   </button>
                                 </td>
                               </tr>
@@ -458,32 +482,30 @@ const QuestionSetterQuestionDetails = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {submissionsLoading ? (
+                          {leaderboardLoading ? (
                             <tr>
                               <td colSpan={6} className="qs-empty-message">Loading leaderboard...</td>
                             </tr>
-                          ) : leaderboardRows.length === 0 ? (
+                          ) : filteredLeaderboard.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="qs-empty-message">No submissions yet.</td>
+                              <td colSpan={6} className="qs-empty-message">No leaderboard data available.</td>
                             </tr>
                           ) : (
-                            leaderboardRows.slice(0, itemsPerPage).map((s) => (
-                              <tr key={s.id}>
+                            filteredLeaderboard.slice(0, itemsPerPage).map((entry) => (
+                              <tr key={`${entry.problem_solver_id}-${entry.rank}`}>
                                 <td className="qs-rank-cell">
-                                  <div className={`qs-rank-badge ${s._rank <= 2 ? 'qs-rank-highlight' : ''}`}>
-                                    {s._rank}
+                                  <div className={`qs-rank-badge ${entry.rank <= 3 ? 'qs-rank-highlight' : ''}`}>
+                                    {entry.rank}
                                   </div>
                                 </td>
-                                <td className="qs-user-cell">{s.problem_solver_name || '-'}</td>
-                                <td className="qs-language-cell">{s.country || '-'}</td>
+                                <td className="qs-user-cell">{entry.problem_solver_name || '-'}</td>
+                                <td className="qs-language-cell">{entry.country || '-'}</td>
                                 <td className="qs-points-cell">
                                   <FaStar className="qs-star-icon" />
-                                  {Number(s.points) || 0}
+                                  {Number(entry.points) || 0}
                                 </td>
-                                <td className="qs-language-cell">{s.language || '-'}</td>
-                                <td className="qs-time-cell">
-                                  {s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '-'}
-                                </td>
+                                <td className="qs-language-cell">{entry.language || '-'}</td>
+                                <td className="qs-time-cell">-</td>
                               </tr>
                             ))
                           )}
@@ -494,7 +516,7 @@ const QuestionSetterQuestionDetails = () => {
                     {/* Pagination */}
                     <div className="qs-table-pagination">
                       <span className="qs-pagination-info">
-                        Showing {Math.min(leaderboardRows.length, itemsPerPage)} of {leaderboardRows.length} submissions
+                        Showing {Math.min(filteredLeaderboard.length, itemsPerPage)} of {filteredLeaderboard.length} entries
                       </span>
                       <div className="qs-pagination-controls">
                         <button className="qs-pagination-btn" disabled>

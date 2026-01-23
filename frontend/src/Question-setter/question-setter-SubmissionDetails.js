@@ -44,17 +44,93 @@ const QuestionSetterSubmissionDetails = () => {
           if (participantError) throw participantError;
           setParticipant(participantData);
 
-          // Get all submissions for this participant
+          // Get contest questions for this contest first
+          const { data: contestQuestions, error: questionsError } = await supabase
+            .from('contest_questions')
+            .select('id')
+            .eq('contest_id', contestId);
+
+          if (questionsError) throw questionsError;
+
+          const questionIds = contestQuestions?.map(q => q.id) || [];
+
+          // Get all submissions for this participant that belong to this contest
+          if (questionIds.length > 0) {
+            const { data: submissionsData, error: submissionsError } = await supabase
+              .from('contest_question_solves')
+              .select('*')
+              .eq('participate_id', participantData.user_id)
+              .in('question_id', questionIds)
+              .order('solve_created_at', { ascending: false });
+
+            if (submissionsError) throw submissionsError;
+
+            // Fetch question titles separately and merge
+            if (submissionsData && submissionsData.length > 0) {
+              const uniqueQuestionIds = [...new Set(submissionsData.map(s => s.question_id))];
+              const { data: questionsData, error: questionsDataError } = await supabase
+                .from('contest_questions')
+                .select('id, title')
+                .in('id', uniqueQuestionIds);
+
+              if (!questionsDataError && questionsData) {
+                const questionsMap = new Map(questionsData.map(q => [q.id, q]));
+                const submissionsWithTitles = submissionsData.map(sub => ({
+                  ...sub,
+                  contest_questions: questionsMap.get(sub.question_id) || null
+                }));
+                setSubmissions(submissionsWithTitles);
+                
+                if (submissionsWithTitles.length > 0) {
+                  setSelectedSubmission(submissionsWithTitles[0]);
+                }
+              } else {
+                setSubmissions(submissionsData);
+                if (submissionsData.length > 0) {
+                  setSelectedSubmission(submissionsData[0]);
+                }
+              }
+            } else {
+              setSubmissions([]);
+            }
+          } else {
+            setSubmissions([]);
+          }
+        } catch (error) {
+          console.error('Error loading submission data:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Handle practice problem submissions
+        if (!questionId || !userId) {
+          setLoading(false);
+          return;
+        }
+
+        try {
+          // Get user info
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id, display_name, email')
+            .eq('id', userId)
+            .single();
+
+          if (userError) throw userError;
+          setParticipant({ users: userData });
+
+          // Get all submissions for this user and problem from practice_submission
           const { data: submissionsData, error: submissionsError } = await supabase
-            .from('contest_question_solves')
-            .select(`
-              *,
-              contest_questions (
-                id,
-                title
-              )
-            `)
-            .eq('participate_id', participantData.user_id);
+            .from('practice_submission')
+            .select('*')
+            .eq('problem_id', questionId)
+            .eq('problem_solver_id', userId)
+            .order('submitted_at', { ascending: false });
 
           if (submissionsError) throw submissionsError;
           setSubmissions(submissionsData || []);
@@ -63,14 +139,10 @@ const QuestionSetterSubmissionDetails = () => {
             setSelectedSubmission(submissionsData[0]);
           }
         } catch (error) {
-          console.error('Error loading submission data:', error);
+          console.error('Error loading practice submission data:', error);
         } finally {
           setLoading(false);
         }
-      } else {
-        // Handle practice problem submissions (existing logic)
-        // For now, just set loading to false
-        setLoading(false);
       }
     };
 
@@ -94,7 +166,7 @@ const QuestionSetterSubmissionDetails = () => {
     );
   }
 
-  if (!participant && !loading) {
+  if (!participant && !loading && isContestSubmission) {
     return (
       <div className="qs-submission-details-layout">
         <div className="qs-error">Submission not found</div>
@@ -125,14 +197,14 @@ const QuestionSetterSubmissionDetails = () => {
             <span className="qs-nav-text">Home</span>
           </button>
           <button 
-            className="qs-nav-item active"
+            className={`qs-nav-item ${!isContestSubmission ? 'active' : ''}`}
             onClick={() => navigate('/question-setter/explore')}
           >
             <FaSearch className="qs-nav-icon" />
             <span className="qs-nav-text">Practice Problems</span>
           </button>
           <button 
-            className="qs-nav-item"
+            className={`qs-nav-item ${isContestSubmission ? 'active' : ''}`}
             onClick={() => navigate('/question-setter/contest')}
           >
             <FaTrophy className="qs-nav-icon" />
@@ -215,7 +287,7 @@ const QuestionSetterSubmissionDetails = () => {
               }
             }}
           >
-            <FaChevronLeft /> Back {isContestSubmission ? 'to Contest' : 'to Question'}
+            <FaChevronLeft /> Back {isContestSubmission ? 'to Submission' : 'to Question'}
           </button>
         </div>
 
@@ -238,21 +310,24 @@ const QuestionSetterSubmissionDetails = () => {
                   ) : (
                     submissions.map((sub, index) => (
                       <div
-                        key={sub.id}
+                        key={isContestSubmission ? sub.id : sub.submission_id}
                         onClick={() => setSelectedSubmission(sub)}
                         style={{
                           padding: '16px',
-                          border: `2px solid ${selectedSubmission?.id === sub.id ? '#6d55ff' : '#e2e8f0'}`,
+                          border: `2px solid ${(isContestSubmission ? selectedSubmission?.id === sub.id : selectedSubmission?.submission_id === sub.submission_id) ? '#6d55ff' : '#e2e8f0'}`,
                           borderRadius: '8px',
                           cursor: 'pointer',
-                          backgroundColor: selectedSubmission?.id === sub.id ? '#f8f9ff' : 'white',
+                          backgroundColor: (isContestSubmission ? selectedSubmission?.id === sub.id : selectedSubmission?.submission_id === sub.submission_id) ? '#f8f9ff' : 'white',
                           transition: 'all 0.2s'
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <p style={{ fontWeight: '600', margin: 0 }}>
-                              {sub.contest_questions?.title || `Submission ${index + 1}`}
+                              {isContestSubmission 
+                                ? (sub.contest_questions?.title || `Submission ${index + 1}`)
+                                : `Submission ${index + 1}`
+                              }
                             </p>
                             <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0 0' }}>
                               Language: {sub.language || 'N/A'}
@@ -260,7 +335,7 @@ const QuestionSetterSubmissionDetails = () => {
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                              {formatDate(sub.created_at)}
+                              {formatDate(isContestSubmission ? sub.solve_created_at : sub.submitted_at)}
                             </p>
                           </div>
                         </div>
@@ -286,15 +361,25 @@ const QuestionSetterSubmissionDetails = () => {
                   
                   <div className="qs-submission-code-editor">
                     <pre className="qs-code-content">
-                      <code>{selectedSubmission.code || 'No code available'}</code>
+                      <code>{isContestSubmission ? (selectedSubmission.code || 'No code available') : (selectedSubmission.submitted_code || 'No code available')}</code>
                     </pre>
                   </div>
 
                   <div className="qs-submission-code-footer">
                     <div className="qs-submission-meta">
-                      <span>Submitted: {formatDate(selectedSubmission.created_at)}</span>
-                      <span>Time: {selectedSubmission.time_taken || 0}s</span>
-                      <span>Memory: {selectedSubmission.memory_taken || 0} MB</span>
+                      <span>Submitted: {formatDate(isContestSubmission ? selectedSubmission.solve_created_at : selectedSubmission.submitted_at)}</span>
+                      {isContestSubmission && (
+                        <>
+                          <span>Time: {selectedSubmission.time_taken || 0}s</span>
+                          <span>Memory: {selectedSubmission.memory_taken || 0} MB</span>
+                        </>
+                      )}
+                      {!isContestSubmission && (
+                        <>
+                          <span>Status: {selectedSubmission.submission_status || 'N/A'}</span>
+                          <span>Points: {selectedSubmission.points || 0}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </>
