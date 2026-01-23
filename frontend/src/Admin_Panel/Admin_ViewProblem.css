@@ -1,0 +1,883 @@
+/* Admin View Problem Page Styles - Based on SolveProblem.css with admin-specific class names */
+
+/* Ensure sidebar matches PracticeProblem page height */
+.ud-root {
+  min-height: 100vh;
+}
+
+/* Make Admin_ViewProblem sidebar extend to full height of content */
+body:has(.admin-sp-content) .ud-sidebar {
+  height: 100%;
+  min-height: 125vh;
+}
+
+.admin-sp-content {
+    padding: 24px;
+    background: #f8fafc;
+    height: calc(100vh - 80px);
+    overflow: visible;
+    width: 100%;
+}
+
+/* Problem Navbar */
+.admin-sp-navbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background: #f8fafc;
+    padding: 8px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+}
+
+.admin-sp-navbar-left {
+    display: flex;
+    gap: 0;
+}
+
+.admin-sp-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.admin-sp-nav-btn:hover {
+    color: #374151;
+}
+
+.admin-sp-nav-btn.active {
+    color: #0969da;
+    border-bottom-color: #0969da;
+}
+
+/* Problem Header */
+.admin-sp-header {
+    margin-bottom: 0;
+}
+
+.admin-sp-breadcrumb {
+    margin-bottom: 0;
+}
+
+.admin-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.admin-back-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.admin-sp-title-section {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-sp-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.admin-sp-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.difficulty-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+}
+
+.difficulty-badge.easy {
+    background: #10b981;
+}
+
+.difficulty-badge.medium {
+    background: #f59e0b;
+}
+
+.difficulty-badge.hard {
+    background: #ef4444;
+}
+
+.points {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.success-rate {
+    background: #f0fdf4;
+    color: #16a34a;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Main Layout */
+.admin-sp-main-layout {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 8px;
+    margin-bottom: 0;
+    width: 100%;
+    height: calc(100vh - 150px);
+    min-height: calc(100vh - 150px);
+    overflow: visible;
+}
+
+/* Problems Column - Left Side */
+.admin-sp-problems-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: 100%;
+    min-height: calc(100vh - 130px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0;
+}
+
+/* Sample Section Styles */
+.admin-sp-samples {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 0;
+    width: 100%;
+    overflow: visible;
+}
+
+.admin-sp-sample-section {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: visible;
+}
+
+.admin-sp-sample-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+.admin-sp-sample-box {
+    background: #f8f9fa;
+    border: 1px solid #f1f5f9;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    color: #374151;
+    overflow: visible;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-sample-box pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    line-height: 1.4;
+}
+
+/* Input/Output Format Styles */
+.admin-sp-input-format,
+.admin-sp-output-format {
+    background: #f8f9fa;
+    border-left: 3px solid #f1f5f9;
+    padding: 16px;
+    border-radius: 0 4px 4px 0;
+    margin: 12px 0;
+    overflow: visible;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-input-format p,
+.admin-sp-output-format p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #586069;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Problem Section Styles */
+.admin-sp-problem-section {
+    background: white;
+    border-radius: 4px;
+    padding: 20px;
+    border: 1px solid #f1f5f9;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.admin-sp-problem-section:not(:last-child) {
+    margin-bottom: 16px;
+}
+
+.admin-sp-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-sp-section-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #24292e;
+    margin: 0;
+}
+
+.admin-sp-problem-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #24292e;
+    margin-bottom: 12px;
+    margin-top: 20px;
+}
+
+.admin-sp-problem-content {
+    padding-top: 16px;
+    overflow: visible;
+    width: 100%;
+}
+
+.admin-sp-problem-content p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #586069;
+    margin-bottom: 16px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.admin-sp-problem-content code {
+    background: #f6f8fa;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    color: #24292e;
+}
+
+.admin-sp-example {
+    background: #f6f8fa;
+    border-left: 4px solid #0366d6;
+    padding: 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+}
+
+.admin-sp-example p {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.admin-sp-example strong {
+    color: #24292e;
+}
+
+.admin-sp-constraints {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+
+.admin-sp-constraints li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e1e4e8;
+    font-size: 14px;
+    color: #586069;
+}
+
+.admin-sp-constraints li:last-child {
+    border-bottom: none;
+}
+
+/* Admin Info Section - Replaces Editor Section */
+.admin-sp-editor-section {
+    background: white;
+    border-radius: 4px;
+    height: auto;
+    min-height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid #f1f5f9;
+}
+
+.admin-sp-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+.admin-sp-editor-left {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.admin-sp-editor-content {
+    flex: 1;
+    padding: 20px 30px;
+    overflow-y: auto;
+    background: white;
+}
+
+/* Admin Info Section */
+.admin-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #f1f5f9;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.info-item span {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: white;
+}
+
+.status-badge.approved {
+    background: #10b981;
+}
+
+.status-badge.pending {
+    background: #f59e0b;
+}
+
+.status-badge.rejected {
+    background: #ef4444;
+}
+
+/* Admin Actions Section */
+.admin-actions-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.admin-actions-section h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 16px;
+}
+
+.status-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.status-selector label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.status-dropdown {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.status-dropdown:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.status-dropdown:hover {
+    border-color: #9ca3af;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.edit-btn,
+.delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.edit-btn {
+    background: #6366f1;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+}
+
+.delete-btn {
+    background: #ef4444;
+    color: white;
+}
+
+.delete-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group.full-width {
+    flex: 1 1 100%;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.modal-cancel,
+.modal-save {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-cancel {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.modal-cancel:hover {
+    background: #e5e7eb;
+}
+
+.modal-save {
+    background: #6366f1;
+    color: white;
+}
+
+.modal-save:hover {
+    background: #4f46e5;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .admin-sp-main-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    
+    .admin-sp-problems-column {
+        max-height: none;
+        padding-right: 0;
+    }
+    
+    .admin-sp-samples {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: row;
+        gap: 8px;
+    }
+    
+    .approve-btn,
+    .reject-btn,
+    .edit-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-sp-content {
+        padding: 16px;
+    }
+    
+    .admin-sp-title {
+        font-size: 24px;
+    }
+    
+    .admin-sp-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .admin-sp-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .admin-sp-problem-section {
+        padding: 16px;
+    }
+    
+    .admin-sp-editor-content {
+        padding: 16px;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-sp-title {
+        font-size: 20px;
+    }
+    
+    .admin-sp-problem-section {
+        padding: 12px;
+    }
+    
+    .admin-sp-sample-box {
+        padding: 8px;
+    }
+    
+    .admin-sp-editor-header {
+        padding: 16px 20px;
+    }
+    
+    .admin-sp-editor-content {
+        padding: 16px 20px;
+    }
+    
+    .info-item {
+        padding: 8px 12px;
+    }
+}
+
+/* Delete Dialog Styles */
+.delete-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.delete-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    min-width: 400px;
+    max-width: 90%;
+    animation: slideUp 0.3s ease-out;
+}
+
+.delete-dialog-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.delete-dialog-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.delete-dialog-body {
+    padding: 16px 24px;
+}
+
+.delete-dialog-body p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.delete-dialog-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.cancel-btn {
+    padding: 10px 20px;
+    background: #f8fafc;
+    color: #64748b;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.confirm-delete-btn {
+    padding: 10px 20px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.confirm-delete-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
