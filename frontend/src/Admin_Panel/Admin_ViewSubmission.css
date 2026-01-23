@@ -1,0 +1,584 @@
+/* Admin View Submission Page Styles - Based on SolveProblem.css with admin-specific class names */
+
+/* Import SolveProblem styles for base layout */
+@import '../User_panel/SolveProblem.css';
+
+/* Admin-specific overrides for submission viewing */
+.admin-vs-content {
+    padding: 24px;
+    background: #f8fafc;
+    height: calc(100vh - 80px);
+    overflow: visible;
+    width: 100%;
+}
+
+/* Enhanced Problem Description Styles */
+.admin-vs-question-section {
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+}
+
+.admin-vs-question-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-vs-question-section::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.admin-vs-question-section::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.admin-vs-question-section::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.admin-vs-problem-title {
+    margin-bottom: 20px;
+}
+
+.admin-vs-problem-title h4 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.admin-vs-problem-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.admin-vs-difficulty {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.admin-vs-points {
+    background: #dcfce7;
+    color: #166534;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.admin-vs-language {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.admin-vs-problem-description,
+.admin-vs-input-section,
+.admin-vs-output-section,
+.admin-vs-constraints-section {
+    margin-bottom: 24px;
+}
+
+.admin-vs-problem-description h5,
+.admin-vs-input-section h5,
+.admin-vs-output-section h5,
+.admin-vs-constraints-section h5 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+.admin-vs-description-content,
+.admin-vs-input-content,
+.admin-vs-output-content,
+.admin-vs-constraints-content {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    line-height: 1.6;
+}
+
+.admin-vs-description-content p,
+.admin-vs-input-content p,
+.admin-vs-output-content p,
+.admin-vs-constraints-content p {
+    margin: 0;
+    color: #374151;
+    white-space: pre-wrap;
+}
+
+.admin-vs-sample-section {
+    margin-bottom: 24px;
+}
+
+.admin-vs-sample-section h5 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.admin-vs-sample-box {
+    background: #f8f9fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #374151;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    margin: 0;
+}
+
+.admin-vs-problem-info {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.admin-vs-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.admin-vs-info-row:last-child {
+    border-bottom: none;
+}
+
+.admin-vs-info-label {
+    font-weight: 500;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.admin-vs-info-value {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 14px;
+}
+
+/* Admin submission navbar */
+.admin-vs-navbar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background: #f8fafc;
+    padding: 8px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+}
+
+.admin-vs-navbar-left {
+    display: flex;
+    gap: 0;
+}
+
+.admin-vs-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.admin-vs-nav-btn:hover {
+    color: #374151;
+}
+
+.admin-vs-nav-btn.active {
+    color: #0969da;
+    border-bottom-color: #0969da;
+}
+
+/* Admin submission header */
+.admin-vs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.admin-vs-title-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-vs-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.admin-vs-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.admin-vs-status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.admin-vs-status-badge.accepted {
+    background: #10b981;
+    color: white;
+}
+
+.admin-vs-status-badge.wrong {
+    background: #ef4444;
+    color: white;
+}
+
+.admin-vs-status-badge.timeout {
+    background: #f59e0b;
+    color: white;
+}
+
+.admin-vs-status-badge.error {
+    background: #ef4444;
+    color: white;
+}
+
+.admin-vs-language {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.admin-vs-date {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.admin-vs-status-text {
+    text-transform: capitalize;
+}
+
+.admin-vs-status-text.accepted {
+    color: #10b981;
+}
+
+.admin-vs-status-text.wrong {
+    color: #ef4444;
+}
+
+.admin-vs-status-text.timeout {
+    color: #f59e0b;
+}
+
+.admin-vs-status-text.error {
+    color: #ef4444;
+}
+
+/* Admin action buttons */
+.admin-vs-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-vs-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 36px;
+    height: 36px;
+}
+
+.admin-vs-action-btn:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+}
+
+/* Admin code section */
+.admin-vs-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 16px;
+    height: calc(100vh - 200px);
+}
+
+/* Question section on left */
+.admin-vs-question-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Code section on right */
+.admin-vs-code-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.admin-vs-code-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-vs-code-section::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.admin-vs-code-section::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.admin-vs-code-section::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.admin-vs-code-editor {
+    height: calc(100vh - 300px);
+    overflow-y: auto;
+}
+
+.admin-vs-code-editor::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-vs-code-editor::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.admin-vs-code-editor::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.admin-vs-code-editor::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.admin-vs-question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-vs-question-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.admin-vs-question-info {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.admin-vs-problem-title {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.admin-vs-problem-description {
+    color: #374151;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.admin-vs-sample-section {
+    margin-top: 16px;
+}
+
+.admin-vs-sample-section h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.admin-vs-sample-box {
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    color: #24292e;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.admin-vs-code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.admin-vs-code-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.admin-vs-code-info {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.admin-vs-code-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.admin-vs-code-textarea {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    outline: none;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #24292e;
+    background: #1e293b;
+    resize: vertical;
+    min-height: 400px;
+}
+
+.admin-vs-code-textarea::placeholder {
+    color: #6b7280;
+}
+
+/* Loading and error states */
+.admin-vs-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #64748b;
+}
+
+.admin-vs-loading p {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.admin-vs-error-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #ef4444;
+}
+
+.admin-vs-error-display p {
+    margin-top: 12px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.admin-vs-error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.admin-vs-error-banner {
+    background: #fee;
+    color: #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 16px 0;
+    border: 1px solid #fecaca;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .admin-vs-content {
+        padding: 16px;
+    }
+    
+    .admin-vs-main-layout {
+        height: calc(100vh - 180px);
+    }
+    
+    .admin-vs-code-textarea {
+        font-size: 12px;
+        padding: 16px;
+    }
+    
+    .admin-vs-actions {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .admin-vs-action-btn {
+        width: 100%;
+        height: 40px;
+    }
+}
