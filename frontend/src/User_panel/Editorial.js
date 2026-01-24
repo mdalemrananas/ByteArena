@@ -335,28 +335,9 @@ const Editorial = () => {
                         </div>
                     </div>
 
-                    {/* Minimal Header */}
-                    <div className="sp-header">
-                        <div className="sp-title-section">
-                            <h1 className="sp-title">Editorial - {problem?.problem_title || 'Loading Problem...'}</h1>
-                        </div>
-                    </div>
-
                     {/* Editorial Content */}
                     <div className="editorial-full-width">
-                        {/* Problem Info Header - Full Width */}
-                        <div className="problem-info-header">
-                            <h2>{problem?.problem_title || 'Loading Problem...'}</h2>
-                            <div className="problem-meta">
-                                <span className={`difficulty-badge ${problem?.difficulty?.toLowerCase()}`}>
-                                    {problem?.difficulty || 'Easy'}
-                                </span>
-                                <span className="points-badge">+{problem?.points || 100} points</span>
-                                <span className="rating-badge">Rating: {problem?.problem_rating || '0.0'}/5.0</span>
-                            </div>
-                        </div>
-
-                        {/* Editorial Content Grid - Two Columns Below Title */}
+                        {/* Editorial Content Grid - Two Columns */}
                         <div className="editorial-content-grid">
                             {/* Left Column - Editorial Sections */}
                             <div className="editorial-left-column">
@@ -506,30 +487,20 @@ const Editorial = () => {
 
                             {/* Right Column - Reference Implementation */}
                             <div className="editorial-right-column">
-                                <div className="reference-implementation">
-                                    <div className="section-header">
-                                        <FaCode />
-                                        <h3>Reference Implementation</h3>
-                                    </div>
-                                    <div className="section-content">
-                                        {solution?.solution_code ? (
-                                            <div className="code-blocks">
-                                                <div className="code-block active">
-                                                    <div className="code-header">
-                                                        <span>Solution Code</span>
-                                                        <button className="copy-btn" onClick={() => navigator.clipboard.writeText(solution.solution_code)}>
-                                                            <FaCopy />
-                                                            Copy
-                                                        </button>
-                                                    </div>
-                                                    <pre><code>{solution.solution_code}</code></pre>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <p className="no-content">Solution code not available for this problem.</p>
-                                        )}
-                                    </div>
+                                <div className="section-header">
+                                    <FaCode />
+                                    <h3>Problem Setter's Code</h3>
                                 </div>
+                                {solution?.solution_code ? (
+                                    <textarea
+                                        className="reference-code-textarea"
+                                        value={solution.solution_code}
+                                        readOnly
+                                        placeholder="Solution code will appear here..."
+                                    />
+                                ) : (
+                                    <p className="no-content">Solution code not available for this problem.</p>
+                                )}
                             </div>
                         </div>
                     </div>
