@@ -35,6 +35,8 @@ import {
   FaEye,
   FaBan,
   FaCheckCircle,
+  FaExclamationTriangle,
+  FaTimes,
 } from 'react-icons/fa';
 import './UserManagement.css';
 
@@ -216,9 +218,47 @@ function UserManagement() {
   const [usersPerPage] = useState(10);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [newUser, setNewUser] = useState({ username: '', email: '', role: 'user' });
+  const [editUser, setEditUser] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [newUser, setNewUser] = useState({ 
+  username: '', 
+  email: '', 
+  password: '', 
+  confirmPassword: '', 
+  role: 'user' 
+});
+const [passwordStrength, setPasswordStrength] = useState({
+  hasMinLength: false,
+  hasUpperCase: false,
+  hasLowerCase: false,
+  hasNumber: false,
+  hasSpecialChar: false
+});
+const [passwordError, setPasswordError] = useState('');
   const [error, setError] = useState('');
+
+  // Password strength checker
+  const checkPasswordStrength = (password) => {
+    return {
+      hasMinLength: password.length >= 8,
+      hasUpperCase: /[A-Z]/.test(password),
+      hasLowerCase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+  };
+
+  // Check if password is strong enough
+  const isPasswordStrong = (password) => {
+    const strength = checkPasswordStrength(password);
+    return Object.values(strength).every(Boolean);
+  };
 
   // Fetch users from database
   const fetchUsers = async () => {
@@ -312,8 +352,47 @@ function UserManagement() {
   };
 
   const handleEditUser = async (userId) => {
-    console.log('Edit user:', userId);
-    // For now, just log - you can implement edit modal here
+    try {
+      const result = await getUserById(userId);
+      if (result.success) {
+        setEditUser(result.data);
+        setShowEditModal(true);
+      } else {
+        showError('Error fetching user details: ' + result.error);
+      }
+    } catch (error) {
+      showError('Error fetching user details: ' + error.message);
+    }
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditUser(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmitEdit = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await updateUser(editUser.id, editUser);
+      if (result.success) {
+        setShowEditModal(false);
+        setEditUser(null);
+        fetchUsers(); // Refresh the list
+        showSuccess('User updated successfully!');
+      } else {
+        showError(result.error);
+      }
+    } catch (error) {
+      showError(error.message);
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditUser(null);
   };
 
   const handleToggleUserStatus = async (userId, currentStatus) => {
@@ -329,23 +408,55 @@ function UserManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        const result = await deleteUser(userId);
-        if (result.success) {
-          fetchUsers(); // Refresh the list
-        } else {
-          alert('Error deleting user: ' + result.error);
-        }
-      } catch (error) {
-        alert('Error deleting user: ' + error.message);
+  const handleDeleteUser = (userId) => {
+    setUserToDelete(userId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    try {
+      const result = await deleteUser(userToDelete);
+      if (result.success) {
+        setShowDeleteDialog(false);
+        setUserToDelete(null);
+        fetchUsers(); // Refresh the list
+        showSuccess('User deleted successfully!');
+      } else {
+        showError('Error deleting user: ' + result.error);
       }
+    } catch (error) {
+      showError('Error deleting user: ' + error.message);
     }
+  };
+
+  const cancelDeleteUser = () => {
+    setShowDeleteDialog(false);
+    setUserToDelete(null);
   };
 
   const handleCreateUser = () => {
     setShowCreateModal(true);
+  };
+
+  // Dialog functions
+  const showSuccess = (message) => {
+    setDialogMessage(message);
+    setShowSuccessDialog(true);
+  };
+
+  const showError = (message) => {
+    setDialogMessage(message);
+    setShowErrorDialog(true);
+  };
+
+  const closeSuccessDialog = () => {
+    setShowSuccessDialog(false);
+    setDialogMessage('');
+  };
+
+  const closeErrorDialog = () => {
+    setShowErrorDialog(false);
+    setDialogMessage('');
   };
 
   const handleInputChange = (e) => {
@@ -354,27 +465,75 @@ function UserManagement() {
       ...prev,
       [name]: value
     }));
+
+    // Check password strength when password field changes
+    if (name === 'password') {
+      setPasswordStrength(checkPasswordStrength(value));
+      setPasswordError(''); // Clear error when user starts typing
+    }
+    
+    // Check password match when confirm password field changes
+    if (name === 'confirmPassword') {
+      if (value && newUser.password && value !== newUser.password) {
+        setPasswordError('Passwords do not match');
+      } else {
+        setPasswordError('');
+      }
+    }
   };
 
   const handleSubmitUser = async (e) => {
     e.preventDefault();
+    
+    // Validate password strength
+    if (!isPasswordStrong(newUser.password)) {
+      showError('Password must meet all requirements (8+ chars, uppercase, lowercase, number, special character)');
+      return;
+    }
+    
+    // Check if passwords match
+    if (newUser.password !== newUser.confirmPassword) {
+      showError('Passwords do not match');
+      return;
+    }
+    
     try {
       const result = await createUser(newUser);
       if (result.success) {
         // Reset form and close modal
-        setNewUser({ username: '', email: '', role: 'user' });
+        setNewUser({ username: '', email: '', password: '', confirmPassword: '', role: 'user' });
+        setPasswordStrength({
+          hasMinLength: false,
+          hasUpperCase: false,
+          hasLowerCase: false,
+          hasNumber: false,
+          hasSpecialChar: false
+        });
+        setPasswordError('');
         setShowCreateModal(false);
         fetchUsers(); // Refresh the list
+        
+        // Show success dialog
+        showSuccess(result.message || 'User created successfully!');
       } else {
-        alert('Error creating user: ' + result.error);
+        // Show error dialog
+        showError(result.error);
       }
     } catch (error) {
-      alert('Error creating user: ' + error.message);
+      showError(error.message);
     }
   };
 
   const handleCloseModal = () => {
-    setNewUser({ username: '', email: '', role: 'user' });
+    setNewUser({ username: '', email: '', password: '', confirmPassword: '', role: 'user' });
+    setPasswordStrength({
+      hasMinLength: false,
+      hasUpperCase: false,
+      hasLowerCase: false,
+      hasNumber: false,
+      hasSpecialChar: false
+    });
+    setPasswordError('');
     setShowCreateModal(false);
   };
 
@@ -654,6 +813,53 @@ function UserManagement() {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={newUser.password}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter password"
+                  minLength="8"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="confirmPassword">Confirm Password</label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={newUser.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Confirm password"
+                  minLength="8"
+                />
+              </div>
+              {newUser.password && (
+                <div className="password-requirements">
+                  <div className="requirement-title">Password must contain:</div>
+                  <div className={`requirement ${passwordStrength.hasMinLength ? 'met' : ''}`}>
+                    {passwordStrength.hasMinLength ? '✓' : '•'} At least 8 characters
+                  </div>
+                  <div className={`requirement ${passwordStrength.hasUpperCase ? 'met' : ''}`}>
+                    {passwordStrength.hasUpperCase ? '✓' : '•'} At least one uppercase letter
+                  </div>
+                  <div className={`requirement ${passwordStrength.hasLowerCase ? 'met' : ''}`}>
+                    {passwordStrength.hasLowerCase ? '✓' : '•'} At least one lowercase letter
+                  </div>
+                  <div className={`requirement ${passwordStrength.hasNumber ? 'met' : ''}`}>
+                    {passwordStrength.hasNumber ? '✓' : '•'} At least one number
+                  </div>
+                  <div className={`requirement ${passwordStrength.hasSpecialChar ? 'met' : ''}`}>
+                    {passwordStrength.hasSpecialChar ? '✓' : '•'} At least one special character
+                  </div>
+                </div>
+              )}
+              {passwordError && <div className="error-message">{passwordError}</div>}
+              <div className="form-group">
                 <label htmlFor="role">Role</label>
                 <select
                   id="role"
@@ -691,51 +897,33 @@ function UserManagement() {
               </button>
             </div>
             <div className="modal-content">
-              {/* User Header */}
-              <div className="user-header">
-                <div className="user-avatar">
-                  {selectedUser.avatar_url ? (
-                    <img src={selectedUser.avatar_url} alt="avatar" />
-                  ) : (
-                    <span>👤</span>
-                  )}
-                </div>
-                <div className="user-info">
-                  <div className="user-name">
-                    {selectedUser.username || selectedUser.display_name || 'N/A'}
-                  </div>
-                  <div className="user-email">{selectedUser.email}</div>
-                  <div className="user-role-badge">
-                    {selectedUser.role || 'user'}
-                  </div>
-                </div>
-              </div>
-
-              {/* User Stats */}
-              <div className="user-stats">
-                <div className="stat-item">
-                  <div className="stat-value">{selectedUser.rating || 1000}</div>
-                  <div className="stat-label">Rating</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{selectedUser.wins || 0}</div>
-                  <div className="stat-label">Wins</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{selectedUser.matches_played || 0}</div>
-                  <div className="stat-label">Matches</div>
-                </div>
-              </div>
-
-              {/* User Details Grid */}
+              {/* User Details Grid - All info in minimal format */}
               <div className="user-details-grid">
                 <div className="detail-item">
                   <label>User ID</label>
                   <span>{selectedUser.id}</span>
                 </div>
+                {selectedUser.firebase_uid && (
+                  <div className="detail-item">
+                    <label>Firebase UID</label>
+                    <span>{selectedUser.firebase_uid}</span>
+                  </div>
+                )}
+                <div className="detail-item">
+                  <label>Username</label>
+                  <span>{selectedUser.username || 'N/A'}</span>
+                </div>
                 <div className="detail-item">
                   <label>Display Name</label>
                   <span>{selectedUser.display_name || 'N/A'}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Email</label>
+                  <span>{selectedUser.email}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Role</label>
+                  <span>{selectedUser.role || 'user'}</span>
                 </div>
                 <div className="detail-item">
                   <label>Country</label>
@@ -754,8 +942,20 @@ function UserManagement() {
                   </span>
                 </div>
                 <div className="detail-item">
+                  <label>Rating</label>
+                  <span>{selectedUser.rating || 1000}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Wins</label>
+                  <span>{selectedUser.wins || 0}</span>
+                </div>
+                <div className="detail-item">
                   <label>Losses</label>
                   <span>{selectedUser.losses || 0}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Matches Played</label>
+                  <span>{selectedUser.matches_played || 0}</span>
                 </div>
                 <div className="detail-item">
                   <label>Created At</label>
@@ -788,6 +988,250 @@ function UserManagement() {
             <div className="modal-actions">
               <button type="button" className="cancel-btn" onClick={handleCloseViewModal}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && editUser && (
+        <div className="modal-overlay">
+          <div className="modal-container">
+            <div className="modal-header">
+              <h3>Edit User</h3>
+              <button className="modal-close-btn" onClick={handleCloseEditModal}>
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleSubmitEdit} className="modal-form">
+              <div className="user-details-grid">
+                <div className="detail-item">
+                  <label>User ID</label>
+                  <span>{editUser.id}</span>
+                </div>
+                {editUser.firebase_uid && (
+                  <div className="detail-item">
+                    <label>Firebase UID</label>
+                    <span>{editUser.firebase_uid}</span>
+                  </div>
+                )}
+                <div className="detail-item">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={editUser.username || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Display Name</label>
+                  <input
+                    type="text"
+                    name="display_name"
+                    value={editUser.display_name || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editUser.email || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Role</label>
+                  <select
+                    name="role"
+                    value={editUser.role || 'user'}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  >
+                    <option value="user">User</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div className="detail-item">
+                  <label>Country</label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={editUser.country || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Status</label>
+                  <select
+                    name="is_active"
+                    value={editUser.is_active ? 'true' : 'false'}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+                <div className="detail-item">
+                  <label>Verification</label>
+                  <select
+                    name="is_verified"
+                    value={editUser.is_verified ? 'true' : 'false'}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  >
+                    <option value="true">Verified</option>
+                    <option value="false">Not Verified</option>
+                  </select>
+                </div>
+                <div className="detail-item">
+                  <label>Rating</label>
+                  <input
+                    type="number"
+                    name="rating"
+                    value={editUser.rating || 1000}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                    min="0"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Wins</label>
+                  <input
+                    type="number"
+                    name="wins"
+                    value={editUser.wins || 0}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                    min="0"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Losses</label>
+                  <input
+                    type="number"
+                    name="losses"
+                    value={editUser.losses || 0}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                    min="0"
+                  />
+                </div>
+                <div className="detail-item">
+                  <label>Matches Played</label>
+                  <input
+                    type="number"
+                    name="matches_played"
+                    value={editUser.matches_played || 0}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                    min="0"
+                  />
+                </div>
+                <div className="detail-item full-width">
+                  <label>Website</label>
+                  <input
+                    type="url"
+                    name="website"
+                    value={editUser.website || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="detail-item full-width">
+                  <label>Bio</label>
+                  <textarea
+                    name="bio"
+                    value={editUser.bio || ''}
+                    onChange={handleEditInputChange}
+                    className="form-input"
+                    rows="3"
+                  />
+                </div>
+                <div className="detail-item full-width">
+                  <label>Skills</label>
+                  <input
+                    type="text"
+                    name="skills"
+                    value={editUser.skills ? editUser.skills.join(', ') : ''}
+                    onChange={(e) => {
+                      const skillsArray = e.target.value.split(',').map(skill => skill.trim()).filter(skill => skill);
+                      setEditUser(prev => ({ ...prev, skills: skillsArray }));
+                    }}
+                    className="form-input"
+                    placeholder="Enter skills separated by commas"
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={handleCloseEditModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn">
+                  Update User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Dialog */}
+      {showSuccessDialog && (
+        <div className="dialog-overlay">
+          <div className="dialog-container success-dialog">
+            <div className="dialog-icon">
+              <FaCheckCircle />
+            </div>
+            <h3>Success!</h3>
+            <p>{dialogMessage}</p>
+            <button className="dialog-btn" onClick={closeSuccessDialog}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Dialog */}
+      {showErrorDialog && (
+        <div className="dialog-overlay">
+          <div className="dialog-container error-dialog">
+            <div className="dialog-icon">
+              <FaExclamationTriangle />
+            </div>
+            <h3>Error!</h3>
+            <p>{dialogMessage}</p>
+            <button className="dialog-btn" onClick={closeErrorDialog}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="dialog-overlay">
+          <div className="dialog-container delete-dialog">
+            <div className="dialog-icon">
+              <FaTrash />
+            </div>
+            <h3>Delete User</h3>
+            <p>Are you sure you want to delete this user? This action cannot be undone.</p>
+            <div className="dialog-actions">
+              <button className="dialog-btn cancel-btn" onClick={cancelDeleteUser}>
+                Cancel
+              </button>
+              <button className="dialog-btn delete-btn" onClick={confirmDeleteUser}>
+                Delete
               </button>
             </div>
           </div>
