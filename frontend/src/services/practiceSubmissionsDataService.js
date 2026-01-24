@@ -28,11 +28,23 @@ export const practiceSubmissionsDataService = {
         query = query.eq('problem_id', problemId);
       }
 
-      // Filter by userId only if it's a valid UUID
-      if (userId && this.isValidUUID(userId)) {
-        query = query.eq('problem_solver_id', userId);
-      } else if (userId) {
-        console.warn('Invalid UUID format for userId, skipping user filter:', userId);
+      // Filter by userId - need to get database UUID from Firebase UID
+      if (userId) {
+        // First get the user's database UUID using their Firebase UID
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('firebase_uid', userId)
+          .single();
+
+        if (userError) {
+          console.error('Error fetching user UUID:', userError);
+          return { success: false, error: 'User not found in database' };
+        }
+
+        if (userData) {
+          query = query.eq('problem_solver_id', userData.id);
+        }
       }
 
       const { data, error } = await query;
@@ -46,6 +58,45 @@ export const practiceSubmissionsDataService = {
     } catch (error) {
       console.error('Unexpected error fetching submissions:', error);
       return { success: false, error: 'Failed to fetch submissions data' };
+    }
+  },
+
+  // Get submission by ID with full details
+  async getSubmissionById(submissionId) {
+    try {
+      const { data, error } = await supabase
+        .from('practice_submission')
+        .select(`
+          *,
+          practice_problem (
+            problem_id,
+            problem_title,
+            problem_description,
+            problem_input,
+            problem_output,
+            sample_input,
+            sample_output,
+            difficulty,
+            problem_language
+          ),
+          users (
+            display_name,
+            username,
+            country
+          )
+        `)
+        .eq('submission_id', submissionId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching submission:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('Unexpected error fetching submission:', error);
+      return { success: false, error: 'Failed to fetch submission' };
     }
   },
 

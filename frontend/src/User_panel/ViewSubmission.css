@@ -10,6 +10,265 @@
     margin-bottom: 16px;
 }
 
+/* Make sidebar full height using flexbox */
+.ud-root {
+    display: flex;
+    min-height: 100vh;
+}
+
+.ud-sidebar {
+    flex: 0 0 auto;
+    min-height: 100vh;
+    background: #1e293b;
+}
+
+.ud-main {
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.sp-content {
+    flex: 1;
+    padding: 24px;
+}
+
+.submission-details {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+.submission-content {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.submission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.submission-info h2 {
+    margin: 0 0 16px 0;
+    font-size: 1.5rem;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.submission-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.submission-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.submission-language {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.submission-points {
+    background: #10b981;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.submission-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: #4b5563;
+    transform: translateY(-1px);
+}
+
+.problem-section, .code-section, .submission-meta-section {
+    padding: 24px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.problem-section h3, .code-section h3, .submission-meta-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.problem-description {
+    background: #f9fafb;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #374151;
+}
+
+.code-container {
+    background: #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #334155;
+}
+
+.code-block {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    padding: 20px !important;
+    margin: 0 !important;
+    font-family: 'Fira Code', 'Courier New', monospace !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+    overflow-x: auto !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    min-height: 100px !important;
+    max-height: 500px !important;
+    overflow-y: auto !important;
+}
+
+.code-block code {
+    display: block !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.meta-item label {
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.meta-item span {
+    color: #374151;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-badge.status-accepted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-badge.status-wrong {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.status-badge.status-timeout {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.status-error {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.status-badge.status-pending {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .submission-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .submission-meta {
+        justify-content: center;
+    }
+    
+    .meta-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .code-block {
+        padding: 16px;
+        font-size: 0.8rem;
+    }
+    
+    .action-btn {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+}
+
 .submission-view-full-width .sp-title-section h1 {
     font-size: 1.5rem;
     margin: 0;
@@ -316,4 +575,125 @@
         font-size: 0.8rem;
         padding: 8px 12px;
     }
+}
+
+/* Problem Description Formatting */
+.problem-description {
+    line-height: 1.6;
+    color: #374151;
+    font-size: 14px;
+}
+
+.problem-description .code-block {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    color: #e2e8f0;
+}
+
+.problem-description .inline-code {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    color: #1f2937;
+}
+
+.problem-description strong {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.problem-description em {
+    font-style: italic;
+    color: #4b5563;
+}
+
+.problem-description ul {
+    margin: 12px 0;
+    padding-left: 24px;
+}
+
+.problem-description li {
+    margin: 6px 0;
+    color: #374151;
+}
+
+.problem-description br {
+    margin-bottom: 8px;
+}
+
+/* Sample Input/Output Styling */
+.sample-input-output {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+}
+
+.sample-input-output pre {
+    margin: 0;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #374151;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Code Section Header */
+.code-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    background: #ffffff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.code-section-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.code-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.code-actions .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.code-actions .action-btn:hover {
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.code-actions .action-btn svg {
+    font-size: 14px;
 }
