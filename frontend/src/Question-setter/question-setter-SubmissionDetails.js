@@ -6,181 +6,148 @@ import {
   FaChevronLeft
 } from 'react-icons/fa';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './question-setter-SubmissionDetails.css';
 
 const QuestionSetterSubmissionDetails = () => {
   const navigate = useNavigate();
-  const { questionId, userId } = useParams();
-  const [question, setQuestion] = useState(null);
-  const [submission, setSubmission] = useState(null);
+  const { contestId, participantId, questionId, userId } = useParams();
+  const [submissions, setSubmissions] = useState([]);
+  const [participant, setParticipant] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const isContestSubmission = !!contestId && !!participantId;
 
   useEffect(() => {
-    // Load question and submission data
-    const loadData = () => {
-      // Dummy question data
-      const dummyQuestions = [
-        {
-          id: 1,
-          title: 'Regular Expression Matching',
-          description: `Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
+    const loadData = async () => {
+      if (isContestSubmission) {
+        if (!contestId || !participantId) {
+          setLoading(false);
+          return;
+        }
 
-'.' Matches any single character.
-'*' Matches zero or more of the preceding element.
+        try {
+          // Get participant info
+          const { data: participantData, error: participantError } = await supabase
+            .from('contest_participants')
+            .select(`
+              *,
+              users!inner (
+                id,
+                display_name,
+                email
+              )
+            `)
+            .eq('id', participantId)
+            .single();
 
-The matching should cover the entire input string (not partial).`,
-          examples: [
-            {
-              input: 's = "aa", p = "a"',
-              output: 'false',
-              explanation: '"a" does not match the entire string "aa".'
-            },
-            {
-              input: 's = "aa", p = "a*"',
-              output: 'true',
-              explanation: '"*" means zero or more of the preceding element, "a". Therefore, by repeating "a" once, it becomes "aa".'
-            },
-            {
-              input: 's = "ab", p = ".*"',
-              output: 'true',
-              explanation: '".*" means "zero or more (*) of any character (.)".'
+          if (participantError) throw participantError;
+          setParticipant(participantData);
+
+          // Get contest questions for this contest first
+          const { data: contestQuestions, error: questionsError } = await supabase
+            .from('contest_questions')
+            .select('id')
+            .eq('contest_id', contestId);
+
+          if (questionsError) throw questionsError;
+
+          const questionIds = contestQuestions?.map(q => q.id) || [];
+
+          // Get all submissions for this participant that belong to this contest
+          if (questionIds.length > 0) {
+            const { data: submissionsData, error: submissionsError } = await supabase
+              .from('contest_question_solves')
+              .select('*')
+              .eq('participate_id', participantData.user_id)
+              .in('question_id', questionIds)
+              .order('solve_created_at', { ascending: false });
+
+            if (submissionsError) throw submissionsError;
+
+            // Fetch question titles separately and merge
+            if (submissionsData && submissionsData.length > 0) {
+              const uniqueQuestionIds = [...new Set(submissionsData.map(s => s.question_id))];
+              const { data: questionsData, error: questionsDataError } = await supabase
+                .from('contest_questions')
+                .select('id, title')
+                .in('id', uniqueQuestionIds);
+
+              if (!questionsDataError && questionsData) {
+                const questionsMap = new Map(questionsData.map(q => [q.id, q]));
+                const submissionsWithTitles = submissionsData.map(sub => ({
+                  ...sub,
+                  contest_questions: questionsMap.get(sub.question_id) || null
+                }));
+                setSubmissions(submissionsWithTitles);
+                
+                if (submissionsWithTitles.length > 0) {
+                  setSelectedSubmission(submissionsWithTitles[0]);
+                }
+              } else {
+                setSubmissions(submissionsData);
+                if (submissionsData.length > 0) {
+                  setSelectedSubmission(submissionsData[0]);
+                }
+              }
+            } else {
+              setSubmissions([]);
             }
-          ],
-          constraints: [
-            '1 <= s.length <= 20',
-            '1 <= p.length <= 30',
-            's contains only lowercase English letters.',
-            'p contains only lowercase English letters, \'.\', and \'*\'.',
-            'It is guaranteed for each appearance of the character \'*\', there will be a previous valid character to match.'
-          ],
-          difficulty: 'Hard'
+          } else {
+            setSubmissions([]);
+          }
+        } catch (error) {
+          console.error('Error loading submission data:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+        } finally {
+          setLoading(false);
         }
-      ];
-
-      // Dummy submission data
-      const dummySubmissions = [
-        {
-          id: 1,
-          questionId: 1,
-          userId: 'User1',
-          language: 'C++',
-          code: `#include <bits/stdc++.h>
-using namespace std;
-
-string trim(const string &s) {
-    int start = s.find_first_not_of(" \\t\\n\\r");
-    if (start == string::npos) return "";
-    int end = s.find_last_not_of(" \\t\\n\\r");
-    return s.substr(start, end - start + 1);
-}
-
-vector<string> split(const string &s) {
-    vector<string> tokens;
-    stringstream ss(s);
-    string token;
-    while (ss >> token) {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-
-/*
- * Complete the 'countStrings' function below.
- *
- * The function is expected to return an INTEGER.
- * The function accepts following parameters:
- *  1. STRING r
- *  2. INTEGER l
- */
-
-int countStrings(string r, int l) {
-    // TODO: Implement the function
-    return 0;
-}
-
-int main() {
-    ofstream fout(getenv("OUTPUT_PATH"));
-    
-    int T;
-    cin >> T;
-    cin.ignore();
-    
-    for (int t = 0; t < T; t++) {
-        string line;
-        getline(cin, line);
-        
-        vector<string> parts = split(line);
-        string r = parts[0];
-        int l = stoi(parts[1]);
-        
-        int result = countStrings(r, l);
-        
-        fout << result << "\\n";
-    }
-    
-    fout.close();
-    return 0;
-}`,
-          submittedAt: '2024-01-15 14:30:00',
-          status: 'Correct',
-          executionTime: '1.2s',
-          memoryUsed: '256 MB'
-        },
-        {
-          id: 2,
-          questionId: 1,
-          userId: 'User2',
-          language: 'Java',
-          code: `import java.util.*;
-import java.io.*;
-
-public class Solution {
-    public static int countStrings(String r, int l) {
-        // TODO: Implement the function
-        return 0;
-    }
-    
-    public static void main(String[] args) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        PrintWriter pw = new PrintWriter(System.out);
-        
-        int T = Integer.parseInt(br.readLine());
-        
-        for (int t = 0; t < T; t++) {
-            String[] parts = br.readLine().split(" ");
-            String r = parts[0];
-            int l = Integer.parseInt(parts[1]);
-            
-            int result = countStrings(r, l);
-            pw.println(result);
+      } else {
+        // Handle practice problem submissions
+        if (!questionId || !userId) {
+          setLoading(false);
+          return;
         }
-        
-        pw.close();
-    }
-}`,
-          submittedAt: '2024-01-15 15:45:00',
-          status: 'Wrong',
-          executionTime: '2.1s',
-          memoryUsed: '512 MB'
+
+        try {
+          // Get user info
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id, display_name, email')
+            .eq('id', userId)
+            .single();
+
+          if (userError) throw userError;
+          setParticipant({ users: userData });
+
+          // Get all submissions for this user and problem from practice_submission
+          const { data: submissionsData, error: submissionsError } = await supabase
+            .from('practice_submission')
+            .select('*')
+            .eq('problem_id', questionId)
+            .eq('problem_solver_id', userId)
+            .order('submitted_at', { ascending: false });
+
+          if (submissionsError) throw submissionsError;
+          setSubmissions(submissionsData || []);
+          
+          if (submissionsData && submissionsData.length > 0) {
+            setSelectedSubmission(submissionsData[0]);
+          }
+        } catch (error) {
+          console.error('Error loading practice submission data:', error);
+        } finally {
+          setLoading(false);
         }
-      ];
-
-      const foundQuestion = dummyQuestions.find(q => q.id === parseInt(questionId || 1));
-      const foundSubmission = dummySubmissions.find(s => s.userId === userId || s.id === 1);
-
-      if (foundQuestion) {
-        setQuestion(foundQuestion);
       }
-
-      if (foundSubmission) {
-        setSubmission(foundSubmission);
-      }
-
-      setLoading(false);
     };
 
     loadData();
-  }, [questionId, userId]);
+  }, [contestId, participantId, questionId, userId, isContestSubmission]);
 
   const handleLogout = async () => {
     try {
@@ -199,13 +166,19 @@ public class Solution {
     );
   }
 
-  if (!question || !submission) {
+  if (!participant && !loading && isContestSubmission) {
     return (
       <div className="qs-submission-details-layout">
         <div className="qs-error">Submission not found</div>
       </div>
     );
   }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US');
+  };
 
   return (
     <div className="qs-submission-details-layout">
@@ -224,14 +197,14 @@ public class Solution {
             <span className="qs-nav-text">Home</span>
           </button>
           <button 
-            className="qs-nav-item active"
+            className={`qs-nav-item ${!isContestSubmission ? 'active' : ''}`}
             onClick={() => navigate('/question-setter/explore')}
           >
             <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
+            <span className="qs-nav-text">Practice Problems</span>
           </button>
           <button 
-            className="qs-nav-item"
+            className={`qs-nav-item ${isContestSubmission ? 'active' : ''}`}
             onClick={() => navigate('/question-setter/contest')}
           >
             <FaTrophy className="qs-nav-icon" />
@@ -306,128 +279,115 @@ public class Solution {
         <div className="qs-submission-nav-tabs">
           <button 
             className="qs-submission-nav-tab"
-            onClick={() => navigate(`/question-setter/question/${questionId}`)}
+            onClick={() => {
+              if (isContestSubmission) {
+                navigate(`/question-setter/contest/${contestId}`);
+              } else {
+                navigate(`/question-setter/question/${questionId}`);
+              }
+            }}
           >
-            <FaChevronLeft /> Back to Question
+            <FaChevronLeft /> Back {isContestSubmission ? 'to Submission' : 'to Question'}
           </button>
-          <div className="qs-submission-nav-links">
-            <button 
-              className="qs-submission-nav-link"
-              onClick={() => navigate(`/question-setter/question/${questionId}`)}
-            >
-              Overview
-            </button>
-            <button 
-              className="qs-submission-nav-link active"
-              onClick={() => {}}
-            >
-              Submissions
-            </button>
-            <button 
-              className="qs-submission-nav-link"
-              onClick={() => navigate(`/question-setter/question/${questionId}`)}
-            >
-              Leaderboard
-            </button>
-          </div>
         </div>
 
         {/* Content Area */}
         <div className="qs-submission-content-area">
           <div className="qs-submission-container">
-            {/* Left Side - Question Details */}
+            {/* Left Side - Submissions List */}
             <div className="qs-submission-question-panel">
               <div className="qs-submission-question-content">
-                <h1 className="qs-submission-problem-title">Problem</h1>
+                <h1 className="qs-submission-problem-title">Submissions</h1>
+                <p style={{ marginBottom: '20px', color: '#64748b' }}>
+                  Participant: {participant?.users?.display_name || 'Unknown'}
+                </p>
                 
-                <div className="qs-submission-problem-description">
-                  {question.description.split('\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
-                </div>
-
-                <h2 className="qs-submission-section-heading">Task</h2>
-                <p className="qs-submission-task">Given a regular expression and an integer, L, count how many strings of length L are recognized by it.</p>
-
-                <h2 className="qs-submission-section-heading">Input Format</h2>
-                <div className="qs-submission-format">
-                  <p>First line: integer T (number of test cases).</p>
-                  <p>Each subsequent test case: a regular expression R (string) and an integer L.</p>
-                </div>
-
-                <h2 className="qs-submission-section-heading">Constraints</h2>
-                <ul className="qs-submission-constraints">
-                  {question.constraints.map((constraint, index) => (
-                    <li key={index}>
-                      <code>{constraint}</code>
-                    </li>
-                  ))}
-                </ul>
-
-                <h2 className="qs-submission-section-heading">Output Format</h2>
-                <p className="qs-submission-format-text">Print T lines, each with the answer for the corresponding test case. Answers should be output modulo 10^9 + 7.</p>
-
-                <h2 className="qs-submission-section-heading">Sample Input</h2>
-                <div className="qs-submission-sample">
-                  <code className="qs-submission-code-block">
-                    3<br/>
-                    (a|b) 2<br/>
-                    (a|b)* 5<br/>
-                    ((a*)|b(a*)) 100
-                  </code>
-                </div>
-
-                <h2 className="qs-submission-section-heading">Sample Output</h2>
-                <div className="qs-submission-sample">
-                  <code className="qs-submission-code-block">
-                    2<br/>
-                    32<br/>
-                    100
-                  </code>
-                </div>
-
-                <h2 className="qs-submission-section-heading">Explanation</h2>
-                <div className="qs-submission-explanation">
-                  {question.examples && question.examples.map((example, index) => (
-                    <div key={index} className="qs-submission-explanation-item">
-                      <p><strong>First case ({example.input} → Output: {example.output}):</strong></p>
-                      <p>{example.explanation || 'Explanation for this case.'}</p>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {submissions.length === 0 ? (
+                    <p style={{ color: '#64748b', padding: '20px', textAlign: 'center' }}>
+                      No submissions found
+                    </p>
+                  ) : (
+                    submissions.map((sub, index) => (
+                      <div
+                        key={isContestSubmission ? sub.id : sub.submission_id}
+                        onClick={() => setSelectedSubmission(sub)}
+                        style={{
+                          padding: '16px',
+                          border: `2px solid ${(isContestSubmission ? selectedSubmission?.id === sub.id : selectedSubmission?.submission_id === sub.submission_id) ? '#6d55ff' : '#e2e8f0'}`,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          backgroundColor: (isContestSubmission ? selectedSubmission?.id === sub.id : selectedSubmission?.submission_id === sub.submission_id) ? '#f8f9ff' : 'white',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <p style={{ fontWeight: '600', margin: 0 }}>
+                              {isContestSubmission 
+                                ? (sub.contest_questions?.title || `Submission ${index + 1}`)
+                                : `Submission ${index + 1}`
+                              }
+                            </p>
+                            <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0 0' }}>
+                              Language: {sub.language || 'N/A'}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                              {formatDate(isContestSubmission ? sub.solve_created_at : sub.submitted_at)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Right Side - Code Editor */}
             <div className="qs-submission-code-panel">
-              <div className="qs-submission-code-header">
-                <div className="qs-submission-code-info">
-                  <span className="qs-submission-user">{submission.userId}</span>
-                  <span className="qs-submission-language">{submission.language}</span>
-                  <span className={`qs-submission-status qs-status-${submission.status.toLowerCase()}`}>
-                    {submission.status}
-                  </span>
-                </div>
-                <div className="qs-submission-code-actions">
-                  <button className="qs-submission-action-btn">
-                    <FaPlay /> Start Timer
-                  </button>
-                </div>
-              </div>
-              
-              <div className="qs-submission-code-editor">
-                <pre className="qs-code-content">
-                  <code>{submission.code}</code>
-                </pre>
-              </div>
+              {selectedSubmission ? (
+                <>
+                  <div className="qs-submission-code-header">
+                    <div className="qs-submission-code-info">
+                      <span className="qs-submission-user">
+                        {participant?.users?.display_name || 'Unknown'}
+                      </span>
+                      <span className="qs-submission-language">{selectedSubmission.language || 'N/A'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="qs-submission-code-editor">
+                    <pre className="qs-code-content">
+                      <code>{isContestSubmission ? (selectedSubmission.code || 'No code available') : (selectedSubmission.submitted_code || 'No code available')}</code>
+                    </pre>
+                  </div>
 
-              <div className="qs-submission-code-footer">
-                <div className="qs-submission-meta">
-                  <span>Submitted: {submission.submittedAt}</span>
-                  <span>Time: {submission.executionTime}</span>
-                  <span>Memory: {submission.memoryUsed}</span>
+                  <div className="qs-submission-code-footer">
+                    <div className="qs-submission-meta">
+                      <span>Submitted: {formatDate(isContestSubmission ? selectedSubmission.solve_created_at : selectedSubmission.submitted_at)}</span>
+                      {isContestSubmission && (
+                        <>
+                          <span>Time: {selectedSubmission.time_taken || 0}s</span>
+                          <span>Memory: {selectedSubmission.memory_taken || 0} MB</span>
+                        </>
+                      )}
+                      {!isContestSubmission && (
+                        <>
+                          <span>Status: {selectedSubmission.submission_status || 'N/A'}</span>
+                          <span>Points: {selectedSubmission.points || 0}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  Select a submission to view details
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

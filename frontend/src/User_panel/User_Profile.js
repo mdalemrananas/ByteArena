@@ -1063,6 +1063,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                 <strong style={{ color: '#111827' }}>187</strong> Problem Solve
               </span>
               <span style={{ color: '#374151' }}>
+                <strong style={{ color: '#111827' }}>{userData.contestParticipate || 0}</strong> Contest Participate
+              </span>
+              <span style={{ color: '#374151' }}>
                 <strong style={{ color: '#111827' }}>1,243</strong> Followers
               </span>
               <span style={{ color: '#374151' }}>
@@ -1307,7 +1310,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <span style={{ color: '#f59e0b' }}>⭐</span> Best Category
                   </span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>History</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Cpp</span>
                 </div>
                 <div style={{
                   display: 'flex',
@@ -1324,7 +1327,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <span style={{ color: '#3b82f6' }}>💙</span> Favorite Category
                   </span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Science</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Java</span>
                 </div>
                 <div style={{
                   display: 'flex',
@@ -1332,7 +1335,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   alignItems: 'center'
                 }}>
                   <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>Weakest Category</span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Sports</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Python</span>
                 </div>
               </div>
             </div>
@@ -1458,9 +1461,16 @@ const User_Profile = () => {
     name: 'Alex Johnson',
     email: 'alex.johnson@example.com',
     bio: 'Full Stack Developer | Competitive Programmer | Open Source Enthusiast',
-    location: 'San Francisco, CA',
-    website: 'alexjohnson.dev',
-    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'DSA']
+    location: 'United States',
+    website: 'https://alexjohnson.dev',
+    joinedDate: 'January 2023',
+    rating: 1847,
+    rank: 'Expert',
+    wins: 142,
+    losses: 89,
+    matches_played: 231,
+    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'DSA'],
+    contestParticipate: 0
   });
   
   const [editFormData, setEditFormData] = useState({
@@ -1580,6 +1590,9 @@ const User_Profile = () => {
 
           // Update local state with Supabase data
           if (supabaseUserData) {
+            // Fetch contest participation count
+            const contestCount = await fetchContestParticipationCount(supabaseUserData.id);
+            
             setUserData(prev => ({
               ...prev,
               name: supabaseUserData.display_name || prev.name,
@@ -1595,7 +1608,8 @@ const User_Profile = () => {
               rank: supabaseUserData.rank,
               wins: supabaseUserData.wins,
               losses: supabaseUserData.losses,
-              matches_played: supabaseUserData.matches_played
+              matches_played: supabaseUserData.matches_played,
+              contestParticipate: contestCount
             }));
 
             // Update user state with Supabase data
@@ -1771,6 +1785,26 @@ const User_Profile = () => {
     }
   };
 
+  const fetchContestParticipationCount = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('contest_participants')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'completed');
+
+      if (error) {
+        console.error('Error fetching contest participation count:', error);
+        return 0;
+      }
+
+      return data ? data.length : 0;
+    } catch (error) {
+      console.error('Error in fetchContestParticipationCount:', error);
+      return 0;
+    }
+  };
+
   const createOrUpdateUserProfile = async (firebaseUser) => {
     try {
       const userProfile = {
@@ -1935,6 +1969,8 @@ const User_Profile = () => {
                     navigate('/dashboard');
                   } else if (item.key === 'contest') {
                     navigate('/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/practice');
                   } else if (item.key === 'leaderboard') {
                     navigate('/leaderboard');
                   }

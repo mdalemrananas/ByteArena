@@ -15,27 +15,34 @@ import {
   FaStar,
   FaTrophy,
   FaUser,
+  FaUsers,
+  FaChartBar,
+  FaCog,
 } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
-import './User_Dashboard.css';
+import './Admin_Dashboard.css';
 import './Notifications.css';
 
 const menuItems = [
-  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
-  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'practice', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
+  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
+  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
 export default function CodingProblemPage() {
   const navigate = useNavigate();
-  const { contestId } = useParams();
-  const [active, setActive] = useState('contest');
+  const { contestId, userId } = useParams();
+  
+  const [active, setActive] = useState('contests');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -63,8 +70,6 @@ export default function CodingProblemPage() {
   const [customInput, setCustomInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStatus, setSubmissionStatus] = useState({ type: '', message: '' });
   const [notification, setNotification] = useState(null);
 
   // Function to validate user output against expected output
@@ -113,176 +118,101 @@ export default function CodingProblemPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!user || !contestId || !problems[currentProblem]) {
-      showNotification('User not authenticated or contest data missing', 'error');
-      return;
-    }
-
-    // Check if code has been run and output is available
-    if (!yourOutput) {
-      showNotification('Please run your code first to check output before submitting.', 'error');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmissionStatus({ type: 'info', message: 'Validating your solution...' });
-
+  // Fetch user's submitted code from contest_question_solves table
+  const fetchUserSubmission = async (contestId, userId) => {
     try {
-      // Get the current question details
-      const currentQuestion = problems[currentProblem];
+      console.log('Fetching user submission for contest:', contestId, 'user:', userId);
       
-      // Use the sample output from the problem data for validation
-      const expectedOutput = currentQuestion.sampleOutput;
+      // Check if userId is valid
+      if (!userId) {
+        console.error('User ID is undefined');
+        showNotification('User ID not found in URL', 'error');
+        return;
+      }
       
-      // Debug logging
-      console.log('Current Question:', currentQuestion);
-      console.log('Sample Output:', JSON.stringify(expectedOutput));
-      console.log('User Output:', JSON.stringify(yourOutput));
+      // Fetch submissions for this specific user (contest_question_solves table doesn't have contest_id column)
+      const { data, error } = await supabase
+        .from('contest_question_solves')
+        .select('*')
+        .eq('participate_id', userId);
 
-      // Validate the output
-      const isValidOutput = validateOutput(yourOutput, expectedOutput);
-      
-      if (!isValidOutput) {
-        showNotification('Your output does not match the expected output. Please check your solution and try again.', 'error');
-        setIsSubmitting(false);
+      if (error) {
+        console.error('Error fetching user submission:', error);
+        showNotification('Failed to fetch user submissions', 'error');
         return;
       }
 
-      // Get the user's ID from the users table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('firebase_uid', user.uid)
-        .single();
+      console.log('User submissions fetched:', data);
 
-      if (userError || !userData) {
-        throw new Error('User not found in database');
-      }
-      
-      // Map frontend language values to database expected values
-      const languageMap = {
-        'cpp': 'c++',
-        'c': 'c',
-        'python': 'python',
-        'java': 'java',
-        'javascript': 'javascript'
-      };
-      
-      const dbLanguage = languageMap[language] || 'c++';
-      
-      // Check if user already has a submission for this question
-      const { data: existingSubmission, error: fetchError } = await supabase
-        .from('contest_question_solves')
-        .select('id')
-        .eq('question_id', currentQuestion.id)
-        .eq('participate_id', userData.id)
-        .maybeSingle();
+      if (data && data.length > 0) {
+        // Store submissions by question ID
+        const submissionsByQuestion = {};
+        data.forEach(submission => {
+          submissionsByQuestion[submission.question_id] = submission;
+        });
 
-      let result;
-      
-      if (existingSubmission) {
-        // Update existing submission
-        const { data: updatedData, error: updateError } = await supabase
-          .from('contest_question_solves')
-          .update({
-            language: dbLanguage,
-            code: code,
-            time_taken: parseFloat(time.split(' ')[0]) || 0,
-            memory_taken: parseFloat(memory.split(' ')[0]) || 0,
-            solve_updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSubmission.id)
-          .select()
-          .single();
+        // Update problem codes, languages, outputs, time, and memory with submitted data
+        setProblemCodes(prev => {
+          const updated = { ...prev };
+          Object.keys(submissionsByQuestion).forEach(questionId => {
+            updated[questionId] = submissionsByQuestion[questionId].code;
+          });
+          return updated;
+        });
+
+        setProblemLanguages(prev => {
+          const updated = { ...prev };
+          Object.keys(submissionsByQuestion).forEach(questionId => {
+            // Map database language values to frontend values
+            const languageMap = {
+              'c++': 'cpp',
+              'c': 'c',
+              'python': 'python',
+              'java': 'java',
+              'javascript': 'javascript'
+            };
+            updated[questionId] = languageMap[submissionsByQuestion[questionId].language] || 'cpp';
+          });
+          return updated;
+        });
+
+        setProblemOutputs(prev => {
+          const updated = { ...prev };
+          Object.keys(submissionsByQuestion).forEach(questionId => {
+            // Store submission info as output
+            updated[questionId] = `Time: ${submissionsByQuestion[questionId].time_taken}s, Memory: ${submissionsByQuestion[questionId].memory_taken}MB`;
+          });
+          return updated;
+        });
+
+        // Set current problem data if we have submissions
+        if (problems.length > 0) {
+          const firstProblem = problems[0];
+          const submission = submissionsByQuestion[firstProblem.id];
           
-        if (updateError) throw updateError;
-        result = updatedData;
-        showNotification('Solution updated successfully!', 'success');
-      } else {
-        // Create new submission
-        const { data: newData, error: insertError } = await supabase
-          .from('contest_question_solves')
-          .insert({
-            question_id: currentQuestion.id,
-            participate_id: userData.id,
-            language: dbLanguage,
-            code: code,
-            time_taken: parseFloat(time.split(' ')[0]) || 0,
-            memory_taken: parseFloat(memory.split(' ')[0]) || 0
-          })
-          .select()
-          .single();
-          
-        if (insertError) throw insertError;
-        result = newData;
-        
-        // Award 5 points for solving the problem and update contest participant score
-        try {
-          // First, get current participant record
-          const { data: participantData, error: participantError } = await supabase
-            .from('contest_participants')
-            .select('score')
-            .eq('contest_id', contestId)
-            .eq('user_id', userData.id)
-            .single();
-
-          let isAllProblemsSolved = false;
-
-          if (participantError && participantError.code !== 'PGRST116') {
-            // If participant record doesn't exist, create it
-            if (participantError.code === 'PGRST116') {
-              const { error: createError } = await supabase
-                .from('contest_participants')
-                .insert({
-                  contest_id: contestId,
-                  user_id: userData.id,
-                  score: 5,
-                  status: 'in_progress'
-                });
-              if (createError) throw createError;
-            } else {
-              throw participantError;
-            }
-          } else {
-            // Update existing participant score by adding 5 points
-            const currentScore = participantData?.score || 0;
-            const newScore = currentScore + 5;
+          if (submission) {
+            const languageMap = {
+              'c++': 'cpp',
+              'c': 'c',
+              'python': 'python',
+              'java': 'java',
+              'javascript': 'javascript'
+            };
             
-            // Check if all problems are solved after this submission
-            const totalProblems = problems.length;
-            const solvedProblems = await getSolvedProblemsCount(userData.id, contestId);
-            isAllProblemsSolved = solvedProblems + 1 >= totalProblems;
-            
-            const { error: updateScoreError } = await supabase
-              .from('contest_participants')
-              .update({
-                score: newScore,
-                status: isAllProblemsSolved ? 'completed' : 'in_progress',
-                updated_at: new Date().toISOString()
-              })
-              .eq('contest_id', contestId)
-              .eq('user_id', userData.id);
-              
-            if (updateScoreError) throw updateScoreError;
+            setLanguage(languageMap[submission.language] || 'cpp');
+            setCode(submission.code);
+            setTime(`${submission.time_taken} secs`);
+            setMemory(`${submission.memory_taken} MB`);
+            setYourOutput(`Time: ${submission.time_taken}s, Memory: ${submission.memory_taken}MB`);
+            showNotification(`Loaded ${data.length} submission(s) from user`, 'success');
           }
-          
-          const pointsMessage = isAllProblemsSolved ? 
-            'Solution submitted successfully! +5 points earned! Contest completed!' : 
-            'Solution submitted successfully! +5 points earned!';
-          
-          showNotification(pointsMessage, 'success');
-        } catch (scoreError) {
-          console.error('Error updating score:', scoreError);
-          // Still show success notification even if score update fails
-          showNotification('Solution submitted successfully!', 'success');
         }
+      } else {
+        showNotification('No submissions found for this user', 'info');
       }
     } catch (error) {
-      console.error('Error submitting solution:', error);
-      showNotification(error.message || 'Failed to submit solution. Please try again.', 'error');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error in fetchUserSubmission:', error);
+      showNotification('Error fetching submissions', 'error');
     }
   };
 
@@ -425,6 +355,11 @@ main();`
         if (formattedProblems.length > 0) {
           setCode(formattedProblems[0].starterCode[language]);
         }
+        
+        // Fetch user submissions after problems are loaded
+        if (userId) {
+          fetchUserSubmission(contestId, userId);
+        }
       } else {
         console.log('No questions found for this contest');
         setProblems([]);
@@ -491,10 +426,20 @@ main();`
       const savedInput = problemInputs[problemId];
       setCustomInput(savedInput || '');
       
-      // Reset status when switching problems
-      setStatus('');
-      setTime('0.0000 secs');
-      setMemory('0.0 Mb');
+      // Set time and memory from submission data if available
+      if (savedOutput && savedOutput.includes('Time:') && savedOutput.includes('Memory:')) {
+        // Parse time and memory from saved output
+        const timeMatch = savedOutput.match(/Time:\s*([\d.]+)s/);
+        const memoryMatch = savedOutput.match(/Memory:\s*([\d.]+)MB/);
+        
+        if (timeMatch) setTime(`${timeMatch[1]} secs`);
+        if (memoryMatch) setMemory(`${memoryMatch[1]} MB`);
+      } else {
+        // Reset status when switching problems
+        setStatus('');
+        setTime('0.0000 secs');
+        setMemory('0.0 Mb');
+      }
     }
   };
 
@@ -989,6 +934,13 @@ sys.stdin = StringIO('${escapedInput}')
     return () => unsubscribe();
   }, [navigate, contestId]);
 
+  // Fetch user submission when problems are loaded and userId is available
+  useEffect(() => {
+    if (problems.length > 0 && userId) {
+      fetchUserSubmission(contestId, userId);
+    }
+  }, [problems, userId, contestId]);
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -1003,6 +955,7 @@ sys.stdin = StringIO('${escapedInput}')
         <div className="ud-logo">
           <span className="byte">Byte</span>
           <span className="arena">Arena</span>
+          <span className="admin-badge">ADMIN</span>
         </div>
         <nav className="ud-nav">
           {menuItems.map((item) => (
@@ -1015,13 +968,19 @@ sys.stdin = StringIO('${escapedInput}')
                 } else {
                   setActive(item.key);
                   if (item.key === 'home') {
-                    navigate('/dashboard');
-                  } else if (item.key === 'contest') {
-                    navigate('/contest');
-                  } else if (item.key === 'practice') {
-                    navigate('/practice');
+                    navigate('/admin_dashboard');
+                  } else if (item.key === 'users') {
+                    navigate('/admin/users');
+                  } else if (item.key === 'contests') {
+                    navigate('/admin_contest');
+                  } else if (item.key === 'problems') {
+                    navigate('/admin/problems');
+                  } else if (item.key === 'analytics') {
+                    navigate('/admin/analytics');
                   } else if (item.key === 'leaderboard') {
-                    navigate('/leaderboard');
+                    navigate('/admin_leaderboard');
+                  } else if (item.key === 'settings') {
+                    navigate('/admin/settings');
                   }
                 }
               }}
@@ -1045,28 +1004,14 @@ sys.stdin = StringIO('${escapedInput}')
             </button>
             <div className="search">
               <FaSearch className="search-icon" />
-              <input type="text" placeholder="Search problems, contests..." />
+              <input type="text" placeholder="Search users, contests, problems..." />
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button
-              className="icon-btn"
-              onClick={() => {
-                console.log('Home button clicked, navigating to /');
-                navigate('/');
-              }}
-              data-tooltip="Home"
-            >
-              <FaHome />
-            </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="badge">4</span>
+              <span className="badge">8</span>
             </button>
-            <div className="balance" data-tooltip="Reward Coins">
-              <FaCoins className="balance-icon" />
-              <span>1200.00</span>
-            </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
@@ -1075,7 +1020,7 @@ sys.stdin = StringIO('${escapedInput}')
                   <FaUser />
                 )}
               </div>
-              <span>{user?.displayName || 'User'}</span>
+              <span>{user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </header>
@@ -1156,41 +1101,6 @@ sys.stdin = StringIO('${escapedInput}')
                   fontWeight: '600',
                   color: 'white'
                 }}>Problems</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    style={{
-                      backgroundColor: isSubmitting ? '#cccccc' : '#e23333ff',
-                      color: 'white',
-                      border: 'none',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '4px',
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                      fontWeight: '500',
-                      fontSize: '0.875rem',
-                      transition: 'background-color 0.2s',
-                      opacity: isSubmitting ? 0.8 : 1,
-                      ':hover': {
-                        backgroundColor: isSubmitting ? '#cccccc' : '#c12a2a'
-                      }
-                    }}
-                  >
-                    {isSubmitting ? 'Submitting...' : 'Submit'}
-                  </button>
-                  {submissionStatus.message && (
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: submissionStatus.type === 'error' ? '#ff6b6b' : 
-                             submissionStatus.type === 'success' ? '#51cf66' : '#339af0',
-                      textAlign: 'right',
-                      maxWidth: '200px',
-                      padding: '0.25rem 0'
-                    }}>
-                      {submissionStatus.message}
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div style={{ flex: 1, overflow: 'auto' }}>

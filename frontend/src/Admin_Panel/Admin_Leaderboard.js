@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Typography, 
-  Paper, 
+  Paper,
+  Menu, 
+  MenuItem, 
+  IconButton, 
+  ListItemIcon, 
+  ListItemText,
   TextField,
   InputAdornment,
   Select,
-  MenuItem,
   FormControl,
   TableContainer,
   Table,
@@ -17,7 +21,6 @@ import {
   Avatar,
   Chip,
   Box,
-  IconButton,
   Card,
   CardContent,
   LinearProgress,
@@ -34,14 +37,20 @@ import {
   TrendingUp,
   FilterList,
   KeyboardArrowUp,
-  KeyboardArrowDown
+  KeyboardArrowDown,
+  MoreVert as MoreVertIcon,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
   FaBars,
   FaBell,
+  FaChartBar,
   FaCode,
   FaCoins,
+  FaCog,
   FaChartLine,
   FaFire,
   FaHome,
@@ -52,22 +61,26 @@ import {
   FaStar,
   FaTrophy,
   FaUser,
+  FaUsers,
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
-import './User_Dashboard.css';
+import './Admin_Dashboard.css';
 
 const menuItems = [
-  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
-  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'practice', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
+  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
+  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
-const User_Leaderboard = () => {
+const Admin_Leaderboard = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('score');
@@ -77,6 +90,38 @@ const User_Leaderboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // State for action menu
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleMenuClick = (event, user) => {
+    setSelectedUser(user);
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleView = () => {
+    console.log('View user:', selectedUser);
+    // Add your view logic here
+    handleMenuClose();
+  };
+
+  const handleEdit = () => {
+    console.log('Edit user:', selectedUser);
+    // Add your edit logic here
+    handleMenuClose();
+  };
+
+  const handleDelete = () => {
+    console.log('Delete user:', selectedUser);
+    // Add your delete logic here
+    handleMenuClose();
+  };
+
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [statsData, setStatsData] = useState([]);
 
@@ -213,6 +258,23 @@ const User_Leaderboard = () => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
+        // Set active based on current path
+        const path = window.location.pathname;
+        if (path.includes('admin_leaderboard')) {
+          setActive('leaderboard');
+        } else if (path.includes('admin_dashboard')) {
+          setActive('home');
+        } else if (path.includes('admin_users')) {
+          setActive('users');
+        } else if (path.includes('admin_contests')) {
+          setActive('contests');
+        } else if (path.includes('admin_problems')) {
+          setActive('problems');
+        } else if (path.includes('admin_analytics')) {
+          setActive('analytics');
+        } else if (path.includes('admin_settings')) {
+          setActive('settings');
+        }
         // Fetch leaderboard data when user is authenticated
         fetchLeaderboardData();
       } else {
@@ -279,6 +341,7 @@ const User_Leaderboard = () => {
         <div className="ud-logo">
           <span className="byte">Byte</span>
           <span className="arena">Arena</span>
+          <span className="admin-badge">ADMIN</span>
         </div>
         <nav className="ud-nav">
           {menuItems.map((item) => (
@@ -291,13 +354,19 @@ const User_Leaderboard = () => {
                 } else {
                   setActive(item.key);
                   if (item.key === 'home') {
-                    navigate('/dashboard');
-                  } else if (item.key === 'contest') {
-                    navigate('/contest');
-                  } else if (item.key === 'practice') {
-                    navigate('/practice');
+                    navigate('/admin_dashboard');
+                  } else if (item.key === 'users') {
+                    navigate('/admin_users');
+                  } else if (item.key === 'contests') {
+                    navigate('/admin_contests');
+                  } else if (item.key === 'problems') {
+                    navigate('/admin_problems');
                   } else if (item.key === 'leaderboard') {
-                    navigate('/leaderboard');
+                    navigate('/admin_leaderboard');
+                  } else if (item.key === 'analytics') {
+                    navigate('/admin_analytics');
+                  } else if (item.key === 'settings') {
+                    navigate('/admin_settings');
                   }
                 }
               }}
@@ -321,28 +390,14 @@ const User_Leaderboard = () => {
             </button>
             <div className="search">
               <FaSearch className="search-icon" />
-              <input type="text" placeholder="Search quizzes, categories, creators..." />
+              <input type="text" placeholder="Search users, contests, problems..." />
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button
-              className="icon-btn"
-              onClick={() => {
-                console.log('Home button clicked, navigating to /');
-                navigate('/');
-              }}
-              data-tooltip="Home"
-            >
-              <FaHome />
-            </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="badge">4</span>
+              <span className="badge">8</span>
             </button>
-            <div className="balance" data-tooltip="Reward Coins">
-              <FaCoins className="balance-icon" />
-              <span>1200.00</span>
-            </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
@@ -351,7 +406,7 @@ const User_Leaderboard = () => {
                   <FaUser />
                 )}
               </div>
-              <span>{user?.displayName || 'User'}</span>
+              <span>{user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </header>
@@ -598,6 +653,19 @@ const User_Leaderboard = () => {
                         }}>
                           Badge
                         </TableCell>
+                        <TableCell sx={{ 
+                          fontWeight: '600', 
+                          color: '#475569', 
+                          minWidth: 100, 
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '2px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          textAlign: 'center'
+                        }}>
+                          Actions
+                        </TableCell>
                       </TableRow>
                     </TableHead>
               <TableBody>
@@ -702,11 +770,25 @@ const User_Leaderboard = () => {
                           variant="filled"
                           sx={{ 
                             fontWeight: '600',
-                            fontSize: '0.75rem',
-                            height: 24,
-                            borderRadius: 1.5
-                          }}
+                            fontSize: '0.7rem',
+                            textTransform: 'capitalize',
+                            px: 1,
+                            py: 0.5
+                          }} 
                         />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuClick(e, user)}
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)'
+                            }
+                          }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -714,98 +796,143 @@ const User_Leaderboard = () => {
             </Table>
           </TableContainer>
           
+          {/* Action Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            onClick={handleMenuClose}
+            PaperProps={{
+              elevation: 2,
+              sx: {
+                borderRadius: 2,
+                minWidth: 160,
+                boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+                '& .MuiMenuItem-root': {
+                  fontSize: '0.875rem',
+                  py: 1,
+                  px: 2,
+                  '&:hover': {
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)'
+                  }
+                }
+              },
+            }}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem onClick={handleView}>
+              <ListItemIcon>
+                <VisibilityIcon fontSize="small" sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText>View</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleEdit}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" sx={{ color: '#64748b' }} />
+              </ListItemIcon>
+              <ListItemText>Edit</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleDelete} sx={{ color: '#ef4444' }}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <ListItemText>Delete</ListItemText>
+            </MenuItem>
+          </Menu>
+          
           {/* Pagination */}
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  p: { xs: 2, sm: 3 }, 
-                  flexWrap: 'wrap', 
-                  gap: 2,
-                  backgroundColor: '#f8fafc',
-                  borderTop: '1px solid rgba(226, 232, 240, 0.8)'
-                }}>
-                  <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
-                    Showing {page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, leaderboardData.length)} of {leaderboardData.length} players
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Typography variant="body2" color="#64748b" sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.875rem' }}>
-                      Rows per page:
-                    </Typography>
-                    <Select
-                      value={rowsPerPage}
-                      onChange={handleChangeRowsPerPage}
-                      size="small"
-                      sx={{ 
-                        minWidth: 60,
-                        borderRadius: 2,
-                        backgroundColor: 'white',
-                        border: '1px solid rgba(226, 232, 240, 0.8)',
-                        '&:hover': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    >
-                      <MenuItem value={3}>3</MenuItem>
-                      <MenuItem value={5}>5</MenuItem>
-                      <MenuItem value={10}>10</MenuItem>
-                      <MenuItem value={25}>25</MenuItem>
-                      <MenuItem value={50}>50</MenuItem>
-                    </Select>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <button
-                        onClick={() => setPage(page - 1)}
-                        disabled={page === 0}
-                        sx={{
-                          px: 2,
-                          py: 1,
-                          border: '1px solid rgba(226, 232, 240, 0.8)',
-                          borderRadius: 1,
-                          backgroundColor: page === 0 ? '#f1f5f9' : 'white',
-                          color: page === 0 ? '#94a3b8' : '#64748b',
-                          cursor: page === 0 ? 'not-allowed' : 'pointer',
-                          fontSize: '0.875rem',
-                          '&:hover': {
-                            backgroundColor: page === 0 ? '#f1f5f9' : alpha('#6366F1', 0.04),
-                            borderColor: page === 0 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
-                          }
-                        }}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setPage(page + 1)}
-                        disabled={page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1}
-                        sx={{
-                          px: 2,
-                          py: 1,
-                          border: '1px solid rgba(226, 232, 240, 0.8)',
-                          borderRadius: 1,
-                          backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : 'white',
-                          color: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#94a3b8' : '#64748b',
-                          cursor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer',
-                          fontSize: '0.875rem',
-                          '&:hover': {
-                            backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : alpha('#6366F1', 0.04),
-                            borderColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
-                          }
-                        }}
-                      >
-                        Next
-                      </button>
-                    </Box>
-                    <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
-                      Page {page + 1} of {Math.ceil(leaderboardData.length / rowsPerPage)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-            </Fade>
-          </Container>
-        </div>
-      </main>
-    </div>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            p: { xs: 2, sm: 3 }, 
+            flexWrap: 'wrap', 
+            gap: 2,
+            backgroundColor: '#f8fafc',
+            borderTop: '1px solid rgba(226, 232, 240, 0.8)'
+          }}>
+            <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+              Showing {page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, leaderboardData.length)} of {leaderboardData.length} players
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="#64748b" sx={{ display: { xs: 'none', sm: 'block' }, fontSize: '0.875rem' }}>
+                Rows per page:
+              </Typography>
+              <Select
+                value={rowsPerPage}
+                onChange={handleChangeRowsPerPage}
+                size="small"
+                sx={{ 
+                  minWidth: 60,
+                  borderRadius: 2,
+                  backgroundColor: 'white',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  '&:hover': {
+                    borderColor: '#6366F1'
+                  }
+                }}
+              >
+                <MenuItem value={3}>3</MenuItem>
+                <MenuItem value={5}>5</MenuItem>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+              </Select>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 0}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    borderRadius: 1,
+                    backgroundColor: page === 0 ? '#f1f5f9' : 'white',
+                    color: page === 0 ? '#94a3b8' : '#64748b',
+                    cursor: page === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: '0.875rem',
+                    '&:hover': {
+                      backgroundColor: page === 0 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                      borderColor: page === 0 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                    }
+                  }}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    borderRadius: 1,
+                    backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : 'white',
+                    color: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#94a3b8' : '#64748b',
+                    cursor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '0.875rem',
+                    '&:hover': {
+                      backgroundColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? '#f1f5f9' : alpha('#6366F1', 0.04),
+                      borderColor: page >= Math.ceil(leaderboardData.length / rowsPerPage) - 1 ? 'rgba(226, 232, 240, 0.8)' : '#6366F1'
+                    }
+                  }}
+                >
+                  Next
+                </button>
+              </Box>
+              <Typography variant="body2" color="#64748b" sx={{ fontSize: '0.875rem' }}>
+                Page {page + 1} of {Math.ceil(leaderboardData.length / rowsPerPage)}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Fade>
+    </Container>
+  </div>
+</main>
+</div>
   );
 };
 
-export default User_Leaderboard;
+export default Admin_Leaderboard;

@@ -14,6 +14,10 @@ import {
   FaStar,
   FaTrophy,
   FaUser,
+  FaUsers,
+  FaChartBar,
+  FaCog,
+  FaPlus,
 } from 'react-icons/fa';
 import { ChevronLeft, ChevronRight, Trophy, Users, Clock, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,13 +25,16 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
-import './User_Dashboard.css';
+import './Admin_Dashboard.css';
 
 const menuItems = [
-  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
-  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'practice', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
+  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
+  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -58,7 +65,7 @@ const categories = [
   },
 ];
 
-function UserDashboard() {
+function AdminDashboard() {
   const navigate = useNavigate();
   const [active, setActive] = useState('home');
   const [user, setUser] = useState(null);
@@ -77,10 +84,10 @@ function UserDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: 'Problems Solved', value: '128', icon: <FaChartLine /> },
-      { label: 'Contest Rating', value: '1540', icon: <FaStar /> },
-      { label: 'Current Streak', value: '7 Days', icon: <FaFire /> },
-      { label: 'Leaderboard Rank', value: '#24', icon: <FaMedal /> },
+      { label: 'Total Users', value: '2,456', icon: <FaUsers /> },
+      { label: 'Total Problems', value: '328', icon: <FaCode /> },
+      { label: 'Active Contests', value: '12', icon: <FaTrophy /> },
+      { label: 'Total Submissions', value: '45.2K', icon: <FaChartLine /> },
     ],
     []
   );
@@ -229,6 +236,7 @@ function UserDashboard() {
         <div className="ud-logo">
           <span className="byte">Byte</span>
           <span className="arena">Arena</span>
+          <span className="admin-badge">ADMIN</span>
         </div>
         <nav className="ud-nav">
           {menuItems.map((item) => (
@@ -242,13 +250,19 @@ function UserDashboard() {
                 } else {
                   setActive(item.key);
                   if (item.key === 'home') {
-                    navigate('/dashboard');
-                  } else if (item.key === 'contest') {
-                    navigate('/contest');
-                  } else if (item.key === 'practice') {
-                    navigate('/practice');
+                    navigate('/admin_dashboard');
+                  } else if (item.key === 'users') {
+                    navigate('/admin/users');
+                  } else if (item.key === 'contests') {
+                    navigate('/admin_contest');
+                  } else if (item.key === 'problems') {
+                    navigate('/admin/problems');
+                  } else if (item.key === 'analytics') {
+                    navigate('/admin/analytics');
                   } else if (item.key === 'leaderboard') {
-                    navigate('/leaderboard');
+                    navigate('/admin_leaderboard');
+                  } else if (item.key === 'settings') {
+                    navigate('/admin/settings');
                   }
                 }
               }}
@@ -272,28 +286,14 @@ function UserDashboard() {
             </button>
             <div className="search">
               <FaSearch className="search-icon" />
-              <input type="text" placeholder="Search quizzes, categories, creators..." />
+              <input type="text" placeholder="Search users, contests, problems..." />
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button
-              className="icon-btn"
-              onClick={() => {
-                console.log('Home button clicked, navigating to /');
-                navigate('/');
-              }}
-              data-tooltip="Home"
-            >
-              <FaHome />
-            </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="badge">4</span>
+              <span className="badge">8</span>
             </button>
-            <div className="balance" data-tooltip="Reward Coins">
-              <FaCoins className="balance-icon" />
-              <span>1200.00</span>
-            </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
@@ -302,18 +302,21 @@ function UserDashboard() {
                   <FaUser />
                 )}
               </div>
-              <span>{user?.displayName || 'User'}</span>
+              <span>{user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </header>
 
         <section className="ud-hero">
           <div className="hero-text">
-            <p className="eyebrow">Byte Arena</p>
-            <h1>Your Adventure Starts Here:</h1>
-            <h2>Share, Learn, Enjoy!</h2>
-            <p className="sub">Build engaging problems, challenge others</p>
-            <button className="primary-btn" onClick={() => navigate('/practice')}>Explore Problems</button>
+            <p className="eyebrow">Admin Dashboard</p>
+            <h1>Manage Your Platform:</h1>
+            <h2>Monitor, Control, Optimize!</h2>
+            <p className="sub">Oversee users, contests, and system performance</p>
+            <button className="primary-btn" onClick={() => navigate('/admin/contests')}>
+              <FaPlus style={{ marginRight: '8px' }} />
+              Create New Contest
+            </button>
           </div>
         </section>
 
@@ -329,11 +332,7 @@ function UserDashboard() {
 
         <section className="ud-section">
           <div className="section-head">
-            <h3>Problems Categories</h3>
-            <div className="arrows">
-              <button>‹</button>
-              <button>›</button>
-            </div>
+            <h3>Quick Actions</h3>
           </div>
           <div className="ud-cards">
             {categories.map((cat) => (
@@ -356,7 +355,7 @@ function UserDashboard() {
           margin: '2rem 0'
         }}></div>
 
-        {/* NewHomePage Interface */}
+        {/* Admin Management Interface */}
         <section className="ud-section">
           <div style={{
             minHeight: '100vh',
@@ -381,7 +380,7 @@ function UserDashboard() {
                       color: '#1f2937',
                       margin: 0
                     }}>
-                      Latest Problems
+                      Recent Problems
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <button
@@ -437,7 +436,7 @@ function UserDashboard() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => navigate('/practice')}
+                    onClick={() => navigate('/admin/problems')}
                     style={{
                       color: '#6366f1',
                       fontSize: '0.875rem',
@@ -449,7 +448,7 @@ function UserDashboard() {
                       padding: 0
                     }}
                   >
-                    View All Problems
+                    Manage All Problems
                   </button>
                 </div>
 
@@ -655,7 +654,7 @@ function UserDashboard() {
                             }}
                             onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
                             onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}>
-                              View Details
+                              Manage Problem
                             </button>
                           </div>
                         </div>
@@ -663,32 +662,6 @@ function UserDashboard() {
                     </div>
                   )}
                 </div>
-                </div>
-                
-                {/* Slide Indicators */}
-                {!practiceProblemsLoading && !practiceProblemsError && practiceProblems.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    marginTop: '1rem'
-                  }}>
-                    {Array.from({ length: Math.max(1, Math.ceil(practiceProblems.length / 4)) }).map((_, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: currentCardIndex === index ? '#6366f1' : '#d1d5db',
-                          transition: 'background-color 0.3s ease',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => setCurrentCardIndex(index)}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Separator Line */}
@@ -716,7 +689,7 @@ function UserDashboard() {
                         color: '#1f2937',
                         margin: '0 0 0.25rem 0'
                       }}>
-                        Contest
+                        Active Contests
                       </h2>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -778,7 +751,7 @@ function UserDashboard() {
                     alignItems: 'center'
                   }}>
                     <button 
-                      onClick={() => navigate('/contest')}
+                      onClick={() => navigate('/admin/contests')}
                       style={{
                         color: '#6366f1',
                         fontSize: '0.875rem',
@@ -790,7 +763,7 @@ function UserDashboard() {
                         padding: 0
                       }}
                     >
-                      View All contest
+                      Manage All Contests
                     </button>
                   </div>
                 </div>
@@ -907,7 +880,7 @@ function UserDashboard() {
                           transition: 'transform 0.2s, box-shadow 0.2s',
                           cursor: 'pointer'
                         }}
-                        onClick={() => navigate(`/contest/${contest.id}`)}
+                        onClick={() => navigate(`/admin/contest/${contest.id}`)}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'translateY(-4px)';
                           e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
@@ -1052,11 +1025,11 @@ function UserDashboard() {
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/contest/${contest.id}`);
+                              navigate(`/admin/contest/${contest.id}`);
                             }}
                             onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
                             onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}>
-                              View Details
+                              Manage Contest
                             </button>
                           </div>
                         </div>
@@ -1065,270 +1038,12 @@ function UserDashboard() {
                     </div>
                   )}
                 </div>
-                
-                {/* Contest Slide Indicators */}
-                {!contestsLoading && !contestsError && contests.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    marginTop: '1rem'
-                  }}>
-                    {Array.from({ length: Math.max(1, Math.ceil(contests.length / 4)) }).map((_, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: contestCardIndex === index ? '#6366f1' : '#d1d5db',
-                          transition: 'background-color 0.3s ease',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => setContestCardIndex(index)}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
-
-              {/* Separator Line */}
-              <div style={{
-                width: '100%',
-                height: '1px',
-                backgroundColor: '#e5e7eb',
-                margin: '2rem 0'
-              }}></div>
-
-              {/* Top Competitors Section */}
-              <div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.5rem'
-                }}>
-                  <h2 style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    color: '#1f2937',
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}>
-                    <Trophy size={24} />
-                    Top 5 Competitors
-                  </h2>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <button 
-                      onClick={() => navigate('/leaderboard')}
-                      style={{
-                        color: '#6366f1',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        textDecoration: 'none',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: 0
-                      }}
-                    >
-                      View Full Leaderboard
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(5, 1fr)',
-                  gap: '1rem'
-                }}>
-                  {[
-                    {
-                      id: 1,
-                      rank: 1,
-                      name: 'Rahman Islam',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 1250,
-                      rating: 2890,
-                      points: 42
-                    },
-                    {
-                      id: 2,
-                      rank: 2,
-                      name: 'Fatema Begum',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 980,
-                      rating: 2756,
-                      points: 38
-                    },
-                    {
-                      id: 3,
-                      rank: 3,
-                      name: 'Mohammad Ali',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 875,
-                      rating: 2654,
-                      points: 35
-                    },
-                    {
-                      id: 4,
-                      rank: 4,
-                      name: 'Ayesha Siddiqua',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 725,
-                      rating: 2543,
-                      points: 31
-                    },
-                    {
-                      id: 5,
-                      rank: 5,
-                      name: 'Hasan Mahmud',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 650,
-                      rating: 2450,
-                      points: 28
-                    }
-                  ].map((competitor) => (
-                    <div key={competitor.id} style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                    }}>
-                      <div style={{
-                        height: '80px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden'
-                      }}>
-                        <video
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            zIndex: 0
-                          }}
-                        >
-                          <source src="/Profile cover banner.mp4" type="video/mp4" />
-                        </video>
-                        <div style={{
-                          position: 'absolute',
-                          top: '0.5rem',
-                          right: '0.5rem',
-                          backgroundColor: competitor.rank <= 3 ? '#fbbf24' : '#6366f1',
-                          color: 'white',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '3px',
-                          fontSize: '0.65rem',
-                          fontWeight: '600',
-                          zIndex: 10
-                        }}>
-                          #{competitor.rank}
-                        </div>
-                        <div style={{
-                          width: '50px',
-                          height: '50px',
-                          borderRadius: '50%',
-                          border: '3px solid white',
-                          overflow: 'hidden',
-                          backgroundColor: 'white',
-                          position: 'relative',
-                          zIndex: 10
-                        }}>
-                          <img src={`https://ui-avatars.com/api/?name=${competitor.name.replace(' ', '+')}&background=6366f1&color=fff&size=50`} 
-                            style={{ width: '100%', height: '100%' }} />
-                        </div>
-                      </div>
-                      <div style={{ padding: '0.75rem', textAlign: 'center' }}>
-                        <h3 style={{
-                          fontSize: '0.85rem',
-                          fontWeight: '600',
-                          color: '#1f2937',
-                          margin: '0 0 0.25rem 0'
-                        }}>
-                          {competitor.name}
-                        </h3>
-                        <div style={{
-                          fontSize: '0.65rem',
-                          color: '#6b7280',
-                          marginBottom: '0.75rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.25rem'
-                        }}>
-                          <span>{competitor.flag}</span>
-                          <span>{competitor.country}</span>
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-around',
-                          paddingTop: '0.75rem',
-                          borderTop: '1px solid #e5e7eb'
-                        }}>
-                          <div>
-                            <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.points}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Rank</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.problemsSolved}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Problems</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.rating}
-                            </div>
-                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Rating</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Separator Line */}
-              <div style={{
-                width: '100%',
-                height: '1px',
-                backgroundColor: '#e5e7eb',
-                margin: '2rem 0'
-              }}></div>
             </div>
+          </div>
         </section>
       </main>
     </div>
   );
 }
-
-export default UserDashboard;
+export default AdminDashboard;

@@ -1,141 +1,174 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaFileAlt, FaComments, FaStar,
-  FaChevronDown, FaChevronLeft, FaChevronRight, FaCheckCircle, FaTimesCircle,
-  FaChartLine, FaGem, FaMedal
+  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaStar,
+  FaChevronLeft, FaChevronRight
 } from 'react-icons/fa';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { practiceSubmissionsService } from '../services/practiceSubmissionsService';
 import './question-setter-QuestionDetails.css';
+import './question-setter-ExploreQuestions.css';
 
 const QuestionSetterQuestionDetails = () => {
   const navigate = useNavigate();
   const { questionId } = useParams();
   const [activeTab, setActiveTab] = useState('Overview');
-  const [question, setQuestion] = useState(null);
+  const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [submissionSort, setSubmissionSort] = useState('Correct');
-  const [leaderboardSort, setLeaderboardSort] = useState('Score');
+  const [error, setError] = useState('');
+
+  // Submissions + leaderboard (both come from practice_submission)
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
   const [submissionSearch, setSubmissionSearch] = useState('');
   const [leaderboardSearch, setLeaderboardSearch] = useState('');
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+
+  // Code viewer modal
+  const [codeModalOpen, setCodeModalOpen] = useState(false);
+  const [codeModalLoading, setCodeModalLoading] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    // Load question data
-    const loadQuestion = () => {
-      const dummyQuestions = [
-        {
-          id: 1,
-          title: 'Two Sum',
-          category: 'c',
-          difficulty: 'Medium',
-          description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.',
-          examples: [
-            {
-              input: 'nums = [2,7,11,15], target = 9',
-              output: '[0,1]',
-              explanation: 'Because nums[0] + nums[1] == 9, we return [0, 1].'
-            },
-            {
-              input: 'nums = [3,2,4], target = 6',
-              output: '[1,2]',
-              explanation: null
-            },
-            {
-              input: 'nums = [3,3], target = 6',
-              output: '[0,1]',
-              explanation: null
-            }
-          ],
-          constraints: [
-            '2 <= nums.length <= 104',
-            '-109 <= nums[i] <= 109',
-            '-109 <= target <= 109',
-            'Only one valid answer exists.'
-          ],
-          followUp: 'Follow-up: Can you come up with an algorithm that is less than O(n2) time complexity?',
-          participants: 1248,
-          prizePool: 5000,
-          timePerQuestion: '1 hour',
-          totalQuestions: 2
-        },
-        {
-          id: 2,
-          title: 'Regular Expression Matching',
-          category: 'java',
-          difficulty: 'Hard',
-          description: 'Given an input string s and a pattern p, implement regular expression matching with support for \'.\' and \'*\' where:\n\n\'.\' Matches any single character.\n\'*\' Matches zero or more of the preceding element.\n\nThe matching should cover the entire input string (not partial).',
-          examples: [
-            {
-              input: 's = "aa", p = "a"',
-              output: 'false',
-              explanation: '"a" does not match the entire string "aa".'
-            }
-          ],
-          constraints: [
-            '1 <= s.length <= 20',
-            '1 <= p.length <= 30',
-            's contains only lowercase English letters.',
-            'p contains only lowercase English letters, \'.\', and \'*\'.',
-            'It is guaranteed for each appearance of the character \'*\', there will be a previous valid character to match.'
-          ],
-          followUp: null,
-          participants: 856,
-          prizePool: 3000,
-          timePerQuestion: '2 hours',
-          totalQuestions: 1
-        }
-      ];
+    const loadProblem = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const { data, error: pErr } = await supabase
+          .from('practice_problem')
+          .select('*')
+          .eq('problem_id', questionId)
+          .single();
 
-      const savedQuestions = JSON.parse(localStorage.getItem('qs-questions') || '[]');
-      const allQuestions = [...dummyQuestions, ...savedQuestions];
-      
-      const foundQuestion = allQuestions.find(q => q.id === parseInt(questionId));
-      
-      if (foundQuestion) {
-        // Enhance question with default values if missing
-        setQuestion({
-          ...foundQuestion,
-          examples: foundQuestion.examples || [
-            {
-              input: foundQuestion.sampleInput || 'Input example',
-              output: foundQuestion.sampleOutput || 'Output example',
-              explanation: foundQuestion.explanation || null
-            }
-          ],
-          constraints: foundQuestion.constraints || [
-            '1 <= n <= 10^5',
-            'All values are integers'
-          ],
-          followUp: foundQuestion.followUp || null,
-          participants: foundQuestion.participants || 500,
-          prizePool: foundQuestion.prizePool || 2000,
-          timePerQuestion: foundQuestion.timeLimit || '1 hour',
-          totalQuestions: foundQuestion.totalQuestions || 1
-        });
-      } else {
-        // Default question if not found
-        setQuestion({
-          id: parseInt(questionId),
-          title: 'Question Not Found',
-          description: 'The question you are looking for does not exist.',
-          examples: [],
-          constraints: [],
-          followUp: null,
-          participants: 0,
-          prizePool: 0,
-          timePerQuestion: 'N/A',
-          totalQuestions: 0
-        });
+        if (pErr) throw pErr;
+        setProblem(data);
+      } catch (e) {
+        console.error('Failed to load practice problem:', e);
+        setProblem(null);
+        setError(e?.message || 'Failed to load problem');
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
-    loadQuestion();
+    loadProblem();
   }, [questionId]);
+
+  useEffect(() => {
+    const loadSubmissions = async () => {
+      if (!questionId) return;
+      setSubmissionsLoading(true);
+      setError('');
+      try {
+        const { data, error: sErr } = await supabase
+          .from('practice_submission')
+          .select(
+            'submission_id, problem_id, problem_solver_id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code',
+          )
+          .eq('problem_id', questionId)
+          .order('submitted_at', { ascending: false });
+
+        if (sErr) throw sErr;
+        setSubmissions(data || []);
+      } catch (e) {
+        console.error('Failed to load submissions:', e);
+        setSubmissions([]);
+        setError(e?.message || 'Failed to load submissions');
+      } finally {
+        setSubmissionsLoading(false);
+      }
+    };
+
+    if (activeTab === 'Submissions') {
+      loadSubmissions();
+    }
+  }, [activeTab, questionId]);
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      if (!questionId) return;
+      setLeaderboardLoading(true);
+      setError('');
+      try {
+        const result = await practiceSubmissionsService.getLeaderboardOptimized(questionId);
+        
+        if (result.success) {
+          setLeaderboard(result.data || []);
+        } else {
+          console.error('Failed to load leaderboard:', result.error);
+          setLeaderboard([]);
+          setError(result.error || 'Failed to load leaderboard');
+        }
+      } catch (e) {
+        console.error('Failed to load leaderboard:', e);
+        setLeaderboard([]);
+        setError(e?.message || 'Failed to load leaderboard');
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    };
+
+    if (activeTab === 'Leaderboard') {
+      loadLeaderboard();
+    }
+  }, [activeTab, questionId]);
+
+  const filteredSubmissions = useMemo(() => {
+    const q = submissionSearch.trim().toLowerCase();
+    if (!q) return submissions;
+    return submissions.filter((s) => {
+      const name = (s.problem_solver_name || '').toLowerCase();
+      const country = (s.country || '').toLowerCase();
+      const lang = (s.language || '').toLowerCase();
+      return name.includes(q) || country.includes(q) || lang.includes(q);
+    });
+  }, [submissions, submissionSearch]);
+
+  const filteredLeaderboard = useMemo(() => {
+    const q = leaderboardSearch.trim().toLowerCase();
+    if (!q) return leaderboard;
+    return leaderboard.filter((entry) => {
+      const name = (entry.problem_solver_name || '').toLowerCase();
+      const country = (entry.country || '').toLowerCase();
+      return name.includes(q) || country.includes(q);
+    });
+  }, [leaderboard, leaderboardSearch]);
+
+  const openCodeModal = async (submission) => {
+    setSelectedSubmission(null);
+    setCodeModalOpen(true);
+    setCodeModalLoading(true);
+
+    try {
+      // If code was included in list fetch, just use it.
+      if (submission?.submitted_code !== undefined && submission?.submitted_code !== null) {
+        setSelectedSubmission(submission);
+        setCodeModalLoading(false);
+        return;
+      }
+
+      // Fetch the full submission with code
+      const { data, error: sErr } = await supabase
+        .from('practice_submission')
+        .select('submission_id, problem_solver_name, country, language, submission_status, points, submitted_at, submitted_code')
+        .eq('submission_id', submission.submission_id)
+        .single();
+
+      if (sErr) throw sErr;
+      setSelectedSubmission(data);
+    } catch (e) {
+      console.error('Failed to load submitted code:', e);
+      setError(e?.message || 'Failed to load submitted code');
+      setCodeModalOpen(false);
+    } finally {
+      setCodeModalLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -154,10 +187,10 @@ const QuestionSetterQuestionDetails = () => {
     );
   }
 
-  if (!question) {
+  if (!problem) {
     return (
       <div className="qs-details-layout">
-        <div className="qs-error">Question not found</div>
+        <div className="qs-error">{error || 'Problem not found'}</div>
       </div>
     );
   }
@@ -183,7 +216,7 @@ const QuestionSetterQuestionDetails = () => {
             onClick={() => navigate('/question-setter/explore')}
           >
             <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
+            <span className="qs-nav-text">Practice Problems</span>
           </button>
           <button 
             className="qs-nav-item"
@@ -289,102 +322,33 @@ const QuestionSetterQuestionDetails = () => {
                 {activeTab === 'Overview' && (
                   <div className="qs-overview-content-wrapper">
                     <div className="qs-overview">
-                    <h1 className="qs-problem-title">1. {question.title}</h1>
-                    
-                    <div className="qs-problem-description">
-                      {question.description.split('\n').map((paragraph, index) => (
-                        <p key={index}>{paragraph}</p>
-                      ))}
-                    </div>
+                      <h1 className="qs-problem-title">{problem.problem_title}</h1>
 
-                    {/* Examples */}
-                    {question.examples && question.examples.length > 0 && (
-                      <div className="qs-examples">
-                        <h2 className="qs-section-heading">Examples:</h2>
-                        {question.examples.map((example, index) => (
-                          <div key={index} className="qs-example">
-                            <h3 className="qs-example-title">Example {index + 1}:</h3>
-                            <div className="qs-example-content">
-                              <div className="qs-example-item">
-                                <span className="qs-example-label">Input:</span>
-                                <code className="qs-example-code">{example.input}</code>
-                              </div>
-                              <div className="qs-example-item">
-                                <span className="qs-example-label">Output:</span>
-                                <code className="qs-example-code">{example.output}</code>
-                              </div>
-                              {example.explanation && (
-                                <div className="qs-example-item">
-                                  <span className="qs-example-label">Explanation:</span>
-                                  <p className="qs-example-text">{example.explanation}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Constraints */}
-                    {question.constraints && question.constraints.length > 0 && (
                       <div className="qs-constraints">
-                        <h2 className="qs-section-heading">Constraints:</h2>
-                        <ul className="qs-constraints-list">
-                          {question.constraints.map((constraint, index) => (
-                            <li key={index} className="qs-constraint-item">
-                              <code>{constraint}</code>
-                            </li>
-                          ))}
-                        </ul>
+                        <h2 className="qs-section-heading">Problem Description</h2>
+                        <pre className="qs-example-code">{problem.problem_description || ''}</pre>
                       </div>
-                    )}
 
-                    {/* Follow-up */}
-                    {question.followUp && (
-                      <div className="qs-followup">
-                        <p className="qs-followup-text">
-                          <code>{question.followUp}</code>
-                        </p>
+                      <div className="qs-constraints">
+                        <h2 className="qs-section-heading">Input</h2>
+                        <pre className="qs-example-code">{problem.problem_input || ''}</pre>
                       </div>
-                    )}
+
+                      <div className="qs-constraints">
+                        <h2 className="qs-section-heading">Output</h2>
+                        <pre className="qs-example-code">{problem.problem_output || ''}</pre>
+                      </div>
+
+                      <div className="qs-constraints">
+                        <h2 className="qs-section-heading">Sample Input</h2>
+                        <pre className="qs-example-code">{problem.sample_input || ''}</pre>
+                      </div>
+
+                      <div className="qs-constraints">
+                        <h2 className="qs-section-heading">Sample Output</h2>
+                        <pre className="qs-example-code">{problem.sample_output || ''}</pre>
+                      </div>
                     </div>
-
-                    {/* Right Sidebar - Tournament Stats (Only for Overview) */}
-                    <aside className="qs-details-sidebar">
-                      <div className="qs-tournament-stats">
-                        <h2 className="qs-stats-title">Tournament Stats</h2>
-                        <div className="qs-stats-list">
-                          <div className="qs-stat-item">
-                            <span className="qs-stat-label">Participants:</span>
-                            <span className="qs-stat-value">{question.participants.toLocaleString()}</span>
-                          </div>
-                          <div className="qs-stat-item">
-                            <span className="qs-stat-label">Prize Pool:</span>
-                            <span className="qs-stat-value">৳{question.prizePool.toLocaleString()}</span>
-                          </div>
-                          <div className="qs-stat-item">
-                            <span className="qs-stat-label">Difficulty:</span>
-                            <span 
-                              className="qs-stat-value qs-difficulty-badge"
-                              style={{
-                                color: question.difficulty === 'Easy' ? '#00C9A7' : 
-                                       question.difficulty === 'Medium' ? '#F59E0B' : '#FF6B6B'
-                              }}
-                            >
-                              {question.difficulty}
-                            </span>
-                          </div>
-                          <div className="qs-stat-item">
-                            <span className="qs-stat-label">Time per Question:</span>
-                            <span className="qs-stat-value">{question.timePerQuestion}</span>
-                          </div>
-                          <div className="qs-stat-item">
-                            <span className="qs-stat-label">Total Questions:</span>
-                            <span className="qs-stat-value">{question.totalQuestions}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </aside>
                   </div>
                 )}
 
@@ -403,17 +367,13 @@ const QuestionSetterQuestionDetails = () => {
                         />
                       </div>
                       <div className="qs-sort-filter">
-                        <label>Sort by:</label>
-                        <select
-                          value={submissionSort}
-                          onChange={(e) => setSubmissionSort(e.target.value)}
+                        <label>Problem:</label>
+                        <div
                           className="qs-sort-select"
+                          style={{ paddingRight: 12, display: 'flex', alignItems: 'center' }}
                         >
-                          <option value="Correct">Correct</option>
-                          <option value="Points">Points</option>
-                          <option value="Time">Time</option>
-                        </select>
-                        <FaChevronDown className="qs-sort-arrow" />
+                          #{questionId}
+                        </div>
                       </div>
                     </div>
 
@@ -422,69 +382,55 @@ const QuestionSetterQuestionDetails = () => {
                       <table className="qs-submissions-table">
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>User</th>
-                            <th>Actions</th>
+                            <th>Problem Solver Name</th>
+                            <th>Country</th>
                             <th>Language</th>
+                            <th>Submission Status</th>
                             <th>Points</th>
-                            <th>Time</th>
-                            <th>Stage</th>
+                            <th>Submitted At</th>
+                            <th>Action</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {[
-                            { rank: 1, name: 'User1', country: 'Bangladesh', language: 'C', points: 78, time: '1 hour', stage: 'Correct', avatar: 'U1' },
-                            { rank: 2, name: 'User2', country: 'Bangladesh', language: 'java', points: 65, time: '1 hour 2 min', stage: 'Correct', avatar: 'U2' },
-                            { rank: 3, name: 'User3', country: 'Bangladesh', language: 'java', points: 59, time: '1 hour 3 min', stage: 'Wrong', avatar: 'U3' },
-                            { rank: 4, name: 'User4', country: 'Bangladesh', language: 'java', points: 52, time: '1 hour 4 min', stage: 'Wrong', avatar: 'U4' },
-                            { rank: 5, name: 'User5', country: 'Bangladesh', language: 'C++', points: 48, time: '1 hour 5 min', stage: 'No code', avatar: 'U5' },
-                            { rank: 6, name: 'User6', country: 'Bangladesh', language: 'C++', points: 45, time: '1 hour 6 min', stage: 'No code', avatar: 'U6' },
-                            { rank: 7, name: 'User7', country: 'Bangladesh', language: 'C', points: 41, time: '1 hour 7 min', stage: 'No code', avatar: 'U7' },
-                            { rank: 8, name: 'User8', country: 'Bangladesh', language: 'C++', points: 38, time: '1 hour 8 min', stage: 'No code', avatar: 'U8' },
-                            { rank: 9, name: 'User9', country: 'Bangladesh', language: 'C++', points: 36, time: '1 hour 9 min', stage: 'No code', avatar: 'U9' },
-                            { rank: 10, name: 'User10', country: 'Bangladesh', language: 'java', points: 33, time: '1 hour 10 min', stage: 'No code', avatar: 'U10' }
-                          ].map((user) => (
-                            <tr key={user.rank}>
-                              <td className="qs-rank-cell">{user.rank}</td>
-                              <td className="qs-user-cell">
-                                <div className="qs-user-info">
-                                  <div className="qs-user-avatar">{user.avatar}</div>
-                                  <div className="qs-user-details">
-                                    <span className="qs-user-name">{user.name}</span>
-                                    <span className="qs-user-country">{user.country}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="qs-actions-cell">
-                                <button 
-                                  className="qs-view-btn"
-                                  onClick={() => navigate(`/question-setter/submission/${questionId}/${user.name}`)}
-                                >
-                                  View
-                                </button>
-                              </td>
-                              <td className="qs-language-cell">{user.language}</td>
-                              <td className="qs-points-cell">
-                                <FaStar className="qs-star-icon" />
-                                {user.points}
-                              </td>
-                              <td className="qs-time-cell">{user.time}</td>
-                              <td className="qs-stage-cell">
-                                <span className={`qs-stage-badge qs-stage-${user.stage.toLowerCase().replace(' ', '-')}`}>
-                                  {user.stage === 'Correct' && <FaCheckCircle />}
-                                  {user.stage === 'Wrong' && <FaTimesCircle />}
-                                  {user.stage}
-                                </span>
-                              </td>
+                          {submissionsLoading ? (
+                            <tr>
+                              <td colSpan={7} className="qs-empty-message">Loading submissions...</td>
                             </tr>
-                          ))}
+                          ) : filteredSubmissions.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="qs-empty-message">No submissions found.</td>
+                            </tr>
+                          ) : (
+                            filteredSubmissions.slice(0, itemsPerPage).map((s) => (
+                              <tr key={s.submission_id}>
+                                <td className="qs-user-cell">{s.problem_solver_name || '-'}</td>
+                                <td className="qs-language-cell">{s.country || '-'}</td>
+                                <td className="qs-language-cell">{s.language || '-'}</td>
+                                <td className="qs-language-cell">{s.submission_status || '-'}</td>
+                                <td className="qs-points-cell">
+                                  <FaStar className="qs-star-icon" />
+                                  {Number(s.points) || 0}
+                                </td>
+                                <td className="qs-time-cell">
+                                  {s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '-'}
+                                </td>
+                                <td className="qs-actions-cell">
+                                  <button className="qs-view-btn" onClick={() => openCodeModal(s)}>
+                                    View Code
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
 
                     {/* Pagination */}
                     <div className="qs-table-pagination">
-                      <span className="qs-pagination-info">Showing 1-10 of 15 users</span>
+                      <span className="qs-pagination-info">
+                        Showing {Math.min(filteredSubmissions.length, itemsPerPage)} of {filteredSubmissions.length} submissions
+                      </span>
                       <div className="qs-pagination-controls">
                         <button className="qs-pagination-btn" disabled>
                           <FaChevronLeft /> Previous
@@ -512,17 +458,13 @@ const QuestionSetterQuestionDetails = () => {
                         />
                       </div>
                       <div className="qs-sort-filter">
-                        <label>Sort by:</label>
-                        <select
-                          value={leaderboardSort}
-                          onChange={(e) => setLeaderboardSort(e.target.value)}
+                        <label>Sort:</label>
+                        <div
                           className="qs-sort-select"
+                          style={{ paddingRight: 12, display: 'flex', alignItems: 'center' }}
                         >
-                          <option value="Score">Score</option>
-                          <option value="Level">Level</option>
-                          <option value="Time">Time</option>
-                        </select>
-                        <FaChevronDown className="qs-sort-arrow" />
+                          points ↓ then time ↑
+                        </div>
                       </div>
                     </div>
 
@@ -532,74 +474,50 @@ const QuestionSetterQuestionDetails = () => {
                         <thead>
                           <tr>
                             <th>Rank</th>
-                            <th>User</th>
-                            <th>Score</th>
-                            <th>Level</th>
-                            <th>Time</th>
-                            <th>Badge</th>
+                            <th>User Name</th>
+                            <th>Country</th>
+                            <th>Points</th>
+                            <th>Language</th>
+                            <th>Submission Time</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {[
-                            { rank: 1, name: 'User1', country: 'Bangladesh', score: 9850, level: 78, time: '1 hour', badge: 'Diamond', avatar: 'U1' },
-                            { rank: 2, name: 'User2', country: 'Bangladesh', score: 8750, level: 65, time: '1 hour 2 min', badge: 'Platinum', avatar: 'U2' },
-                            { rank: 3, name: 'User3', country: 'Bangladesh', score: 7650, level: 59, time: '1 hour 3 min', badge: 'Gold', avatar: 'U3' },
-                            { rank: 4, name: 'User4', country: 'Bangladesh', score: 6850, level: 52, time: '1 hour 4 min', badge: 'Gold', avatar: 'U4' },
-                            { rank: 5, name: 'User5', country: 'Bangladesh', score: 6250, level: 48, time: '1 hour 5 min', badge: 'Silver', avatar: 'U5' },
-                            { rank: 6, name: 'User6', country: 'Bangladesh', score: 5750, level: 45, time: '1 hour 6 min', badge: 'Silver', avatar: 'U6' },
-                            { rank: 7, name: 'User7', country: 'Bangladesh', score: 5250, level: 41, time: '1 hour 7 min', badge: 'Bronze', avatar: 'U7' },
-                            { rank: 8, name: 'User8', country: 'Bangladesh', score: 4850, level: 38, time: '1 hour 8 min', badge: 'Bronze', avatar: 'U8' },
-                            { rank: 9, name: 'User9', country: 'Bangladesh', score: 4550, level: 36, time: '1 hour 9 min', badge: 'Bronze', avatar: 'U9' },
-                            { rank: 10, name: 'User10', country: 'Bangladesh', score: 4350, level: 33, time: '1 hour 10 min', badge: 'Bronze', avatar: 'U10' }
-                          ].map((user) => (
-                            <tr key={user.rank}>
-                              <td className="qs-rank-cell">
-                                <div className={`qs-rank-badge ${user.rank <= 2 ? 'qs-rank-highlight' : ''}`}>
-                                  {user.rank}
-                                </div>
-                              </td>
-                              <td className="qs-user-cell">
-                                <div className="qs-user-info">
-                                  <div className="qs-user-avatar">{user.avatar}</div>
-                                  <div className="qs-user-details">
-                                    <span className="qs-user-name">{user.name}</span>
-                                    <span className="qs-user-country">{user.country}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="qs-score-cell">{user.score.toLocaleString()}</td>
-                              <td className="qs-level-cell">
-                                <FaStar className="qs-star-icon" />
-                                {user.level}
-                              </td>
-                              <td className="qs-time-cell">
-                                <div className="qs-time-info">
-                                  <span>{user.time}</span>
-                                  <div className="qs-active-status">
-                                    <span>Active</span>
-                                    <FaChartLine className="qs-active-icon" />
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="qs-badge-cell">
-                                <span className={`qs-achievement-badge qs-badge-${user.badge.toLowerCase()}`}>
-                                  {user.badge === 'Diamond' && <FaGem />}
-                                  {user.badge === 'Platinum' && <FaMedal />}
-                                  {user.badge === 'Gold' && <FaMedal />}
-                                  {user.badge === 'Silver' && <FaMedal />}
-                                  {user.badge === 'Bronze' && <FaMedal />}
-                                  {user.badge}
-                                </span>
-                              </td>
+                          {leaderboardLoading ? (
+                            <tr>
+                              <td colSpan={6} className="qs-empty-message">Loading leaderboard...</td>
                             </tr>
-                          ))}
+                          ) : filteredLeaderboard.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="qs-empty-message">No leaderboard data available.</td>
+                            </tr>
+                          ) : (
+                            filteredLeaderboard.slice(0, itemsPerPage).map((entry) => (
+                              <tr key={`${entry.problem_solver_id}-${entry.rank}`}>
+                                <td className="qs-rank-cell">
+                                  <div className={`qs-rank-badge ${entry.rank <= 3 ? 'qs-rank-highlight' : ''}`}>
+                                    {entry.rank}
+                                  </div>
+                                </td>
+                                <td className="qs-user-cell">{entry.problem_solver_name || '-'}</td>
+                                <td className="qs-language-cell">{entry.country || '-'}</td>
+                                <td className="qs-points-cell">
+                                  <FaStar className="qs-star-icon" />
+                                  {Number(entry.points) || 0}
+                                </td>
+                                <td className="qs-language-cell">{entry.language || '-'}</td>
+                                <td className="qs-time-cell">-</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
 
                     {/* Pagination */}
                     <div className="qs-table-pagination">
-                      <span className="qs-pagination-info">Showing 1-10 of 15 users</span>
+                      <span className="qs-pagination-info">
+                        Showing {Math.min(filteredLeaderboard.length, itemsPerPage)} of {filteredLeaderboard.length} entries
+                      </span>
                       <div className="qs-pagination-controls">
                         <button className="qs-pagination-btn" disabled>
                           <FaChevronLeft /> Previous
@@ -615,6 +533,40 @@ const QuestionSetterQuestionDetails = () => {
             </div>
           </div>
         </div>
+
+      {/* Code viewer modal */}
+      {codeModalOpen && (
+        <div className="pp-modal-overlay" onClick={() => setCodeModalOpen(false)}>
+          <div className="pp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pp-modal-head">
+              <h3 style={{ margin: 0 }}>Submitted Code</h3>
+              <button className="pp-create-close" onClick={() => setCodeModalOpen(false)}>
+                Close
+              </button>
+            </div>
+            {codeModalLoading ? (
+              <div style={{ padding: 16 }}>Loading...</div>
+            ) : (
+              <div className="pp-modal-body">
+                <div className="pp-modal-row">
+                  <div>
+                    <div className="pp-meta-label">Solver</div>
+                    <div className="pp-meta-value">{selectedSubmission?.problem_solver_name || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="pp-meta-label">Language</div>
+                    <div className="pp-meta-value">{selectedSubmission?.language || '-'}</div>
+                  </div>
+                </div>
+                <div className="pp-block">
+                  <div className="pp-meta-label">Code</div>
+                  <pre className="pp-pre">{selectedSubmission?.submitted_code || ''}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       </main>
     </div>
   );

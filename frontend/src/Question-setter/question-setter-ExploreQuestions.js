@@ -1,254 +1,241 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaPlus, FaEye, FaEdit, FaTrash,
-  FaTrophy, FaStar, FaUsers, FaChevronDown, FaChevronLeft, FaChevronRight,
-  FaCoins
+import {
+  FaBars,
+  FaBell,
+  FaChevronDown,
+  FaChevronRight,
+  FaCode,
+  FaEye,
+  FaEdit,
+  FaHome,
+  FaListOl,
+  FaSearch,
+  FaSignOutAlt,
+  FaStar,
+  FaTrash,
+  FaTrophy,
+  FaUser,
 } from 'react-icons/fa';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import problemSolutionsService from '../services/problemSolutionsService';
+import '../User_panel/User_Dashboard.css';
+import '../User_panel/PracticeProblem.css';
 import './question-setter-ExploreQuestions.css';
+
+const menuItems = [
+  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
+  { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
+  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
+  { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
+];
+
+const categories = ['All Categories', 'C', 'C++', 'Python', 'Java', 'JavaScript'];
+const difficulties = ['All Levels', 'Easy', 'Medium', 'Hard'];
+const statusOptions = ['All', 'Solved', 'Unsolved'];
+
+const emptyForm = {
+  // practice_problem
+  problem_title: '',
+  problemsetter_name: '',
+  difficulty: 'Medium',
+  problem_language: 'C++',
+  problem_description: '',
+  problem_input: '',
+  problem_output: '',
+  sample_input: '',
+  sample_output: '',
+  problem_rating: 0,
+  points: 0,
+  // problem_solution
+  solution_code: '',
+  video_link: '',
+  solution_article: '',
+};
 
 const QuestionSetterExploreQuestions = () => {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('Medium');
-  const [selectedSort, setSelectedSort] = useState('Most Popular');
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [showAvailability, setShowAvailability] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [questions, setQuestions] = useState([]);
-  const [questionView, setQuestionView] = useState('All Questions'); // 'All Questions' or 'My Questions'
-  const itemsPerPage = 6;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [active, setActive] = useState('practice');
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Dummy questions data
-  useEffect(() => {
-    const dummyQuestions = [
-      {
-        id: 1,
-        title: 'Maximum Subarray Sum With Length Divisible by K',
-        category: 'c',
-        difficulty: 'Hard',
-        author: 'User0',
-        rating: 4.8,
-        ratingCount: 124,
-        players: 285,
-        points: 60,
-        createdAt: '2024-01-15',
-        status: 'Published'
-      },
-      {
-        id: 2,
-        title: 'Regular Expression Matching',
-        category: 'java',
-        difficulty: 'Medium',
-        author: 'User1',
-        rating: 4.6,
-        ratingCount: 98,
-        players: 245,
-        points: 50,
-        createdAt: '2024-01-14',
-        status: 'Published'
-      },
-      {
-        id: 3,
-        title: 'Remove Duplicates from Sorted Array',
-        category: 'c',
-        difficulty: 'Easy',
-        author: 'User2',
-        rating: 4.9,
-        ratingCount: 156,
-        players: 320,
-        points: 40,
-        createdAt: '2024-01-13',
-        status: 'Published'
-      },
-      {
-        id: 4,
-        title: 'N-Queens II',
-        category: 'java',
-        difficulty: 'Hard',
-        author: 'User3',
-        rating: 4.7,
-        ratingCount: 112,
-        players: 198,
-        points: 70,
-        createdAt: '2024-01-12',
-        status: 'Published'
-      },
-      {
-        id: 5,
-        title: 'Binary Tree Maximum Path Sum',
-        category: 'c',
-        difficulty: 'Hard',
-        author: 'User4',
-        rating: 4.5,
-        ratingCount: 87,
-        players: 175,
-        points: 65,
-        createdAt: '2024-01-11',
-        status: 'Published'
-      },
-      {
-        id: 6,
-        title: 'Graph Traversal Algorithms',
-        category: 'java',
-        difficulty: 'Medium',
-        author: 'User5',
-        rating: 4.8,
-        ratingCount: 134,
-        players: 290,
-        points: 55,
-        createdAt: '2024-01-10',
-        status: 'Published'
-      },
-      {
-        id: 7,
-        title: 'Two Sum Problem',
-        category: 'c',
-        difficulty: 'Easy',
-        author: 'User6',
-        rating: 4.9,
-        ratingCount: 201,
-        players: 450,
-        points: 30,
-        createdAt: '2024-01-09',
-        status: 'Published'
-      },
-      {
-        id: 8,
-        title: 'Reverse Linked List',
-        category: 'java',
-        difficulty: 'Medium',
-        author: 'User7',
-        rating: 4.7,
-        ratingCount: 145,
-        players: 310,
-        points: 45,
-        createdAt: '2024-01-08',
-        status: 'Published'
-      }
-    ];
+  // Practice Problems list state
+  const [problemsLoading, setProblemsLoading] = useState(true);
+  const [problems, setProblems] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('All Levels');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [expandedFilters, setExpandedFilters] = useState({ difficulty: true, status: true });
+  const [error, setError] = useState('');
 
-    // Load questions from localStorage
-    const savedQuestions = JSON.parse(localStorage.getItem('qs-questions') || '[]');
-    
-    // Combine dummy questions with saved questions (avoid duplicates by ID)
-    const allQuestions = [...dummyQuestions];
-    savedQuestions.forEach(savedQ => {
-      const existingIndex = allQuestions.findIndex(q => q.id === savedQ.id);
-      if (existingIndex === -1) {
-        // New question, add it
-        allQuestions.push({
-          ...savedQ,
-          author: savedQ.author || `User${savedQ.id}`,
-          rating: savedQ.rating || 4.5,
-          ratingCount: savedQ.ratingCount || 100,
-          players: savedQ.players || 200,
-          points: savedQ.points || 50
-        });
-      } else {
-        // Update existing question with saved data
-        allQuestions[existingIndex] = { 
-          ...allQuestions[existingIndex], 
-          ...savedQ,
-          author: savedQ.author || allQuestions[existingIndex].author || `User${savedQ.id}`,
-          rating: savedQ.rating || allQuestions[existingIndex].rating || 4.5,
-          ratingCount: savedQ.ratingCount || allQuestions[existingIndex].ratingCount || 100,
-          players: savedQ.players || allQuestions[existingIndex].players || 200,
-          points: savedQ.points || allQuestions[existingIndex].points || 50
-        };
-      }
-    });
-
-    setQuestions(allQuestions);
-  }, []);
-
-  const categories = [
-    { id: 'all', name: 'All Categories' },
-    { id: 'c', name: 'C/C++' },
-    { id: 'java', name: 'Java' }
-  ];
-
-  const difficulties = ['All Levels', 'Easy', 'Medium', 'Hard'];
-  const sortOptions = ['Most Popular', 'Newest', 'Highest Rated', 'Highest Reward'];
-
-  // Filter questions
-  let filteredQuestions = questions;
-  
-  // Filter by view (All Questions or My Questions)
-  if (questionView === 'My Questions') {
-    // Filter questions created by current user (check localStorage for created questions)
-    const savedQuestions = JSON.parse(localStorage.getItem('qs-questions') || '[]');
-    const myQuestionIds = savedQuestions.map(q => q.id);
-    filteredQuestions = filteredQuestions.filter(q => myQuestionIds.includes(q.id));
-  }
-  
-  if (selectedCategory !== 'all') {
-    filteredQuestions = filteredQuestions.filter(q => q.category === selectedCategory);
-  }
-  
-  if (selectedDifficulty !== 'All Levels') {
-    filteredQuestions = filteredQuestions.filter(q => q.difficulty === selectedDifficulty);
-  }
-
-  // Sort questions
-  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
-    switch (selectedSort) {
-      case 'Newest':
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      case 'Highest Rated':
-        return b.rating - a.rating;
-      case 'Highest Reward':
-        return b.points - a.points;
-      case 'Most Popular':
-      default:
-        return b.players - a.players;
-    }
-  });
+  // Tabs: All Problems vs My Problems
+  const [problemView, setProblemView] = useState('All Problems'); // 'All Problems' | 'My Problems'
 
   // Pagination
-  const totalPages = Math.ceil(sortedQuestions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedQuestions = sortedQuestions.slice(startIndex, endIndex);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProblems, setTotalProblems] = useState(0);
+  const problemsPerPage = 5;
+  const totalPages = Math.ceil(totalProblems / problemsPerPage);
 
-  const handleDropdownToggle = (questionId, e) => {
-    e.stopPropagation();
-    setOpenDropdown(openDropdown === questionId ? null : questionId);
-  };
+  // Action dropdown
+  const [openDropdown, setOpenDropdown] = useState(null);
 
-  const handleView = (questionId) => {
-    setOpenDropdown(null);
-    navigate(`/question-setter/question/${questionId}`);
-  };
+  // Delete confirmation modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [pendingDeleteProblemId, setPendingDeleteProblemId] = useState(null);
 
-  const handleEdit = (questionId) => {
-    setOpenDropdown(null);
-    navigate(`/question-setter/create?edit=${questionId}`);
-  };
+  // Create/edit form
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingProblemId, setEditingProblemId] = useState(null);
+  const [formData, setFormData] = useState(emptyForm);
 
-  const handleDelete = (questionId) => {
-    setOpenDropdown(null);
-    if (window.confirm('Are you sure you want to delete this question?')) {
-      const updatedQuestions = questions.filter(q => q.id !== questionId);
-      setQuestions(updatedQuestions);
-      
-      const savedQuestions = JSON.parse(localStorage.getItem('qs-questions') || '[]');
-      const filteredSaved = savedQuestions.filter(q => q.id !== questionId);
-      localStorage.setItem('qs-questions', JSON.stringify(filteredSaved));
+  const currentProblemSetterName = useMemo(() => {
+    if (!user) return '';
+    return user.displayName || user.email?.split('@')[0] || 'Question Setter';
+  }, [user]);
+
+  // Auth
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // ensure default setter name on open
+    if (currentProblemSetterName && !editingProblemId) {
+      setFormData((prev) => ({ ...prev, problemsetter_name: currentProblemSetterName }));
     }
-  };
+  }, [currentProblemSetterName, editingProblemId]);
 
   const handleLogout = async () => {
     try {
       await logoutUser();
       navigate('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Logout error:', error);
     }
   };
+
+  const toggleFilter = (filterName) => {
+    setExpandedFilters((prev) => ({ ...prev, [filterName]: !prev[filterName] }));
+  };
+
+  const getDifficultyColor = (difficulty) => {
+    switch (difficulty) {
+      case 'Easy':
+      case 'EASY':
+        return '#10b981';
+      case 'Medium':
+      case 'MEDIUM':
+        return '#f59e0b';
+      case 'Hard':
+      case 'HARD':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'C++':
+        return '#00599c';
+      case 'Python':
+        return '#3776ab';
+      case 'Java':
+        return '#007396';
+      case 'JavaScript':
+        return '#f7df1e';
+      case 'C':
+        return '#00599c';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const buildProblemsQuery = (forCount = false) => {
+    let query = supabase.from('practice_problem').select(forCount ? '*' : '*', {
+      count: forCount ? 'exact' : undefined,
+      head: forCount ? true : undefined,
+    });
+
+    // My Problems filter
+    if (problemView === 'My Problems' && currentProblemSetterName) {
+      query = query.eq('problemsetter_name', currentProblemSetterName);
+    }
+
+    // Difficulty filter
+    if (selectedDifficulty && selectedDifficulty !== 'All Levels') {
+      query = query.eq('difficulty', selectedDifficulty);
+    }
+
+    // Language filter
+    if (selectedCategory && selectedCategory !== 'All Categories') {
+      query = query.eq('problem_language', selectedCategory);
+    }
+
+    // Status filter (if your table has status values)
+    if (selectedStatus && selectedStatus !== 'All') {
+      if (selectedStatus === 'Solved') query = query.or('status.eq.solved,status.eq.SOLVED');
+      if (selectedStatus === 'Unsolved') query = query.or('status.eq.unsolved,status.eq.UNSOLVED');
+    }
+
+    // Search filter
+    if (searchQuery) {
+      query = query.or(`problem_title.ilike.%${searchQuery}%,problemsetter_name.ilike.%${searchQuery}%`);
+    }
+
+    return query;
+  };
+
+  const fetchProblems = async () => {
+    setProblemsLoading(true);
+    setError('');
+
+    try {
+      const from = (currentPage - 1) * problemsPerPage;
+      const to = from + problemsPerPage - 1;
+
+      const [listRes, countRes] = await Promise.all([
+        buildProblemsQuery(false).order('created_at', { ascending: false }).range(from, to),
+        buildProblemsQuery(true),
+      ]);
+
+      if (listRes.error) throw listRes.error;
+      if (countRes.error) throw countRes.error;
+
+      setProblems(listRes.data || []);
+      setTotalProblems(countRes.count || 0);
+    } catch (e) {
+      console.error('Failed to fetch problems:', e);
+      setError(e?.message || 'Failed to load problems');
+      setProblems([]);
+      setTotalProblems(0);
+    } finally {
+      setProblemsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProblems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery, currentPage, problemView, currentProblemSetterName]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery, problemView]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -262,377 +249,708 @@ const QuestionSetterExploreQuestions = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getDifficultyColor = (difficulty) => {
-    switch (difficulty) {
-      case 'Easy': return '#00C9A7';
-      case 'Medium': return '#F59E0B';
-      case 'Hard': return '#FF6B6B';
-      default: return '#64748b';
+  const isOwner = (problem) => {
+    if (!problem || !currentProblemSetterName) return false;
+    return problem.problemsetter_name === currentProblemSetterName;
+  };
+
+  const openCreate = () => {
+    setEditingProblemId(null);
+    setFormData({ ...emptyForm, problemsetter_name: currentProblemSetterName });
+    setShowCreateForm(true);
+  };
+
+  const openEdit = async (problemId) => {
+    setOpenDropdown(null);
+    setIsSubmitting(false);
+    setShowCreateForm(true);
+    setEditingProblemId(problemId);
+
+    try {
+      const { data: problem, error: pErr } = await supabase
+        .from('practice_problem')
+        .select('*')
+        .eq('problem_id', problemId)
+        .single();
+      if (pErr) throw pErr;
+
+      const solRes = await problemSolutionsService.getSolutionByProblemId(problemId);
+      if (!solRes.success) throw new Error(solRes.error);
+
+      setFormData({
+        ...emptyForm,
+        ...problem,
+        solution_code: solRes.data?.solution_code || '',
+        video_link: solRes.data?.video_link || '',
+        solution_article: solRes.data?.solution_article || '',
+      });
+    } catch (e) {
+      console.error('Failed to load problem for edit:', e);
+      setError(e?.message || 'Failed to load problem for edit');
+      setShowCreateForm(false);
+      setEditingProblemId(null);
     }
   };
 
+  const handleViewNavigate = (problemId) => {
+    setOpenDropdown(null);
+    navigate(`/question-setter/question/${problemId}`);
+  };
+
+  const requestDelete = (problemId) => {
+    setOpenDropdown(null);
+    setPendingDeleteProblemId(problemId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    const problemId = pendingDeleteProblemId;
+    if (!problemId) return;
+
+    // Close modal immediately
+    setDeleteModalOpen(false);
+    setPendingDeleteProblemId(null);
+
+    const prev = problems;
+    setProblems((p) => p.filter((x) => x.problem_id !== problemId));
+
+    try {
+      // best effort: delete solution explicitly (DB may already have ON DELETE CASCADE)
+      await problemSolutionsService.deleteSolution(problemId);
+
+      const { error: delErr } = await supabase.from('practice_problem').delete().eq('problem_id', problemId);
+      if (delErr) throw delErr;
+
+      // Refresh counts/pages
+      await fetchProblems();
+    } catch (e) {
+      console.error('Failed to delete problem:', e);
+      setProblems(prev);
+      setError(e?.message || 'Failed to delete problem');
+    }
+  };
+
+  const handlePublish = async () => {
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      if (!formData.problem_title.trim()) throw new Error('Problem title is required');
+      if (!formData.problem_description.trim()) throw new Error('Problem description is required');
+      if (!formData.problemsetter_name.trim()) throw new Error('Problem setter name is required');
+
+      const problemPayload = {
+        problem_title: formData.problem_title,
+        problemsetter_name: formData.problemsetter_name,
+        difficulty: formData.difficulty,
+        problem_language: formData.problem_language,
+        problem_description: formData.problem_description,
+        problem_input: formData.problem_input,
+        problem_output: formData.problem_output,
+        sample_input: formData.sample_input,
+        sample_output: formData.sample_output,
+        problem_rating: Number(formData.problem_rating) || 0,
+        points: Number(formData.points) || 0,
+      };
+
+      let problemId = editingProblemId;
+
+      if (editingProblemId) {
+        const { error: updErr } = await supabase
+          .from('practice_problem')
+          .update(problemPayload)
+          .eq('problem_id', editingProblemId);
+        if (updErr) throw updErr;
+      } else {
+        const { data: created, error: insErr } = await supabase
+          .from('practice_problem')
+          .insert(problemPayload)
+          .select('*')
+          .single();
+        if (insErr) throw insErr;
+        problemId = created.problem_id;
+      }
+
+      const solPayload = {
+        problem_id: problemId,
+        solution_code: formData.solution_code,
+        video_link: formData.video_link,
+        solution_article: formData.solution_article,
+      };
+
+      const solRes = await problemSolutionsService.upsertSolution(solPayload);
+      if (!solRes.success) throw new Error(solRes.error);
+
+      setShowCreateForm(false);
+      setEditingProblemId(null);
+      setFormData({ ...emptyForm, problemsetter_name: currentProblemSetterName });
+      await fetchProblems();
+    } catch (e) {
+      console.error('Publish failed:', e);
+      setError(e?.message || 'Failed to publish problem');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatProblemData = (problem) => {
+    return {
+      ...problem,
+      id: problem.problem_id,
+      title: problem.problem_title,
+      category: problem.problem_language,
+      difficulty: problem.difficulty,
+      author: problem.problemsetter_name,
+      rating: problem.problem_rating?.toFixed?.(1) || '0.0',
+      ratingCount: '0',
+      participants: '0',
+      successRate: '0%',
+      description: problem.problem_description,
+    };
+  };
+
+  if (loading || problemsLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          fontFamily: 'Arial, sans-serif',
+        }}
+      >
+        {loading ? 'Loading user...' : 'Loading problems...'}
+      </div>
+    );
+  }
+
   return (
-    <div className="qs-explore-layout">
-      {/* Sidebar */}
-      <aside className="qs-sidebar">
-        <div className="qs-sidebar-logo">
-          <span className="qs-logo-byte">Byte</span>
-          <span className="qs-logo-arena">Arena</span>
+    <div className={`ud-root ${sidebarOpen ? '' : 'collapsed'}`}>
+      <aside className="ud-sidebar">
+        <div className="ud-logo">
+          <span className="byte">Byte</span>
+          <span className="arena">Arena</span>
         </div>
-        <nav className="qs-sidebar-nav">
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter')}
-          >
-            <FaHome className="qs-nav-icon" />
-            <span className="qs-nav-text">Home</span>
-          </button>
-          <button 
-            className="qs-nav-item active"
-            onClick={() => navigate('/question-setter/explore')}
-          >
-            <FaSearch className="qs-nav-icon" />
-            <span className="qs-nav-text">Explore Questions</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/contest')}
-          >
-            <FaTrophy className="qs-nav-icon" />
-            <span className="qs-nav-text">Contest</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/leaderboard')}
-          >
-            <FaUsers className="qs-nav-icon" />
-            <span className="qs-nav-text">Leaderboard</span>
-          </button>
-          <button 
-            className="qs-nav-item"
-            onClick={() => navigate('/question-setter/profile')}
-          >
-            <FaUserCircle className="qs-nav-icon" />
-            <span className="qs-nav-text">Profile</span>
-          </button>
-          <button 
-            className="qs-nav-item qs-nav-logout"
-            onClick={handleLogout}
-          >
-            <FaSignOutAlt className="qs-nav-icon" />
-            <span className="qs-nav-text">Logout</span>
-          </button>
+        <nav className="ud-nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              className={`ud-nav-item ${active === item.key ? 'active' : ''} ${
+                item.danger ? 'danger' : ''
+              }`}
+              onClick={() => {
+                if (item.key === 'logout') {
+                  handleLogout();
+                } else {
+                  setActive(item.key);
+                  if (item.key === 'home') {
+                    navigate('/question-setter');
+                  } else if (item.key === 'contest') {
+                    navigate('/question-setter/contest');
+                  } else if (item.key === 'practice') {
+                    navigate('/question-setter/explore');
+                  } else if (item.key === 'leaderboard') {
+                    navigate('/question-setter/leaderboard');
+                  } else if (item.key === 'profile') {
+                    navigate('/question-setter/profile');
+                  }
+                }
+              }}
+            >
+              <span className="icon" style={{ marginRight: '12px' }}>
+                {item.icon}
+              </span>
+              <span className="label" style={{ textAlign: 'left', flex: 1 }}>
+                {item.name}
+              </span>
+            </button>
+          ))}
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main className="qs-main-content">
-        {/* Header */}
-        <header className="qs-header">
-          <div className="qs-header-left">
-            <div className="qs-logo-header">
-              <span className="qs-logo-byte-header">Byte</span>
-              <span className="qs-logo-arena-header">Arena</span>
-            </div>
-            <div className="qs-search-bar">
-              <FaSearch className="qs-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search Questions, Contest, Leaderboard..." 
-                className="qs-search-input"
+      <main className="ud-main">
+        <header className="ud-topbar">
+          <div className="ud-topbar-left">
+            <button
+              className="ud-toggle"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <FaBars />
+            </button>
+            <div className="search">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search problems by title, category, or creator..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          <div className="qs-header-right">
-            <button className="qs-header-icon-btn" title="Notifications">
+          <div className="ud-topbar-right">
+            <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+              <FaHome />
+            </button>
+            <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
+              <span className="badge">4</span>
             </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
-            </button>
-            <button className="qs-header-icon-btn" title="Help">
-              <FaQuestionCircle />
-            </button>
-            <button 
-              className="qs-header-icon-btn qs-notification-btn" 
-              title="Profile"
+            {/* balance UI intentionally excluded */}
+            <div
+              className="profile"
               onClick={() => navigate('/question-setter/profile')}
+              style={{ cursor: 'pointer' }}
+              data-tooltip="Profile"
             >
-              <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
-          </button>
+              <div className="avatar">{user?.photoURL ? <img src={user.photoURL} alt="avatar" /> : <FaUser />}</div>
+              <span>{user?.displayName || 'Question Setter'}</span>
+            </div>
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="qs-content-area">
-          {/* Page Title */}
-          <div className="qs-page-header">
-            <h1 className="qs-page-title">Explore Questions</h1>
-            <p className="qs-page-subtitle">Discover and play quizzes from our community.</p>
-          </div>
-
-          {/* Hero Banner */}
-          <section className="qs-hero-banner">
-            <div className="qs-hero-content">
-              <h2 className="qs-hero-title">Your questions Adventure Starts Here: Share, Learn, Enjoy!</h2>
-              <p className="qs-hero-subtitle">Build engaging problems, challenge others.</p>
-            <button 
-                className="qs-hero-btn"
-              onClick={() => navigate('/question-setter/create')}
-            >
-                <FaPlus /> Create Questions
+        <div className="pp-content">
+          <div className="pp-banner">
+            <img src="/practice-banner.png" alt="Practice Banner" className="pp-banner-image" />
+            <button className="pp-create-question-btn" onClick={openCreate}>
+              Create Question
             </button>
           </div>
-          </section>
 
-          {/* Search and Filters */}
-          <div className="qs-search-filter-section">
-            <div className="qs-question-search">
-              <FaSearch className="qs-search-icon-small" />
-              <input 
-                type="text" 
-                placeholder="Search questions by title, category..." 
-                className="qs-question-search-input"
-              />
-            </div>
-            <div className="qs-quick-filters">
-              {['All', 'Hot', 'Trending', "Editor's"].map((filter) => (
+          {showCreateForm && (
+            <div className="pp-create-form">
+              <div className="pp-create-form-head">
+                <h3 style={{ margin: 0 }}>{editingProblemId ? 'Edit Question' : 'Create Question'}</h3>
                 <button
-                  key={filter}
-                  className={`qs-quick-filter-btn ${activeFilter === filter ? 'active' : ''}`}
-                  onClick={() => setActiveFilter(filter)}
+                  className="pp-create-close"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setEditingProblemId(null);
+                    setFormData({ ...emptyForm, problemsetter_name: currentProblemSetterName });
+                  }}
                 >
-                  {filter}
+                  Close
                 </button>
-              ))}
-          </div>
-        </div>
+              </div>
 
-          {/* Category Tags */}
-          <div className="qs-category-tags">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-                className={`qs-category-tag ${selectedCategory === category.id ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedCategory(category.id);
-                  setCurrentPage(1);
-                }}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
+              <div className="pp-create-grid">
+                <div className="pp-field">
+                  <label>Problem Title</label>
+                  <input
+                    value={formData.problem_title}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_title: e.target.value }))}
+                    placeholder="Enter problem title"
+                  />
+                </div>
 
-          {/* Main Content Grid */}
-          <div className="qs-explore-main">
-            {/* Filters Sidebar */}
-            <aside className="qs-filters-sidebar">
-              <div className="qs-filter-section">
-                <h3 className="qs-filter-title">Difficulty</h3>
-                <div className="qs-filter-options">
-                  {difficulties.map((difficulty) => (
-                    <label key={difficulty} className="qs-radio-label">
-                      <input
-                        type="radio"
-                        name="difficulty"
-                        value={difficulty}
-                        checked={selectedDifficulty === difficulty}
-                        onChange={(e) => {
-                          setSelectedDifficulty(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="qs-radio-input"
-                      />
-                      <span className={`qs-radio-custom ${selectedDifficulty === difficulty ? 'checked' : ''}`}>
+                <div className="pp-field">
+                  <label>Problemsetter Name</label>
+                  <input
+                    value={formData.problemsetter_name}
+                    onChange={(e) => setFormData((p) => ({ ...p, problemsetter_name: e.target.value }))}
+                    placeholder="Your name"
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Difficulty</label>
+                  <select
+                    value={formData.difficulty}
+                    onChange={(e) => setFormData((p) => ({ ...p, difficulty: e.target.value }))}
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+
+                <div className="pp-field">
+                  <label>Problem Language</label>
+                  <select
+                    value={formData.problem_language}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_language: e.target.value }))}
+                  >
+                    {['C++', 'C', 'Python', 'Java', 'JavaScript'].map((x) => (
+                      <option key={x} value={x}>
+                        {x}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="pp-field pp-span-2">
+                  <label>Problem Description</label>
+                  <textarea
+                    rows={6}
+                    value={formData.problem_description}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_description: e.target.value }))}
+                    placeholder="Write the problem statement..."
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Problem Input</label>
+                  <textarea
+                    rows={4}
+                    value={formData.problem_input}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_input: e.target.value }))}
+                    placeholder="Input format"
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Problem Output</label>
+                  <textarea
+                    rows={4}
+                    value={formData.problem_output}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_output: e.target.value }))}
+                    placeholder="Output format"
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Sample Input</label>
+                  <textarea
+                    rows={3}
+                    value={formData.sample_input}
+                    onChange={(e) => setFormData((p) => ({ ...p, sample_input: e.target.value }))}
+                    placeholder="Sample input"
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Sample Output</label>
+                  <textarea
+                    rows={3}
+                    value={formData.sample_output}
+                    onChange={(e) => setFormData((p) => ({ ...p, sample_output: e.target.value }))}
+                    placeholder="Sample output"
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Problem Rating (0–5)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    value={formData.problem_rating}
+                    onChange={(e) => setFormData((p) => ({ ...p, problem_rating: e.target.value }))}
+                  />
+                </div>
+
+                <div className="pp-field">
+                  <label>Points</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.points}
+                    onChange={(e) => setFormData((p) => ({ ...p, points: e.target.value }))}
+                  />
+                </div>
+
+                <div className="pp-field pp-span-2">
+                  <label>Solution Code</label>
+                  <textarea
+                    rows={6}
+                    value={formData.solution_code}
+                    onChange={(e) => setFormData((p) => ({ ...p, solution_code: e.target.value }))}
+                    placeholder="Paste solution code..."
+                  />
+                </div>
+
+                <div className="pp-field pp-span-2">
+                  <label>Video Link</label>
+                  <input
+                    value={formData.video_link}
+                    onChange={(e) => setFormData((p) => ({ ...p, video_link: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div className="pp-field pp-span-2">
+                  <label>Solution Article</label>
+                  <textarea
+                    rows={5}
+                    value={formData.solution_article}
+                    onChange={(e) => setFormData((p) => ({ ...p, solution_article: e.target.value }))}
+                    placeholder="Write editorial/solution explanation..."
+                  />
+                </div>
+              </div>
+
+              <div className="pp-create-actions">
+                <button className="solve-btn" disabled={isSubmitting} onClick={handlePublish}>
+                  {isSubmitting ? 'Publishing...' : 'Publish'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="pp-main-layout">
+            {/* Categories + All/My tabs */}
+            <div className="pp-categories-top">
+              <div className="pp-view-tabs">
+                <button
+                  className={`pp-view-tab ${problemView === 'All Problems' ? 'active' : ''}`}
+                  onClick={() => setProblemView('All Problems')}
+                >
+                  All Problems
+                </button>
+                <button
+                  className={`pp-view-tab ${problemView === 'My Problems' ? 'active' : ''}`}
+                  onClick={() => setProblemView('My Problems')}
+                >
+                  My Problems
+                </button>
+              </div>
+
+              <h3>Categories</h3>
+              <div className="categories-list">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pp-content-area">
+              {/* Filters on the side */}
+              <div className="pp-filters-sidebar">
+                <h3>Filters</h3>
+
+                <div className="filter-group">
+                  <div className="filter-group-header" onClick={() => toggleFilter('difficulty')}>
+                    <h4>Difficulty</h4>
+                    <FaChevronRight
+                      className={`dropdown-icon ${expandedFilters.difficulty ? 'rotated' : ''}`}
+                    />
+                  </div>
+                  {expandedFilters.difficulty &&
+                    difficulties.map((difficulty) => (
+                      <button
+                        key={difficulty}
+                        className={`filter-btn ${selectedDifficulty === difficulty ? 'active' : ''}`}
+                        onClick={() => setSelectedDifficulty(difficulty)}
+                      >
                         {difficulty}
-                      </span>
-                    </label>
-                  ))}
+                      </button>
+                    ))}
+                </div>
+
+                <div className="filter-group">
+                  <div className="filter-group-header" onClick={() => toggleFilter('status')}>
+                    <h4>Status</h4>
+                    <FaChevronRight
+                      className={`dropdown-icon ${expandedFilters.status ? 'rotated' : ''}`}
+                    />
+                  </div>
+                  {expandedFilters.status &&
+                    statusOptions.map((status) => (
+                      <button
+                        key={status}
+                        className={`filter-btn ${selectedStatus === status ? 'active' : ''}`}
+                        onClick={() => setSelectedStatus(status)}
+                      >
+                        {status}
+                      </button>
+                    ))}
                 </div>
               </div>
 
-              <div className="qs-filter-section">
-                <h3 className="qs-filter-title">Sort By</h3>
-                <div className="qs-filter-options">
-                  {sortOptions.map((option) => (
-                    <label key={option} className="qs-radio-label">
-                      <input
-                        type="radio"
-                        name="sort"
-                        value={option}
-                        checked={selectedSort === option}
-                        onChange={(e) => {
-                          setSelectedSort(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="qs-radio-input"
-                      />
-                      <span className={`qs-radio-custom ${selectedSort === option ? 'checked' : ''}`}>
-                        {option}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="qs-filter-section">
-                <h3 className="qs-filter-title">Availability</h3>
-                <button 
-                  className="qs-availability-btn"
-                  onClick={() => setShowAvailability(!showAvailability)}
-                >
-                  <span>Select availability</span>
-                  <FaChevronDown className={showAvailability ? 'rotated' : ''} />
-                </button>
-              </div>
-            </aside>
-
-            {/* Questions List */}
-            <div className="qs-questions-list">
-              <div className="qs-questions-header">
-                <div className="qs-questions-view-tabs">
-                  <button
-                    className={`qs-questions-view-tab ${questionView === 'All Questions' ? 'active' : ''}`}
-                    onClick={() => {
-                      setQuestionView('All Questions');
-                      setCurrentPage(1);
+              {/* Problem list */}
+              <div className="pp-problems-area">
+                {error && (
+                  <div
+                    className="error-message"
+                    style={{
+                      color: '#ef4444',
+                      padding: '10px',
+                      textAlign: 'center',
+                      marginBottom: '20px',
                     }}
                   >
-                    All Questions
-                  </button>
-                  <button
-                    className={`qs-questions-view-tab ${questionView === 'My Questions' ? 'active' : ''}`}
-                    onClick={() => {
-                      setQuestionView('My Questions');
-                      setCurrentPage(1);
+                    {error}
+                  </div>
+                )}
+
+                {problems.length === 0 && !problemsLoading ? (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: '40px',
+                      color: '#6b7280',
                     }}
                   >
-                    My Questions
-                  </button>
-                </div>
-                <p className="qs-questions-count">
-                  Showing {startIndex + 1}-{Math.min(endIndex, sortedQuestions.length)} of {sortedQuestions.length} quizzes.
-                </p>
-              </div>
+                    <FaCode style={{ fontSize: '48px', marginBottom: '16px' }} />
+                    <h3>No problems found</h3>
+                    <p>Try adjusting your filters or search query</p>
+                  </div>
+                ) : (
+                  problems.map((problem) => {
+                    const formatted = formatProblemData(problem);
+                    const owner = isOwner(problem);
 
-        <div className="qs-questions-grid">
-                {paginatedQuestions.map((question) => (
-            <div key={question.id} className="qs-question-card">
-                    <div className="qs-question-thumbnail">
-                      <div className="qs-thumbnail-content">COMPETITIVE PROGRAMMING CHALLENGE</div>
-                    </div>
-                    <div className="qs-question-content">
-                      <div className="qs-question-header">
-                  <span 
-                    className="qs-difficulty-badge"
-                          style={{ 
-                            background: getDifficultyColor(question.difficulty),
-                            color: '#fff'
-                          }}
-                  >
-                    {question.difficulty}
-                  </span>
-                        <span className="qs-language-badge">
-                          {question.category === 'c' ? 'C++' : 'Java'}
-                        </span>
-                        <div className={`qs-action-dropdown ${openDropdown === question.id ? 'active' : ''}`}>
-                  <button
-                    className="qs-action-btn"
-                            onClick={(e) => handleDropdownToggle(question.id, e)}
-                  >
-                            Action <FaChevronDown className="qs-action-chevron" />
-                  </button>
-                  {openDropdown === question.id && (
-                    <div className="qs-dropdown-menu">
-                      <button onClick={() => handleView(question.id)}>
-                        <FaEye /> View
-                      </button>
-                      <button onClick={() => handleEdit(question.id)}>
-                        <FaEdit /> Edit
-                      </button>
-                      <button onClick={() => handleDelete(question.id)} className="qs-delete-btn">
-                        <FaTrash /> Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-                <h3 className="qs-question-title">{question.title}</h3>
-                      <div className="qs-question-meta">
-                        <span className="qs-question-author">by {question.author}</span>
-                        <div className="qs-question-rating">
-                          <FaStar className="qs-star-icon" />
-                          <span>{question.rating} ({question.ratingCount})</span>
+                    return (
+                      <div key={formatted.id} className="problem-card-wide">
+                        <div className="problem-left">
+                          <div className="problem-header">
+                            <div
+                              className="problem-difficulty"
+                              style={{ color: getDifficultyColor(formatted.difficulty) }}
+                            >
+                              {formatted.difficulty}
+                            </div>
+                          </div>
+
+                          <div
+                            className="problem-category"
+                            style={{ color: getCategoryColor(formatted.category) }}
+                          >
+                            {formatted.category}
+                          </div>
+
+                          <h3 className="problem-title">{formatted.title}</h3>
+                          <p className="problem-author">by {formatted.author}</p>
+
+                          <div className="problem-stats">
+                            <div className="stat-item">
+                              <FaStar className="star-icon" />
+                              <span>
+                                {formatted.rating} ({formatted.ratingCount})
+                              </span>
+                            </div>
+                            <div className="stat-item">
+                              <FaUser className="user-icon" />
+                              <span>{formatted.participants}</span>
+                            </div>
+                            <div className="stat-item">
+                              <span className="success-rate">{formatted.successRate}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="problem-right">
+                          <div
+                            className={`qs-action-dropdown ${openDropdown === formatted.id ? 'active' : ''}`}
+                          >
+                            <button
+                              className="solve-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(openDropdown === formatted.id ? null : formatted.id);
+                              }}
+                            >
+                              Action <FaChevronDown className="qs-action-chevron" />
+                            </button>
+                            {openDropdown === formatted.id && (
+                              <div className="qs-dropdown-menu">
+                                <button onClick={() => handleViewNavigate(formatted.id)}>
+                                  <FaEye /> View
+                                </button>
+                                {owner && (
+                                  <button onClick={() => openEdit(formatted.id)}>
+                                    <FaEdit /> Edit
+                                  </button>
+                                )}
+                                {owner && (
+                                  <button
+                                    onClick={() => requestDelete(formatted.id)}
+                                    className="qs-delete-btn"
+                                  >
+                                    <FaTrash /> Delete
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="qs-question-footer">
-                        <div className="qs-question-stats">
-                          <FaUsers className="qs-stat-icon" />
-                          <span>{question.players} players</span>
-                        </div>
-                        <div className="qs-question-reward">
-                          <FaCoins className="qs-coin-icon" />
-                          <span>{question.points}</span>
-                        </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                    );
+                  })
+                )}
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="qs-pagination">
+                {/* Pagination */}
+                <div className="pp-pagination">
                   <button
-                    className="qs-pagination-btn"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                   >
                     Previous
                   </button>
+
                   {[...Array(totalPages)].map((_, index) => {
-                    const page = index + 1;
-                    if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                    const pageNumber = index + 1;
+                    if (
+                      pageNumber === 1 ||
+                      pageNumber === totalPages ||
+                      pageNumber === currentPage ||
+                      pageNumber === currentPage - 1 ||
+                      pageNumber === currentPage + 1
+                    ) {
                       return (
                         <button
-                          key={page}
-                          className={`qs-pagination-btn ${currentPage === page ? 'active' : ''}`}
-                          onClick={() => setCurrentPage(page)}
+                          key={pageNumber}
+                          className={`pagination-btn ${currentPage === pageNumber ? 'active' : ''}`}
+                          onClick={() => setCurrentPage(pageNumber)}
                         >
-                          {page}
+                          {pageNumber}
                         </button>
                       );
-                    } else if (page === currentPage - 2 || page === currentPage + 2) {
-                      return <span key={page} className="qs-pagination-dots">...</span>;
+                    }
+                    if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
+                      return (
+                        <span key={pageNumber} style={{ padding: '0 8px' }}>
+                          ...
+                        </span>
+                      );
                     }
                     return null;
                   })}
+
                   <button
-                    className="qs-pagination-btn"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages || totalPages === 0}
                   >
                     Next
                   </button>
                 </div>
-              )}
-
-              {paginatedQuestions.length === 0 && (
-          <div className="qs-empty-state">
-                  <p>No questions found matching your filters.</p>
-            <button 
-              className="qs-create-btn"
-              onClick={() => navigate('/question-setter/create')}
-            >
-              <FaPlus /> Create Your First Question
-            </button>
-          </div>
-        )}
-      </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Delete confirmation modal */}
+        {deleteModalOpen && (
+          <div className="pp-confirm-overlay" onClick={() => setDeleteModalOpen(false)}>
+            <div className="pp-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pp-confirm-title">Are you sure you want to delete this problem?</div>
+              <div className="pp-confirm-actions">
+                <button
+                  className="pp-confirm-btn pp-confirm-no"
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setPendingDeleteProblemId(null);
+                  }}
+                >
+                  No
+                </button>
+                <button className="pp-confirm-btn pp-confirm-yes" onClick={confirmDelete}>
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

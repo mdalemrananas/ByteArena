@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Container, 
-  Typography, 
+  Typography,
+  Menu,
+  MenuItem,
+  IconButton,
   Card, 
   CardContent, 
   Button, 
@@ -13,7 +16,6 @@ import {
   Tabs,
   Tab,
   Avatar,
-  IconButton,
   Paper
 } from '@mui/material';
 import { 
@@ -30,7 +32,8 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaChevronLeft as ChevronLeftIcon,
-  FaChevronRight as ChevronRightIcon
+  FaChevronRight as ChevronRightIcon,
+  FaEllipsisV as MoreVertIcon
 } from 'react-icons/fa';
 import { 
   FaBars,
@@ -42,26 +45,33 @@ import {
   FaSearch,
   FaBell,
   FaCoins,
-  FaUser
+  FaUser,
+  FaPlus,
+  FaUsers,
+  FaChartBar,
+  FaCog
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
-import './User_Dashboard.css';
-import './User_Contest.css';
+import './Admin_Dashboard.css';
+import './Admin_Contest.css';
 
 const menuItems = [
-  { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
-  { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'practice', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
+  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
+  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
+  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
+  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
-const User_Contest = () => {
+const Admin_Contest = () => {
   const navigate = useNavigate();
-  const [active, setActive] = useState('contest');
+  const [active, setActive] = useState('contests');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -73,9 +83,50 @@ const User_Contest = () => {
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
-  const [participantCounts, setParticipantCounts] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 8; // 2 rows with 4 cards each
+  
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedContest, setSelectedContest] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleMenuClick = (event, contest) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedContest(contest);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedContest(null);
+  };
+
+  const handleEdit = (contest) => {
+    console.log('Edit contest:', contest.id);
+    navigate(`/admin/contests/edit/${contest.id}`);
+    handleMenuClose();
+  };
+
+  const handleDelete = async (contestId) => {
+    if (window.confirm('Are you sure you want to delete this contest? This action cannot be undone.')) {
+      try {
+        const { error } = await supabase
+          .from('contests')
+          .delete()
+          .eq('id', contestId);
+        
+        if (error) throw error;
+        
+        // Refresh the contests list
+        fetchContests();
+        alert('Contest deleted successfully');
+      } catch (error) {
+        console.error('Error deleting contest:', error);
+        alert('Failed to delete contest');
+      }
+    }
+    handleMenuClose();
+  };
 
   // Fetch user's registered contests
   const fetchRegisteredContests = async (userId) => {
@@ -134,15 +185,6 @@ const User_Contest = () => {
       console.log('Contests fetched from Supabase:', data);
       setContests(data || []);
 
-      // Fetch participant counts for all contests
-      if (data && data.length > 0) {
-        const counts = {};
-        for (const contest of data) {
-          counts[contest.id] = await getParticipantCount(contest.id);
-        }
-        setParticipantCounts(counts);
-      }
-
       // Filter for upcoming contests (registration_end > now) and find the one ending soonest
       const now = new Date();
       const upcomingContests = data?.filter(contest => 
@@ -159,27 +201,6 @@ const User_Contest = () => {
       }
     } catch (error) {
       console.error('Error in fetchContests:', error);
-    }
-  };
-
-  // Function to get participant count for a contest (excluding only null/invalid statuses)
-  const getParticipantCount = async (contestId) => {
-    try {
-      const { data, error } = await supabase
-        .from('contest_participants')
-        .select('id')
-        .eq('contest_id', contestId)
-        .in('status', ['registered', 'in_progress', 'completed', 'disqualified']);
-
-      if (error) {
-        console.error('Error fetching participants:', error);
-        return 0;
-      }
-
-      return data ? data.length : 0;
-    } catch (error) {
-      console.error('Error in getParticipantCount:', error);
-      return 0;
     }
   };
 
@@ -205,6 +226,47 @@ const User_Contest = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleNavigation = (key) => {
+    setActive(key);
+    switch (key) {
+      case 'home':
+        navigate('/admin_dashboard');
+        break;
+      case 'users':
+        navigate('/admin/users');
+        break;
+      case 'contests':
+        navigate('/admin_contest');
+        break;
+      case 'problems':
+        navigate('/admin/problems');
+        break;
+      case 'leaderboard':
+        navigate('/admin_leaderboard');
+        break;
+      case 'analytics':
+        navigate('/admin/analytics');
+        break;
+      case 'settings':
+        navigate('/admin/settings');
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+      default:
+        break;
+    }
+  };
 
   // Debounce search term to improve performance
   useEffect(() => {
@@ -284,13 +346,9 @@ const User_Contest = () => {
       filteredContests = contests.filter(contest => 
         new Date(contest.registration_end) > now
       );
-    } else if (tabValue === 2) { // Past Contests tab - show past contests only
+    } else if (tabValue === 1) { // Past Contests tab - show past contests only
       filteredContests = contests.filter(contest => 
         new Date(contest.registration_end) <= now
-      );
-    } else if (tabValue === 1) { // My Contests tab - show registered contests only
-      filteredContests = contests.filter(contest => 
-        registeredContests.includes(contest.id)
       );
     } else {
       filteredContests = contests;
@@ -376,18 +434,8 @@ const User_Contest = () => {
   };
 
   const handleRegister = (contestId) => {
-    console.log('Registering for contest:', contestId);
-    navigate(`/contest/${contestId}`);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      navigate('/');
-    }
+    console.log('Viewing contest details:', contestId);
+    navigate(`/admin_contest/${contestId}`);
   };
 
   const getDifficultyColor = (difficulty) => {
@@ -421,28 +469,14 @@ const User_Contest = () => {
         <div className="ud-logo">
           <span className="byte">Byte</span>
           <span className="arena">Arena</span>
+          <span className="admin-badge">ADMIN</span>
         </div>
         <nav className="ud-nav">
           {menuItems.map((item) => (
             <button
               key={item.key}
               className={`ud-nav-item ${active === item.key ? 'active' : ''} ${item.danger ? 'danger' : ''}`}
-              onClick={() => {
-                if (item.key === 'logout') {
-                  handleLogout();
-                } else {
-                  setActive(item.key);
-                  if (item.key === 'home') {
-                    navigate('/dashboard');
-                  } else if (item.key === 'contest') {
-                    navigate('/contest');
-                  } else if (item.key === 'practice') {
-                    navigate('/practice');
-                  } else if (item.key === 'leaderboard') {
-                    navigate('/leaderboard');
-                  }
-                }
-              }}
+              onClick={() => handleNavigation(item.key)}
             >
               <span className="icon" style={{ marginRight: '12px' }}>{item.icon}</span>
               <span className="label" style={{ textAlign: 'left', flex: 1 }}>{item.name}</span>
@@ -463,47 +497,46 @@ const User_Contest = () => {
             </button>
             <div className="search">
               <FaSearch className="search-icon" />
-              <input type="text" placeholder="Search contests, categories..." />
+              <input type="text" placeholder="Search users, contests, problems..." />
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button
-              className="icon-btn"
-              onClick={() => {
-                console.log('Home button clicked, navigating to /');
-                navigate('/');
-              }}
-              data-tooltip="Home"
-            >
-              <FaHome />
-            </button>
             <button className="icon-btn" data-tooltip="Notifications">
               <FaBell />
-              <span className="badge">4</span>
+              <span className="badge">8</span>
             </button>
-            <div className="balance" data-tooltip="Reward Coins">
-              <FaCoins className="balance-icon" />
-              <span>1200.00</span>
-            </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt="avatar" 
-                    onError={(e) => {
-                      e.target.onerror = null; 
-                      e.target.src = `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=random`;
-                    }}
-                  />
+                  <img src={user.photoURL} alt="avatar" onError={(e) => {
+                    e.target.onerror = null; 
+                    e.target.src = `https://ui-avatars.com/api/?name=${user?.displayName || 'Admin'}&background=random`;
+                  }} />
                 ) : (
                   <FaUser />
                 )}
               </div>
-              <span>{user?.displayName || 'User'}</span>
+              <span>{user?.displayName || 'Admin'}</span>
             </div>
           </div>
         </header>
+
+        <section className="ud-hero">
+          <div className="hero-text">
+            <p className="eyebrow">Contest Management</p>
+            <h1>Manage Contests:</h1>
+            <h2>Create, Monitor, and Analyze</h2>
+            <p className="sub">Oversee all contest activities and participant engagement</p>
+            <button 
+              className="primary-btn" 
+              onClick={() => navigate('/admin/contests/new')}
+              style={{ display: 'flex', alignItems: 'center' }}
+            >
+              <FaPlus style={{ marginRight: '8px' }} />
+              Create New Contest
+            </button>
+          </div>
+        </section>
 
         <Container 
           maxWidth={false}
@@ -514,6 +547,7 @@ const User_Contest = () => {
           }}
         >
           {/* Header */}
+          {/*
           <Box sx={{ mb: 4 }}>
             <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>
               Contests
@@ -522,8 +556,10 @@ const User_Contest = () => {
               Compete in exciting challenges and win amazing prizes
             </Typography>
           </Box>
+          */}
 
           {/* Featured Tournament */}
+          {/*
           {featuredContest && (
             <Card 
               sx={{ 
@@ -560,7 +596,7 @@ const User_Contest = () => {
                           <UsersIcon sx={{ color: 'white' }} />
                           <Box>
                             <Typography variant="body2" sx={{ color: 'white' }}>
-                              {featuredContest ? (participantCounts[featuredContest.id] || 0) : 0} participants
+                              {featuredContest.total_register || 0} participants
                             </Typography>
                           </Box>
                         </Box>
@@ -570,7 +606,7 @@ const User_Contest = () => {
                           <CoinsIcon sx={{ color: 'white' }} />
                           <Box>
                             <Typography variant="body2" sx={{ color: 'white' }}>
-                              {featuredContest.prize_money || '0'} Points
+                              Prize pool ${featuredContest.prize_money || '0'}
                             </Typography>
                           </Box>
                         </Box>
@@ -658,6 +694,7 @@ const User_Contest = () => {
               </CardContent>
             </Card>
           )}
+          */}
 
           {/* Contest Filters */}
           <Box sx={{ mb: 4 }}>
@@ -676,7 +713,6 @@ const User_Contest = () => {
               }}
             >
               <Tab label="All Contests" />
-              <Tab label="My Contests" />
               <Tab label="Past Contests" />
             </Tabs>
 
@@ -924,6 +960,37 @@ const User_Contest = () => {
                       }
                     }}
                   >
+                    {/* Three-dot menu in top-left */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 10,
+                        left: 10,
+                        zIndex: 1
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuClick(e, contest);
+                        }}
+                        sx={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 1)'
+                          },
+                          padding: '4px',
+                          minWidth: '24px',
+                          height: '24px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    {/* Difficulty chip in top-right */}
                     <Box
                       sx={{
                         position: 'absolute',
@@ -939,7 +1006,8 @@ const User_Contest = () => {
                           backgroundColor: getDifficultyColor(contest.contest_difficulty),
                           color: 'white',
                           fontWeight: 'bold',
-                          fontSize: '12px'
+                          fontSize: '12px',
+                          height: '24px'
                         }}
                       />
                     </Box>
@@ -987,13 +1055,13 @@ const User_Contest = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <UsersIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            {participantCounts[contest.id] || 0} participants
+                            {contest.total_register || 0} participants
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CoinsIcon style={{ fontSize: '14px', color: '#666' }} />
                           <Typography variant="body2" color="text.secondary">
-                            {contest.prize_money || 0} Points
+                            ${contest.prize_money || 0} prize
                           </Typography>
                         </Box>
                       </Box>
@@ -1006,31 +1074,19 @@ const User_Contest = () => {
                           {getRegistrationStatus(contest.registration_start, contest.registration_end)}
                         </Typography>
                       </Box>
-                      {shouldShowRegisterButton(contest) ? (
-                        <Button 
-                          variant="contained" 
-                          onClick={() => handleRegister(contest.id)}
-                          sx={{
+                      <Button 
+                        variant="contained" 
+                        onClick={() => handleRegister(contest.id)}
+                        sx={{
+                          backgroundColor: '#635BFF',
+                          '&:hover': {
                             backgroundColor: '#635BFF',
-                            '&:hover': {
-                              backgroundColor: '#635BFF',
-                              opacity: 0.9
-                            }
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      ) : (
-                        <Box 
-                          sx={{ 
-                            width: '100px',  // Match button width
-                            height: '36px',   // Match button height
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        />
-                      )}
+                            opacity: 0.9
+                          }
+                        }}
+                      >
+                        View Details
+                      </Button>
                     </Box>
                   </CardContent>
                 </Card>
@@ -1116,8 +1172,26 @@ const User_Contest = () => {
           </Box>
         </Container>
       </main>
+      
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={() => handleEdit(selectedContest)}>Edit</MenuItem>
+        <MenuItem onClick={() => handleDelete(selectedContest?.id)} sx={{ color: 'error.main' }}>Delete</MenuItem>
+      </Menu>
     </div>
   );
 };
 
-export default User_Contest;
+export default Admin_Contest;

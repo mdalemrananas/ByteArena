@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { logoutUser } from '../services/authService';
 import './Navbar.css';
 
-const Navbar = ({ onSignInClick }) => {
+const Navbar = ({ onSignInClick, onGetStartedClick }) => {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -283,7 +283,7 @@ const Navbar = ({ onSignInClick }) => {
               <button className="btn btn-outline" onClick={onSignInClick}>
                 Sign In
               </button>
-              <button className="btn btn-primary">Get Started</button>
+              <button className="btn btn-primary" onClick={onGetStartedClick}>Get Started</button>
             </div>
           )}
         </div>
