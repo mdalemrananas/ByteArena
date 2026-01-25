@@ -91,6 +91,86 @@ export default function CodingProblemPage() {
     }, 5000);
   };
 
+  // Function to update leaderboard table
+  const updateLeaderboard = async (userId, points) => {
+    try {
+      // Check if user already exists in leaderboard
+      const { data: existingLeaderboardEntry, error: fetchError } = await supabase
+        .from('leaderboard')
+        .select('id, score, problem_solve, level')
+        .eq('participate_id', userId)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching leaderboard entry:', fetchError);
+        return;
+      }
+
+      // Get total solved problems count for the user
+      const totalSolvedProblems = await getSolvedProblemsCount(userId, contestId);
+      
+      // Calculate level based on total solved problems
+      let newLevel = 1;
+      if (totalSolvedProblems >= 20) {
+        newLevel = 4; // master
+      } else if (totalSolvedProblems >= 15) {
+        newLevel = 3; // elite
+      } else if (totalSolvedProblems >= 10) {
+        newLevel = 2; // silver
+      } else if (totalSolvedProblems >= 5) {
+        newLevel = 1; // bronze
+      }
+
+      // Determine badge based on level
+      const badgeMap = {
+        1: 'bronze',
+        2: 'silver', 
+        3: 'elite',
+        4: 'master'
+      };
+      const newBadge = badgeMap[newLevel] || 'bronze';
+
+      if (existingLeaderboardEntry) {
+        // Update existing leaderboard entry
+        const { error: updateError } = await supabase
+          .from('leaderboard')
+          .update({
+            score: existingLeaderboardEntry.score + points,
+            problem_solve: totalSolvedProblems,
+            level: newLevel,
+            badge: newBadge,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingLeaderboardEntry.id);
+
+        if (updateError) {
+          console.error('Error updating leaderboard entry:', updateError);
+        } else {
+          console.log('Leaderboard entry updated successfully');
+        }
+      } else {
+        // Insert new leaderboard entry
+        const { error: insertError } = await supabase
+          .from('leaderboard')
+          .insert({
+            participate_id: userId,
+            score: points,
+            problem_solve: totalSolvedProblems,
+            level: newLevel,
+            badge: newBadge
+          });
+
+        if (insertError) {
+          console.error('Error inserting leaderboard entry:', insertError);
+        } else {
+          console.log('Leaderboard entry created successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error in updateLeaderboard:', error);
+    }
+  };
+
   // Function to get count of solved problems by user
   const getSolvedProblemsCount = async (userId, contestId) => {
     try {
@@ -199,6 +279,9 @@ export default function CodingProblemPage() {
         if (updateError) throw updateError;
         result = updatedData;
         showNotification('Solution updated successfully!', 'success');
+        
+        // Update leaderboard for existing submission (no additional points for updates)
+        await updateLeaderboard(userData.id, 0);
       } else {
         // Create new submission
         const { data: newData, error: insertError } = await supabase
@@ -272,6 +355,9 @@ export default function CodingProblemPage() {
             'Solution submitted successfully! +5 points earned!';
           
           showNotification(pointsMessage, 'success');
+          
+          // Update leaderboard for new submission (5 points awarded)
+          await updateLeaderboard(userData.id, 5);
         } catch (scoreError) {
           console.error('Error updating score:', scoreError);
           // Still show success notification even if score update fails

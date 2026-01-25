@@ -944,9 +944,192 @@ const AccountSettings = ({ user, userData, onClose, onSave }) => {
       </div>
     </div>
   );
+}
+
+// Function to fetch user's contest statistics
+const fetchUserContestStats = async (userId) => {
+  try {
+    // Fetch all contests that user participated in with status
+    const { data: userParticipations, error: participationError } = await supabase
+      .from('contest_participants')
+      .select('contest_id, status')
+      .eq('user_id', userId);
+
+    if (participationError) {
+      console.error('Error fetching user participations:', participationError);
+      return {
+        averageScore: 0,
+        winRate: 0,
+        completionRate: 0,
+        totalQuestionsSolved: 0,
+        totalContestQuestions: 0,
+        bestCategory: null,
+        favoriteCategory: null,
+        weakestCategory: null
+      };
+    }
+
+    if (!userParticipations || userParticipations.length === 0) {
+      return {
+        averageScore: 0,
+        winRate: 0,
+        completionRate: 0,
+        totalQuestionsSolved: 0,
+        totalContestQuestions: 0,
+        bestCategory: null,
+        favoriteCategory: null,
+        weakestCategory: null
+      };
+    }
+
+    const contestIds = userParticipations.map(p => p.contest_id);
+
+    // Calculate Completion Rate: (completed contests / total participated) * 100%
+    const totalParticipated = userParticipations.length;
+    const completedContests = userParticipations.filter(p => p.status === 'completed').length;
+    const completionRate = totalParticipated > 0 ? 
+      Math.round((completedContests / totalParticipated) * 100) : 0;
+
+    // Fetch all questions from these contests
+    const { data: contestQuestions, error: questionsError } = await supabase
+      .from('contest_questions')
+      .select('id, contest_id')
+      .in('contest_id', contestIds);
+
+    if (questionsError) {
+      console.error('Error fetching contest questions:', questionsError);
+      return {
+        averageScore: 0,
+        winRate: 0,
+        completionRate: 0,
+        totalQuestionsSolved: 0,
+        totalContestQuestions: 0,
+        bestCategory: null,
+        favoriteCategory: null,
+        weakestCategory: null
+      };
+    }
+
+    // Fetch user's solved questions with performance metrics
+    const { data: solvedQuestions, error: solvesError } = await supabase
+      .from('contest_question_solves')
+      .select('question_id, language, time_taken, memory_taken')
+      .eq('participate_id', userId);
+
+    if (solvesError) {
+      console.error('Error fetching solved questions:', solvesError);
+      return {
+        averageScore: 0,
+        winRate: 0,
+        completionRate: 0,
+        totalQuestionsSolved: 0,
+        totalContestQuestions: 0,
+        bestCategory: null,
+        favoriteCategory: null,
+        weakestCategory: null
+      };
+    }
+
+    const totalContestQuestions = contestQuestions ? contestQuestions.length : 0;
+    const totalQuestionsSolved = solvedQuestions ? [...new Set(solvedQuestions.map(q => q.question_id))].length : 0;
+
+    // Calculate Average Score: (total questions solved / total contest questions) * 100%
+    const averageScore = totalContestQuestions > 0 ? 
+      Math.round((totalQuestionsSolved / totalContestQuestions) * 100) : 0;
+
+    // Calculate Win Rate: (contests where user solved >= 50% of questions / total contests participated) * 100%
+    const contestsWithSolves = userParticipations.length;
+    const successfulContests = userParticipations.filter(participation => {
+      const contestQuestionsForThisContest = contestQuestions.filter(q => q.contest_id === participation.contest_id);
+      const solvedQuestionsForThisContest = solvedQuestions.filter(solve => 
+        contestQuestionsForThisContest.some(q => q.id === solve.question_id)
+      );
+      const solveRate = contestQuestionsForThisContest.length > 0 ? 
+        (solvedQuestionsForThisContest.length / contestQuestionsForThisContest.length) : 0;
+      return solveRate >= 0.5; // Consider winning if solved 50% or more questions
+    }).length;
+
+    const winRate = contestsWithSolves > 0 ? 
+      Math.round((successfulContests / contestsWithSolves) * 100) : 0;
+
+    // Calculate language performance metrics
+    const languageStats = {};
+    if (solvedQuestions && solvedQuestions.length > 0) {
+      solvedQuestions.forEach(solve => {
+        if (!languageStats[solve.language]) {
+          languageStats[solve.language] = {
+            count: 0,
+            totalTime: 0,
+            totalMemory: 0,
+            avgTime: 0,
+            avgMemory: 0,
+            performanceScore: 0
+          };
+        }
+        languageStats[solve.language].count++;
+        languageStats[solve.language].totalTime += parseFloat(solve.time_taken);
+        languageStats[solve.language].totalMemory += parseFloat(solve.memory_taken);
+      });
+
+      // Calculate averages and performance scores for each language
+      Object.keys(languageStats).forEach(language => {
+        const stats = languageStats[language];
+        stats.avgTime = stats.totalTime / stats.count;
+        stats.avgMemory = stats.totalMemory / stats.count;
+        // Performance score: lower time + memory = better performance
+        stats.performanceScore = stats.avgTime + (stats.avgMemory * 10); // Weight memory more heavily
+      });
+    }
+
+    // Determine categories
+    const languages = Object.keys(languageStats);
+    let bestCategory = null;
+    let favoriteCategory = null;
+    let weakestCategory = null;
+
+    if (languages.length > 0) {
+      // Best Category: lowest performance score (best time + memory efficiency)
+      bestCategory = languages.reduce((best, lang) => 
+        languageStats[lang].performanceScore < languageStats[best].performanceScore ? lang : best
+      );
+
+      // Favorite Category: most used language
+      favoriteCategory = languages.reduce((favorite, lang) => 
+        languageStats[lang].count > languageStats[favorite].count ? lang : favorite
+      );
+
+      // Weakest Category: highest performance score (worst time + memory efficiency)
+      weakestCategory = languages.reduce((weakest, lang) => 
+        languageStats[lang].performanceScore > languageStats[weakest].performanceScore ? lang : weakest
+      );
+    }
+
+    return {
+      averageScore,
+      winRate,
+      completionRate,
+      totalQuestionsSolved,
+      totalContestQuestions,
+      bestCategory,
+      favoriteCategory,
+      weakestCategory
+    };
+  } catch (error) {
+    console.error('Error in fetchUserContestStats:', error);
+    return {
+      averageScore: 0,
+      winRate: 0,
+      completionRate: 0,
+      totalQuestionsSolved: 0,
+      totalContestQuestions: 0,
+      bestCategory: null,
+      favoriteCategory: null,
+      weakestCategory: null
+    };
+  }
 };
 
-const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile }) => {
+const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile, contestStats }) => {
   const activities = [
     {
       icon: <FaCheckCircle style={{ color: '#10b981', fontSize: '20px' }} />,
@@ -1217,7 +1400,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <Target style={{ width: '18px', height: '18px' }} /> Average Score
                   </p>
-                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>87.5%</p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+                    {contestStats?.averageScore || 0}%
+                  </p>
                 </div>
                 <div>
                   <p style={{
@@ -1230,7 +1415,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <Trophy style={{ width: '18px', height: '18px' }} /> Win Rate
                   </p>
-                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>78%</p>
+                  <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+                    {contestStats?.winRate || 0}%
+                  </p>
                 </div>
                 <div>
                   <p style={{
@@ -1290,7 +1477,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <Check style={{ width: '18px', height: '18px' }} /> Completion Rate
                   </p>
-                  <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>94%</p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+                    {contestStats?.completionRate || 0}%
+                  </p>
                 </div>
               </div>
 
@@ -1310,7 +1499,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <span style={{ color: '#f59e0b' }}>⭐</span> Best Category
                   </span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Cpp</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>
+                    {contestStats?.bestCategory || 'N/A'}
+                  </span>
                 </div>
                 <div style={{
                   display: 'flex',
@@ -1327,7 +1518,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   }}>
                     <span style={{ color: '#3b82f6' }}>💙</span> Favorite Category
                   </span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Java</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>
+                    {contestStats?.favoriteCategory || 'N/A'}
+                  </span>
                 </div>
                 <div style={{
                   display: 'flex',
@@ -1335,7 +1528,9 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                   alignItems: 'center'
                 }}>
                   <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>Weakest Category</span>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>Python</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>
+                    {contestStats?.weakestCategory || 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1471,6 +1666,16 @@ const User_Profile = () => {
     matches_played: 231,
     skills: ['JavaScript', 'React', 'Node.js', 'Python', 'DSA'],
     contestParticipate: 0
+  });
+  const [contestStats, setContestStats] = useState({
+    averageScore: 0,
+    winRate: 0,
+    completionRate: 0,
+    totalQuestionsSolved: 0,
+    totalContestQuestions: 0,
+    bestCategory: null,
+    favoriteCategory: null,
+    weakestCategory: null
   });
   
   const [editFormData, setEditFormData] = useState({
@@ -1611,6 +1816,10 @@ const User_Profile = () => {
               matches_played: supabaseUserData.matches_played,
               contestParticipate: contestCount
             }));
+
+            // Fetch contest statistics
+            const stats = await fetchUserContestStats(supabaseUserData.id);
+            setContestStats(stats);
 
             // Update user state with Supabase data
             setUser(prev => ({
@@ -2038,6 +2247,7 @@ const User_Profile = () => {
             tabValue={tabValue} 
             setTabValue={setTabValue} 
             handleEditProfile={handleEditProfile} 
+            contestStats={contestStats}
           />
         </Box>
 
