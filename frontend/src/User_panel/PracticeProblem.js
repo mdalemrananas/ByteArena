@@ -391,20 +391,7 @@ const PracticeProblem = () => {
                                                     <h3 className="problem-title">{formattedProblem.title}</h3>
                                                     <p className="problem-author">by {formattedProblem.author}</p>
                                                     
-                                                    <div className="problem-stats">
-                                                        <div className="stat-item">
-                                                            <FaStar className="star-icon" />
-                                                            <span>{formattedProblem.rating} ({formattedProblem.ratingCount})</span>
-                                                        </div>
-                                                        <div className="stat-item">
-                                                            <FaUser className="user-icon" />
-                                                            <span>{formattedProblem.participants}</span>
-                                                        </div>
-                                                        <div className="stat-item">
-                                                            <span className="success-rate">{formattedProblem.successRate}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                                                                    </div>
                                                 
                                                 <div className="problem-right">
                                                     <div className="problem-reward">

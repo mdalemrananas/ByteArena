@@ -18,7 +18,185 @@
 /* Full Width Submissions Layout */
 .submissions-full-width {
     width: 100%;
-    padding: 0 24px 24px;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+.submissions-table-wrapper {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.submissions-table th {
+    background: #f8fafc;
+    padding: 16px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.submissions-table td {
+    padding: 16px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.submission-row {
+    transition: all 0.2s ease;
+}
+
+.submission-row:hover {
+    background: #f9fafb;
+}
+
+.submission-row.status-accepted {
+    border-left: 4px solid #10b981;
+}
+
+.submission-row.status-wrong {
+    border-left: 4px solid #ef4444;
+}
+
+.submission-row.status-timeout {
+    border-left: 4px solid #f59e0b;
+}
+
+.submission-row.status-error {
+    border-left: 4px solid #ef4444;
+}
+
+.submission-row.status-pending {
+    border-left: 4px solid #6b7280;
+}
+
+.submission-id {
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.submission-status {
+    font-weight: 500;
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-icon {
+    font-size: 1rem;
+}
+
+.status-icon.accepted {
+    color: #10b981;
+}
+
+.status-icon.wrong {
+    color: #ef4444;
+}
+
+.status-icon.timeout {
+    color: #f59e0b;
+}
+
+.status-icon.error {
+    color: #ef4444;
+}
+
+.status-icon.pending {
+    color: #6b7280;
+}
+
+.submission-language {
+    padding: 16px 12px !important;
+    vertical-align: middle !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+.submission-date {
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.submission-points {
+    padding: 16px 12px !important;
+    vertical-align: middle !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.submission-action {
+    text-align: center;
+}
+
+.view-code-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.view-code-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.view-code-icon {
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .submissions-table th,
+    .submissions-table td {
+        padding: 12px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .view-code-btn {
+        padding: 6px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .view-code-icon {
+        font-size: 0.8rem;
+    }
 }
 
 /* Submissions Table Specific Styles */
@@ -134,8 +312,7 @@
 }
 
 .submission-time,
-.submission-memory,
-.submission-language {
+.submission-memory {
     color: #94a3b8;
 }
 
@@ -146,8 +323,13 @@
 }
 
 .submission-points {
-    color: #10b981;
-    font-weight: 600;
+    padding: 16px 12px !important;
+    vertical-align: middle !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    background-color: transparent !important;
+    border: none !important;
     min-width: 80px;
 }
 

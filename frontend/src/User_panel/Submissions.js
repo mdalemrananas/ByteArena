@@ -22,9 +22,10 @@ const Submissions = () => {
     const fetchSubmissions = async () => {
         try {
             setError(null);
-            // For problem-specific submissions, don't filter by user
-            // For general submissions, try to filter by user but handle UUID validation
-            const userId = problemId ? null : user?.uid;
+            // Always filter by current user - show only their submissions
+            // For problem-specific submissions, filter by both problem and user
+            // For general submissions, filter only by user
+            const userId = user?.uid;
             const result = await practiceSubmissionsDataService.getSubmissions(problemId, userId);
             
             if (result.success) {
@@ -108,7 +109,13 @@ const Submissions = () => {
     };
 
     const handleViewCode = (submissionId) => {
-        navigate(`/submissions/view/${submissionId}`);
+        console.log('handleViewCode called with submissionId:', submissionId);
+        console.log('problemId being passed:', problemId);
+        
+        // Pass problemId in state so ViewSubmission can use it for navigation back
+        navigate(`/submissions/view/${submissionId}`, { 
+            state: { problemId: problemId } 
+        });
     };
 
     const handleBack = () => {
@@ -366,6 +373,7 @@ const Submissions = () => {
                                             <th>Language</th>
                                             <th>Submitted At</th>
                                             <th>Points</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -383,7 +391,17 @@ const Submissions = () => {
                                                     {new Date(submission.submitted_at).toLocaleString()}
                                                 </td>
                                                 <td className="submission-points">
-                                                    {submission.submission_status === 'Accepted' ? `+${submission.points || 100}` : '0'}
+                                                    {submission.points || 0}
+                                                </td>
+                                                <td className="submission-action">
+                                                    <button 
+                                                        className="view-code-btn"
+                                                        onClick={() => handleViewCode(submission.submission_id)}
+                                                        title="View submitted code"
+                                                    >
+                                                        <FaEye className="view-code-icon" />
+                                                        View Code
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}

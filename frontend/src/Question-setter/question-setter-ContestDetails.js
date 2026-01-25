@@ -66,6 +66,15 @@ const QuestionSetterContestDetails = () => {
     setSubmissionsLoading(true);
     
     try {
+      // Get contest questions for this contest first
+      const { data: contestQuestions, error: questionsError } = await supabase
+        .from('contest_questions')
+        .select('id')
+        .eq('contest_id', contestId);
+
+      if (questionsError) throw questionsError;
+      const questionIds = contestQuestions?.map(q => q.id) || [];
+
       // Fetch all participants for this contest
       const { data: participants, error: participantsError } = await supabase
         .from('contest_participants')
@@ -85,18 +94,28 @@ const QuestionSetterContestDetails = () => {
 
       if (participantsError) throw participantsError;
 
-      // For each participant, get their submissions
+      // For each participant, get their submissions for this contest's questions only
       const submissionsWithData = await Promise.all(
         participants.map(async (participant) => {
-          const { data: solves, error: solvesError } = await supabase
-            .from('contest_question_solves')
-            .select('*')
-            .eq('participate_id', participant.user_id);
+          let solves = [];
+          if (questionIds.length > 0) {
+            const { data: solvesData, error: solvesError } = await supabase
+              .from('contest_question_solves')
+              .select('*')
+              .eq('participate_id', participant.user_id)
+              .in('question_id', questionIds);
+
+            if (solvesError) {
+              console.error(`Error fetching solves for participant ${participant.user_id}:`, solvesError);
+            } else {
+              solves = solvesData || [];
+            }
+          }
 
           return {
             ...participant,
-            submissions: solves || [],
-            submissionCount: solves?.length || 0
+            submissions: solves,
+            submissionCount: solves.length
           };
         })
       );
@@ -115,23 +134,16 @@ const QuestionSetterContestDetails = () => {
     setLeaderboardLoading(true);
     
     try {
-      // Fetch leaderboard for this contest
-      const { data: leaderboardData, error: leaderboardError } = await supabase
-        .from('leaderboard')
-        .select(`
-          *,
-          users!inner (
-            id,
-            display_name,
-            email
-          )
-        `)
-        .eq('contest_id', contestId)
-        .order('score', { ascending: false });
+      // Get contest questions for this contest first
+      const { data: contestQuestions, error: questionsError } = await supabase
+        .from('contest_questions')
+        .select('id')
+        .eq('contest_id', contestId);
 
-      if (leaderboardError) throw leaderboardError;
+      if (questionsError) throw questionsError;
+      const questionIds = contestQuestions?.map(q => q.id) || [];
 
-      // Also try to get from contest_participants
+      // Get participants from contest_participants
       const { data: participants, error: participantsError } = await supabase
         .from('contest_participants')
         .select(`
@@ -147,16 +159,33 @@ const QuestionSetterContestDetails = () => {
           )
         `)
         .eq('contest_id', contestId)
-        .order('score', { ascending: false });
+        .order('score', { ascending: false })
+        .order('rank', { ascending: true });
 
-      if (!participantsError && participants) {
+      if (participantsError) throw participantsError;
+
+      if (participants && participants.length > 0) {
         // Count problems solved for each participant
         const participantsWithSolved = await Promise.all(
           participants.map(async (participant) => {
-            const { count } = await supabase
-              .from('contest_question_solves')
-              .select('*', { count: 'exact', head: true })
-              .eq('participate_id', participant.user_id);
+            let problemsSolved = 0;
+            if (questionIds.length > 0) {
+              const { count, error: countError } = await supabase
+                .from('contest_question_solves')
+                .select('*', { count: 'exact', head: true })
+                .eq('participate_id', participant.user_id)
+                .in('question_id', questionIds);
+              
+              if (!countError) {
+                problemsSolved = count || 0;
+              }
+            }
+
+            // Determine badge based on rank
+            let badge = 'Bronze';
+            if (participant.rank === 1) badge = 'Gold';
+            else if (participant.rank === 2) badge = 'Silver';
+            else if (participant.rank === 3) badge = 'Bronze';
 
             return {
               rank: participant.rank || 0,
@@ -164,13 +193,23 @@ const QuestionSetterContestDetails = () => {
               username: participant.users?.email?.split('@')[0] || 'user',
               score: participant.score || 0,
               level: participant.rank || 0,
-              problemsSolved: count || 0,
-              badge: 'Bronze'
+              problemsSolved: problemsSolved,
+              badge: badge
             };
           })
         );
 
+        // Sort by rank (ascending), then by score (descending)
+        participantsWithSolved.sort((a, b) => {
+          if (a.rank !== b.rank) {
+            return (a.rank || 999) - (b.rank || 999);
+          }
+          return b.score - a.score;
+        });
+
         setLeaderboard(participantsWithSolved);
+      } else {
+        setLeaderboard([]);
       }
     } catch (error) {
       console.error('Error loading leaderboard:', error);

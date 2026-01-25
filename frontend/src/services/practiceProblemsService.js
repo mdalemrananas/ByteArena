@@ -8,6 +8,7 @@ export const practiceProblemsService = {
       let query = supabase
         .from('practice_problem')
         .select('*')
+        .eq('admin_status', 'approved')
         .order('created_at', { ascending: false });
 
       // Calculate range for pagination
@@ -63,7 +64,8 @@ export const practiceProblemsService = {
     try {
       let query = supabase
         .from('practice_problem')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('admin_status', 'approved');
 
       // Apply same filters as getProblems
       if (filters.difficulty && filters.difficulty !== 'All Levels') {
@@ -110,6 +112,7 @@ export const practiceProblemsService = {
       const { data, error } = await supabase
         .from('practice_problem')
         .select('*')
+        .eq('admin_status', 'approved')
         .eq('problem_id', problemId)
         .single();
 
@@ -131,6 +134,7 @@ export const practiceProblemsService = {
       const { data, error } = await supabase
         .from('practice_problem')
         .select('*')
+        .eq('admin_status', 'approved')
         .eq('difficulty', difficulty)
         .order('created_at', { ascending: false });
 
@@ -152,6 +156,7 @@ export const practiceProblemsService = {
       const { data, error } = await supabase
         .from('practice_problem')
         .select('*')
+        .eq('admin_status', 'approved')
         .eq('problem_language', language)
         .order('created_at', { ascending: false });
 
@@ -194,7 +199,8 @@ export const practiceProblemsService = {
     try {
       const { data, error } = await supabase
         .from('practice_problem')
-        .select('difficulty, status, problem_language');
+        .select('difficulty, status, problem_language')
+        .eq('admin_status', 'approved');
 
       if (error) {
         console.error('Error fetching problem stats:', error);

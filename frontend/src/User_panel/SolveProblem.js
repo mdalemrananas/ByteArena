@@ -18,12 +18,18 @@ import {
     FaPlayCircle,
     FaArrowLeft,
     FaBook,
-    FaComments
+    FaComments,
+    FaTimes,
+    FaCheckCircle,
+    FaExclamationTriangle
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { practiceProblemsService } from '../services/practiceProblemsService';
+import { practiceSubmissionsService } from '../services/practiceSubmissionsService';
+import leaderboardService from '../services/leaderboardService';
+import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
 import './SolveProblem.css';
 
@@ -75,8 +81,15 @@ public class Main {
 
     const [code, setCode] = useState(getCodeTemplate('python'));
     const [output, setOutput] = useState('');
+    const [customInput, setCustomInput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('python');
+    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [showErrorDialog, setShowErrorDialog] = useState(false);
+    const [dialogMessage, setDialogMessage] = useState('');
+    const [dialogTitle, setDialogTitle] = useState('');
+    const [shouldNavigate, setShouldNavigate] = useState(false);
     const { problemId } = useParams();
     const navigate = useNavigate();
 
@@ -125,6 +138,34 @@ public class Main {
         }
     };
 
+    const showSuccess = (title, message) => {
+        setDialogTitle(title);
+        setDialogMessage(message);
+        setShowSuccessDialog(true);
+    };
+
+    const showError = (title, message) => {
+        setDialogTitle(title);
+        setDialogMessage(message);
+        setShowErrorDialog(true);
+    };
+
+    const closeSuccessDialog = () => {
+        setShowSuccessDialog(false);
+        setDialogMessage('');
+        setDialogTitle('');
+        if (shouldNavigate) {
+            navigate(`/practice/submissions/${problemId}`);
+            setShouldNavigate(false);
+        }
+    };
+
+    const closeErrorDialog = () => {
+        setShowErrorDialog(false);
+        setDialogMessage('');
+        setDialogTitle('');
+    };
+
     // Execute code using Piston API
     const runCode = async (e) => {
         console.log('=== RUN CODE FUNCTION START ===');
@@ -145,6 +186,134 @@ public class Main {
             setOutput('Error: ' + error.message);
         } finally {
             setIsRunning(false);
+        }
+        return false;
+    };
+
+    // Submit solution function
+    const submitSolution = async (e) => {
+        console.log('=== SUBMIT SOLUTION FUNCTION START ===');
+        e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+        console.log('Submit button clicked');
+        
+        if (!user) {
+            showError('Login Required', 'Please login to submit your solution');
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
+        try {
+            // First, run the code silently
+            setOutput('Validating solution...');
+            const result = await executeCodeWithPiston(code, selectedLanguage);
+            
+            // Compare output with sample output
+            const userOutput = result.output.trim();
+            const expectedOutput = problem?.sample_output?.trim();
+            
+            console.log('User output:', userOutput);
+            console.log('Expected output:', expectedOutput);
+            
+            if (userOutput === expectedOutput) {
+                // Output matches, submit to database
+                console.log('Output matches! Submitting to database...');
+                
+                // First, get the user's UUID from database using their Firebase UID
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('firebase_uid', user.uid)
+                    .single();
+                
+                if (userError || !userData) {
+                    console.error('Error fetching user UUID:', userError);
+                    showError('User Error', 'User not found in database. Please ensure your account is properly set up.');
+                    return;
+                }
+                
+                const submissionData = {
+                    problem_id: problem?.problem_id, // Problem UUID from database
+                    problem_solver_id: userData.id, // User UUID from database (id column)
+                    problem_solver_name: user.displayName || 'Anonymous',
+                    country: user.country || '',
+                    language: selectedLanguage,
+                    submission_status: 'Accepted',
+                    points: problem?.points || 0,
+                    submitted_code: code
+                };
+                
+                console.log('Submission data:', submissionData);
+                
+                // Check if user has already earned points for this problem BEFORE submitting
+                const pointsCheck = await leaderboardService.hasUserEarnedPointsForProblem(
+                    userData.id, // participant_id
+                    problem?.problem_id // problem_id
+                );
+                
+                if (!pointsCheck.success) {
+                    console.error('Failed to check problem points status:', pointsCheck.error);
+                } else if (pointsCheck.hasEarned) {
+                    console.log('User has already earned points for this problem');
+                } else {
+                    console.log('User has not earned points for this problem yet');
+                }
+                
+                // Submit to database using service
+                const result = await practiceSubmissionsService.submitSolution(submissionData);
+                
+                if (result.success) {
+                    console.log('Submission successful:', result.data);
+                    
+                    // Update leaderboard only if user hasn't earned points before
+                    if (pointsCheck.success && !pointsCheck.hasEarned) {
+                        try {
+                            // Check if user has a leaderboard entry
+                            const entryResult = await leaderboardService.getLeaderboardEntry(userData.id);
+                            
+                            let leaderboardResult;
+                            if (entryResult.success && entryResult.data) {
+                                // User exists, update their entry
+                                leaderboardResult = await leaderboardService.updateLeaderboardEntry(userData.id, problem?.points || 0);
+                            } else {
+                                // User doesn't exist, create new entry
+                                leaderboardResult = await leaderboardService.createLeaderboardEntry(userData.id, problem?.points || 0);
+                            }
+                            
+                            if (leaderboardResult.success) {
+                                console.log('Leaderboard updated successfully:', leaderboardResult.data);
+                            } else {
+                                console.error('Leaderboard update failed:', leaderboardResult.error);
+                            }
+                        } catch (leaderboardError) {
+                            console.error('Error updating leaderboard:', leaderboardError);
+                            // Don't fail the submission if leaderboard update fails
+                        }
+                    } else {
+                        console.log('Skipping leaderboard update - user already earned points for this problem');
+                    }
+                    
+                    // Show success dialog and set navigation flag
+                    setShouldNavigate(true);
+                    showSuccess('Success!', `Congratulations! 🎉\n\nYour solution has been submitted successfully!\nYou earned ${problem?.points || 0} points!`);
+                } else {
+                    console.error('Submission error:', result.error);
+                    showError('Submission Error', 'Error submitting solution: ' + result.error);
+                }
+            } else {
+                // Output doesn't match
+                console.log('Output does not match');
+                setOutput(`Wrong Answer!\n\nYour output:\n${userOutput}\n\nExpected output:\n${expectedOutput}`);
+                showError('Wrong Answer', 'Your output does not match the expected output.\n\nPlease check your code and try again.');
+            }
+        } catch (error) {
+            console.error('Submit error:', error);
+            setOutput('Error: ' + error.message);
+            showError('Error', 'Error submitting solution: ' + error.message);
+        } finally {
+            setIsSubmitting(false);
         }
         return false;
     };
@@ -192,7 +361,7 @@ public class Main {
         }
 
         // Handle multi-line input properly
-        let stdinInput = problem?.sample_input || '';
+        let stdinInput = customInput.trim() || problem?.sample_input || '';
         
         console.log('Problem data:', problem);
         console.log('Original sample input:', problem?.sample_input);
@@ -559,13 +728,6 @@ public class Main {
         }
     }, []);
 
-    const submitSolution = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Submit button clicked');
-        alert('Solution submitted successfully!');
-    };
-
     if (loading || problemLoading) {
         return (
             <div className="ud-root">
@@ -712,7 +874,6 @@ public class Main {
                                     {problem?.difficulty}
                                 </span>
                                 <span className="points">+{problem?.points || 0} points</span>
-                                <span className="success-rate">Rating: {problem?.problem_rating || '0.0'}/5.0</span>
                             </div>
                         </div>
                     </div>
@@ -808,6 +969,10 @@ public class Main {
                                         <FaPlayCircle className={`run-icon ${isRunning ? 'running' : ''}`} />
                                         <span className="run-text">{isRunning ? 'Running...' : 'Run'}</span>
                                     </div>
+                                    <div className="submit-icon-container" onClick={submitSolution}>
+                                        <FaTrophy className={`submit-icon ${isSubmitting ? 'submitting' : ''}`} />
+                                        <span className="submit-text">{isSubmitting ? 'Submitting...' : 'Submit'}</span>
+                                    </div>
                                 </div>
                             </div>
                             <div className="sp-editor-container">
@@ -823,6 +988,19 @@ public class Main {
                                     </div>
                                 </div>
                             </div>
+                            <div className="sp-input-section">
+                                <h3>Custom Input</h3>
+                                <div className="input-container">
+                                    <textarea
+                                        value={customInput}
+                                        onChange={(e) => setCustomInput(e.target.value)}
+                                        className="custom-input-textarea"
+                                        placeholder="Enter custom input here (leave empty to use sample input)..."
+                                        spellCheck={false}
+                                        rows={4}
+                                    />
+                                </div>
+                            </div>
                             <div className="sp-output">
                                 <h3>Output</h3>
                                 <div className="output-content">
@@ -833,6 +1011,56 @@ public class Main {
                     </div>
                 </div>
             </main>
+
+            {/* Success Dialog */}
+            {showSuccessDialog && (
+                <div className="success-dialog-overlay">
+                    <div className="success-dialog">
+                        <div className="success-dialog-header">
+                            <h3>{dialogTitle}</h3>
+                            <button className="close-btn" onClick={closeSuccessDialog}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="success-dialog-body">
+                            <div className="success-icon">
+                                <FaCheckCircle />
+                            </div>
+                            <p>{dialogMessage}</p>
+                        </div>
+                        <div className="success-dialog-footer">
+                            <button className="success-ok-btn" onClick={closeSuccessDialog}>
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Dialog */}
+            {showErrorDialog && (
+                <div className="error-dialog-overlay">
+                    <div className="error-dialog">
+                        <div className="error-dialog-header">
+                            <h3>{dialogTitle}</h3>
+                            <button className="close-btn" onClick={closeErrorDialog}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="error-dialog-body">
+                            <div className="error-icon">
+                                <FaExclamationTriangle />
+                            </div>
+                            <p>{dialogMessage}</p>
+                        </div>
+                        <div className="error-dialog-footer">
+                            <button className="error-ok-btn" onClick={closeErrorDialog}>
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

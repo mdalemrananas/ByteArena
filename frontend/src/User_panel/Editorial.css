@@ -1,4 +1,15 @@
-/* Editorial Page Styles - Using Submissions CSS Classes */
+/* Editorial Page Styles - Exact Match to Uploaded Image */
+
+/* Ensure sidebar matches PracticeProblem page height */
+.ud-root {
+  min-height: 100vh;
+}
+
+/* Make Editorial sidebar extend to the full height of content */
+body:has(.editorial-content-grid) .ud-sidebar {
+  height: 100%;
+  min-height: 100vh;
+}
 
 /* Import Submissions styles */
 @import './Submissions.css';
@@ -15,28 +26,321 @@
     margin: 0;
 }
 
-/* Full Width Editorial Layout */
+/* Full Width Editorial Layout - Pure White */
 .editorial-full-width {
     width: 100%;
     padding: 0 24px 24px;
+    background: #ffffff;
+    min-height: calc(100vh - 80px);
 }
 
 /* Editorial Content Grid - Two Column Layout */
 .editorial-content-grid {
     display: grid;
-    grid-template-columns: 1fr 450px;
-    gap: 4px 6px; /* Reduced gap between solution article and content */
+    grid-template-columns: 1fr 380px;
+    gap: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
 }
 
 /* Left Column - Editorial Sections */
 .editorial-left-column {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    min-height: 0; /* Allow content to determine height */
+    gap: 40px;
 }
 
 /* Right Column - Reference Implementation */
+.editorial-right-column {
+    position: sticky;
+    top: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Editorial Sections Container */
+.editorial-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* Individual Editorial Section - Ultra Minimal */
+.editorial-section {
+    background: #ffffff;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+/* Section Header - Minimal Gray Bar */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    background: transparent;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 20px;
+}
+
+.section-header svg {
+    font-size: 16px;
+    color: #6b7280;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Section Content */
+.section-content {
+    padding: 0;
+}
+
+/* Solution Article Styling - Clean Typography */
+.solution-article {
+    line-height: 1.7;
+    color: #374151;
+    font-size: 15px;
+}
+
+.solution-article h1, .solution-article h2, .solution-article h3 {
+    color: #111827;
+    margin-top: 32px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.solution-article h1 { font-size: 24px; }
+.solution-article h2 { font-size: 20px; }
+.solution-article h3 { font-size: 18px; }
+
+.solution-article p {
+    margin-bottom: 20px;
+    color: #374151;
+    line-height: 1.7;
+}
+
+.solution-article code {
+    background: #f3f4f6;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.solution-article pre {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.solution-article ul, .solution-article ol {
+    margin: 20px 0;
+    padding-left: 24px;
+}
+
+.solution-article li {
+    margin: 8px 0;
+    color: #374151;
+    line-height: 1.7;
+}
+
+/* Video Container */
+.video-container {
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    margin: 20px 0;
+}
+
+.youtube-embed-container {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+}
+
+.youtube-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+}
+
+.google-drive-container iframe {
+    border-radius: 8px;
+}
+
+.solution-video {
+    width: 100%;
+    border-radius: 8px;
+}
+
+/* Reference Implementation - Ultra Minimal */
+.reference-implementation {
+    background: #ffffff;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+/* Problem Info Header - Minimal Design */
+.problem-info-header {
+    background: #ffffff;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 40px;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.problem-info-header h2 {
+    margin: 0 0 16px 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.problem-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.difficulty-badge {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.difficulty-badge.easy { background: #dcfce7; color: #166534; }
+.difficulty-badge.medium { background: #fef3c7; color: #92400e; }
+.difficulty-badge.hard { background: #fee2e2; color: #991b1b; }
+
+.points-badge, .rating-badge {
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* No Content Message */
+.no-content {
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+    padding: 40px 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px dashed #e5e7eb;
+    font-size: 14px;
+}
+
+/* Reference Code Textarea - Minimal Design */
+.reference-code-textarea {
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    background: #f8fafc;
+    color: #374151;
+    resize: vertical;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.reference-code-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: #ffffff;
+}
+
+.reference-code-textarea::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .editorial-content-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+    
+    .editorial-right-column {
+        position: static;
+        order: -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .editorial-full-width {
+        padding: 0 16px 16px;
+    }
+    
+    .section-header {
+        padding: 12px 0;
+        margin-bottom: 16px;
+    }
+    
+    .section-content {
+        padding: 0;
+    }
+    
+    .problem-info-header {
+        padding: 0;
+        margin-bottom: 32px;
+    }
+    
+    .reference-code-textarea {
+        min-height: 400px;
+        padding: 16px;
+        font-size: 13px;
+    }
+    
+    .editorial-content-grid {
+        gap: 24px;
+    }
+    
+    .editorial-left-column {
+        gap: 24px;
+    }
+    
+    .problem-info-header h2 {
+        font-size: 24px;
+    }
+}
 .editorial-right-column {
     display: flex;
     flex-direction: column;
@@ -142,7 +446,7 @@
 }
 
 .section-content {
-    padding: 20px;
+    padding: 0px;
     background: #f8f9fa;
 }
 
@@ -540,4 +844,32 @@
         font-size: 0.8rem;
         padding: 8px 12px;
     }
+}
+
+/* Reference Code Textarea */
+.reference-code-textarea {
+    width: 100%;
+    min-height: 400px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #f8fafc;
+    color: #374151;
+    resize: vertical;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.reference-code-textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.reference-code-textarea::placeholder {
+    color: #9ca3af;
+    font-style: italic;
 }
