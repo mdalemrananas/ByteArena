@@ -24,16 +24,16 @@ import Editorial from './User_panel/Editorial.js';
 import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
 
 //Question Setter Panel
-import QuestionSetterHomepage from './Question-setter/question-setter-Homepage.js';
-import QuestionSetterExploreQuestions from './Question-setter/question-setter-ExploreQuestions.js';
-import QuestionSetterCreateQuestion from './Question-setter/question-setter-CreateQuestion.js';
-import QuestionSetterCreateCompetition from './Question-setter/question-setter-CreateCompetition.js';
-import QuestionSetterQuestionDetails from './Question-setter/question-setter-QuestionDetails.js';
-import QuestionSetterSubmissionDetails from './Question-setter/question-setter-SubmissionDetails.js';
-import QuestionSetterContest from './Question-setter/question-setter-Contest.js';
-import QuestionSetterContestDetails from './Question-setter/question-setter-ContestDetails.js';
-import QuestionSetterLeaderboard from './Question-setter/question-setter-Leaderboard.js';
-import QuestionSetterProfile from './Question-setter/question-setter-Profile.js';
+import QuestionSetterHomepage from './Question-setter/Question-setter/question-setter-Homepage.js';
+import QuestionSetterExploreQuestions from './Question-setter/Question-setter/question-setter-ExploreQuestions.js';
+import QuestionSetterCreateQuestion from './Question-setter/Question-setter/question-setter-CreateQuestion.js';
+import QuestionSetterCreateCompetition from './Question-setter/Question-setter/question-setter-CreateCompetition.js';
+import QuestionSetterQuestionDetails from './Question-setter/Question-setter/question-setter-QuestionDetails.js';
+import QuestionSetterSubmissionDetails from './Question-setter/Question-setter/question-setter-SubmissionDetails.js';
+import QuestionSetterContest from './Question-setter/Question-setter/question-setter-Contest.js';
+import QuestionSetterContestDetails from './Question-setter/Question-setter/question-setter-ContestDetails.js';
+import QuestionSetterLeaderboard from './Question-setter/Question-setter/question-setter-Leaderboard.js';
+import QuestionSetterProfile from './Question-setter/Question-setter/question-setter-Profile.js';
 
 
 

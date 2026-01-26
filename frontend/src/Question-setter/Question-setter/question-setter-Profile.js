@@ -17,10 +17,10 @@ import {
   Camera 
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
-import '../User_panel/User_Dashboard.css';
+import { auth } from '../../firebase';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
+import '../../User_panel/User_Dashboard.css';
 import './question-setter-Profile.css';
 
 const menuItems = [

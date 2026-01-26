@@ -14,10 +14,10 @@ import {
 import { ChevronLeft, ChevronRight, Trophy, Users, Clock, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
-import '../User_panel/User_Dashboard.css';
+import { auth } from '../../firebase';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
+import '../../User_panel/User_Dashboard.css';
 import './question-setter-Homepage.css';
 
 const qsMenuItems = [

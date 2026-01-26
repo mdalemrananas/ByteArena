@@ -5,9 +5,9 @@ import {
   FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaStar,
   FaChevronLeft, FaChevronRight
 } from 'react-icons/fa';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
-import { practiceSubmissionsService } from '../services/practiceSubmissionsService';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
+import { practiceSubmissionsService } from '../../services/practiceSubmissionsService';
 import './question-setter-QuestionDetails.css';
 import './question-setter-ExploreQuestions.css';
 

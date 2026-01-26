@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../../firebase';
 import {
   FaBars,
   FaBell,
@@ -35,11 +35,11 @@ import {
   FaUser,
   FaUsers as UsersIcon,
 } from 'react-icons/fa';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
-import { getUserByFirebaseUid } from '../services/userService';
-import '../User_panel/User_Dashboard.css';
-import '../User_panel/User_Contest.css';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
+import userService from '../../services/userService';
+import '../../User_panel/User_Dashboard.css';
+import '../../User_panel/User_Contest.css';
 
 const QuestionSetterContest = () => {
   const navigate = useNavigate();
@@ -64,6 +64,7 @@ const QuestionSetterContest = () => {
 
   const handleLogout = async () => {
     try {
+      // eslint-disable-next-line no-undef
       await logoutUser();
       navigate('/');
     } catch (error) {

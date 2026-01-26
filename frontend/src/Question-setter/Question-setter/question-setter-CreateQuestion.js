@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaBars, FaBell, FaCode, FaHome, FaListOl, FaSearch, FaSignOutAlt, FaTrophy, FaUser } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
-import problemSolutionsService from '../services/problemSolutionsService';
-import '../User_panel/User_Dashboard.css';
-import '../User_panel/PracticeProblem.css';
+import { auth } from '../../firebase';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
+import problemSolutionsService from '../../services/problemSolutionsService';
+import '../../User_panel/User_Dashboard.css';
+import '../../User_panel/PracticeProblem.css';
 import './question-setter-ExploreQuestions.css';
 
 const menuItems = [

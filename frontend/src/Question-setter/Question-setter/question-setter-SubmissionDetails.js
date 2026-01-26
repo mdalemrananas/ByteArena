@@ -5,8 +5,8 @@ import {
   FaSignOutAlt, FaTrophy, FaUsers, FaFileAlt, FaComments, FaPlay,
   FaChevronLeft
 } from 'react-icons/fa';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
 import './question-setter-SubmissionDetails.css';
 
 const QuestionSetterSubmissionDetails = () => {

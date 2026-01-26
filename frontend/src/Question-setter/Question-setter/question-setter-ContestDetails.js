@@ -8,9 +8,9 @@ import {
   FaChevronLeft, FaChevronRight, FaEye
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
-import { logoutUser } from '../services/authService';
-import { supabase } from '../services/supabaseClient';
+import { auth } from '../../firebase';
+import { logoutUser } from '../../services/authService';
+import { supabase } from '../../services/supabaseClient';
 import './question-setter-ContestDetails.css';
 
 const QuestionSetterContestDetails = () => {
