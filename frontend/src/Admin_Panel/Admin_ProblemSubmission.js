@@ -61,7 +61,11 @@ const Admin_ProblemSubmission = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
-                setUser(currentUser);
+                setUser({
+                  displayName: currentUser.displayName || 'Admin',
+                  email: currentUser.email,
+                  photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'Admin'}&background=random`
+                });
                 setLoading(false);
             } else {
                 navigate('/');
@@ -227,13 +231,8 @@ const Admin_ProblemSubmission = () => {
                         </div>
                     </div>
                     <div className="ud-topbar-right">
-                        <button className="icon-btn" data-tooltip="Notifications">
-                            <FaBell />
-                            <span className="badge">8</span>
-                        </button>
-                        <button className="icon-btn" data-tooltip="Messages">
-                            <FaCommentAlt />
-                            <span className="badge">2</span>
+                        <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+                            <FaHome />
                         </button>
                         <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
                             <div className="avatar">

@@ -211,9 +211,9 @@ const Admin_Contest = () => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser({
-          displayName: currentUser.displayName || 'User',
+          displayName: currentUser.displayName || 'Admin',
           email: currentUser.email,
-          photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'User'}&background=random`
+          photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'Admin'}&background=random`
         });
         // Fetch contests when user is authenticated
         fetchContests();
@@ -455,7 +455,7 @@ const Admin_Contest = () => {
 
   const handleEditContest = () => {
     if (selectedContest) {
-      navigate(`/admin_contest/${selectedContest.id}/edit`);
+      navigate(`/admin_contest/edit/${selectedContest.id}`);
     }
     handleActionMenuClose();
   };
@@ -611,17 +611,13 @@ const Admin_Contest = () => {
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">8</span>
+            <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+              <FaHome />
             </button>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
-                  <img src={user.photoURL} alt="avatar" onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://ui-avatars.com/api/?name=${user?.displayName || 'Admin'}&background=random`;
-                  }} />
+                  <img src={user.photoURL} alt="avatar" />
                 ) : (
                   <FaUser />
                 )}
@@ -639,7 +635,7 @@ const Admin_Contest = () => {
             <p className="sub">Oversee all contest activities and participant engagement</p>
             <button
               className="primary-btn"
-              onClick={() => navigate('/admin/contests/new')}
+              onClick={() => navigate('/admin_contest/create')}
               style={{ display: 'flex', alignItems: 'center' }}
             >
               <FaPlus style={{ marginRight: '8px' }} />

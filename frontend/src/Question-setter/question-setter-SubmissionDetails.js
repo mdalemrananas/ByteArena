@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaFileAlt, FaComments, FaPlay,
+  FaHome, FaSearch, FaBell, FaQuestionCircle, FaUserCircle,
+  FaSignOutAlt, FaTrophy, FaUsers, FaFileAlt, FaPlay,
   FaChevronLeft
 } from 'react-icons/fa';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './question-setter-SubmissionDetails.css';
 
 const QuestionSetterSubmissionDetails = () => {
@@ -249,28 +249,20 @@ const QuestionSetterSubmissionDetails = () => {
                 type="text" 
                 placeholder="Search Questions, Contest, Leaderboard..." 
                 className="qs-search-input"
+                style={{ backgroundColor: '#fff' }}
               />
             </div>
           </div>
           <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
-            </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
-              <FaBell />
-              <span className="qs-notification-badge">1</span>
-            </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
+            <button className="qs-header-icon-btn" onClick={() => navigate('/')} title="Home">
+              <FaHome />
             </button>
             <button 
-              className="qs-header-icon-btn qs-notification-btn" 
+              className="qs-header-icon-btn" 
               title="Profile"
               onClick={() => navigate('/question-setter/profile')}
             >
               <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
             </button>
           </div>
         </header>
@@ -397,4 +389,3 @@ const QuestionSetterSubmissionDetails = () => {
 };
 
 export default QuestionSetterSubmissionDetails;
-

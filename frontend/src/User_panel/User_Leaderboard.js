@@ -78,6 +78,7 @@ const User_Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
+  const [userScore, setUserScore] = useState(0);
   const [statsData, setStatsData] = useState([]);
 
   // Fetch leaderboard data from Supabase
@@ -229,11 +230,52 @@ const User_Leaderboard = () => {
     }
   };
 
+  const fetchUserScore = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('score')
+        .eq('participate_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user score:', error);
+        // If no leaderboard entry exists, return 0
+        if (error.code === 'PGRST116') {
+          return 0;
+        }
+        throw error;
+      }
+
+      return data?.score || 0;
+    } catch (error) {
+      console.error('Error in fetchUserScore:', error);
+      return 0;
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
+        
+        // Fetch user's Supabase ID and score
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('firebase_uid', currentUser.uid)
+            .single();
+
+          if (!userError && userData) {
+            const score = await fetchUserScore(userData.id);
+            setUserScore(score);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+        
         // Fetch leaderboard data when user is authenticated
         fetchLeaderboardData();
       } else {
@@ -356,13 +398,9 @@ const User_Leaderboard = () => {
             >
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
-              <span>1200.00</span>
+              <span>{userScore.toFixed(2)}</span>
             </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">

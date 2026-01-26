@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaChevronDown,
+  FaHome, FaSearch, FaBell, FaQuestionCircle, FaUserCircle,
+  FaSignOutAlt, FaTrophy, FaUsers, FaChevronDown,
   FaCalendar, FaClock, FaCoins, FaFileAlt, FaAward, FaStar,
   FaCheckCircle, FaTimesCircle, FaChartLine, FaGem, FaMedal,
   FaChevronLeft, FaChevronRight, FaEye
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
+import { auth } from '../firebase';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import './question-setter-ContestDetails.css';
 
 const QuestionSetterContestDetails = () => {
@@ -25,6 +25,9 @@ const QuestionSetterContestDetails = () => {
   const [leaderboardSearch, setLeaderboardSearch] = useState('');
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [contestQuestions, setContestQuestions] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [overviewView, setOverviewView] = useState('description'); // 'description' | 'cards'
 
   useEffect(() => {
     const loadContest = async () => {
@@ -60,6 +63,33 @@ const QuestionSetterContestDetails = () => {
       loadLeaderboard();
     }
   }, [activeTab, contestId]);
+
+  useEffect(() => {
+    if (activeTab === 'Overview' && contestId) {
+      loadContestQuestions();
+    }
+  }, [activeTab, contestId]);
+
+  const loadContestQuestions = async () => {
+    if (!contestId) return;
+    setQuestionsLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('contest_questions')
+        .select('*')
+        .eq('contest_id', contestId)
+        .order('question_created_at', { ascending: true });
+
+      if (error) throw error;
+      setContestQuestions(data || []);
+    } catch (error) {
+      console.error('Error loading contest questions:', error);
+      setContestQuestions([]);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
 
   const loadSubmissions = async () => {
     if (!contestId) return;
@@ -346,28 +376,20 @@ const QuestionSetterContestDetails = () => {
                 type="text" 
                 placeholder="Search Questions, Contest, Leaderboard..." 
                 className="qs-search-input"
+                style={{ backgroundColor: '#fff' }}
               />
             </div>
           </div>
           <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
-            </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
-              <FaBell />
-              <span className="qs-notification-badge">1</span>
-            </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
+            <button className="qs-header-icon-btn" onClick={() => navigate('/')} title="Home">
+              <FaHome />
             </button>
             <button 
-              className="qs-header-icon-btn qs-notification-btn" 
+              className="qs-header-icon-btn" 
               title="Profile"
               onClick={() => navigate('/question-setter/profile')}
             >
               <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
             </button>
           </div>
         </header>
@@ -445,10 +467,110 @@ const QuestionSetterContestDetails = () => {
             {activeTab === 'Overview' && (
               <div className="qs-contest-overview">
                 <div className="qs-contest-overview-left">
+                  <div className="qs-overview-view-toggle" style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className={`qs-view-toggle-btn ${overviewView === 'description' ? 'active' : ''}`}
+                      onClick={() => setOverviewView('description')}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        background: overviewView === 'description' ? '#1e40af' : '#fff',
+                        color: overviewView === 'description' ? '#fff' : '#475569',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Description
+                    </button>
+                    <button
+                      type="button"
+                      className={`qs-view-toggle-btn ${overviewView === 'cards' ? 'active' : ''}`}
+                      onClick={() => setOverviewView('cards')}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        background: overviewView === 'cards' ? '#1e40af' : '#fff',
+                        color: overviewView === 'cards' ? '#fff' : '#475569',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      View question
+                    </button>
+                  </div>
+
+                  {overviewView === 'description' && (
+                    <section className="qs-about-section">
+                      <h2 className="qs-section-heading">About the Contest</h2>
+                      <p className="qs-section-text">{contest.description || 'No description available.'}</p>
+                    </section>
+                  )}
+
+                  {overviewView === 'cards' && (
                   <section className="qs-about-section">
-                    <h2 className="qs-section-heading">About the Contest</h2>
-                    <p className="qs-section-text">{contest.description || 'No description available.'}</p>
+                    <h2 className="qs-section-heading">Contest Questions</h2>
+                    {questionsLoading ? (
+                      <p className="qs-section-text">Loading questions...</p>
+                    ) : contestQuestions.length === 0 ? (
+                      <p className="qs-section-text">No questions added yet.</p>
+                    ) : (
+                      <div className="qs-questions-card-grid" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {contestQuestions.map((question, index) => (
+                          <div
+                            key={question.id}
+                            style={{
+                              padding: '20px',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              backgroundColor: '#f8fafc'
+                            }}
+                          >
+                            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                              Question {index + 1}: {question.question_title}
+                            </h3>
+                            <div style={{ marginBottom: '12px' }}>
+                              <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#475569' }}>Description:</p>
+                              <pre style={{ margin: 0, padding: '12px', backgroundColor: '#fff', borderRadius: '4px', fontSize: '13px', color: '#64748b', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                {question.question_description}
+                              </pre>
+                            </div>
+                            <div style={{ marginBottom: '12px' }}>
+                              <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#475569' }}>Input:</p>
+                              <pre style={{ margin: 0, padding: '12px', backgroundColor: '#fff', borderRadius: '4px', fontSize: '13px', color: '#64748b', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                {question.question_input}
+                              </pre>
+                            </div>
+                            <div style={{ marginBottom: '12px' }}>
+                              <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#475569' }}>Output:</p>
+                              <pre style={{ margin: 0, padding: '12px', backgroundColor: '#fff', borderRadius: '4px', fontSize: '13px', color: '#64748b', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                {question.question_output}
+                              </pre>
+                            </div>
+                            {question.question_sample_input && (
+                              <div style={{ marginBottom: '12px' }}>
+                                <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#475569' }}>Sample Input:</p>
+                                <pre style={{ margin: 0, padding: '12px', backgroundColor: '#fff', borderRadius: '4px', fontSize: '13px', color: '#64748b', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                  {question.question_sample_input}
+                                </pre>
+                              </div>
+                            )}
+                            {question.question_sample_output && (
+                              <div>
+                                <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#475569' }}>Sample Output:</p>
+                                <pre style={{ margin: 0, padding: '12px', backgroundColor: '#fff', borderRadius: '4px', fontSize: '13px', color: '#64748b', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                  {question.question_sample_output}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </section>
+                  )}
                 </div>
 
                 <div className="qs-contest-overview-right">

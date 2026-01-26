@@ -5,6 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import problemSolutionsService from '../services/problemSolutionsService';
 import { practiceProblemsService } from '../services/practiceProblemsService';
+import { supabase } from '../services/supabaseClient';
 import './Editorial.css';
 
 const Editorial = () => {
@@ -16,6 +17,7 @@ const Editorial = () => {
     const [solutionLoading, setSolutionLoading] = useState(true);
     const [problem, setProblem] = useState(null);
     const [currentProblemId, setCurrentProblemId] = useState(null);
+    const [userScore, setUserScore] = useState(0);
     const { problemId } = useParams();
     const navigate = useNavigate();
     const location = window.location;
@@ -121,9 +123,52 @@ const Editorial = () => {
         setSolutionLoading(false);
     };
 
+    const fetchUserScore = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('leaderboard')
+                .select('score')
+                .eq('participate_id', userId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching user score:', error);
+                // If no leaderboard entry exists, return 0
+                if (error.code === 'PGRST116') {
+                    return 0;
+                }
+                throw error;
+            }
+
+            return data?.score || 0;
+        } catch (error) {
+            console.error('Error in fetchUserScore:', error);
+            return 0;
+        }
+    };
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            
+            if (currentUser) {
+                // Fetch user's Supabase ID and score
+                try {
+                    const { data: userData, error: userError } = await supabase
+                        .from('users')
+                        .select('id')
+                        .eq('firebase_uid', currentUser.uid)
+                        .single();
+
+                    if (!userError && userData) {
+                        const score = await fetchUserScore(userData.id);
+                        setUserScore(score);
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                }
+            }
+            
             setLoading(false);
         });
 
@@ -285,17 +330,9 @@ const Editorial = () => {
                         >
                             <FaHome />
                         </button>
-                        <button className="icon-btn" data-tooltip="Notifications">
-                            <FaBell />
-                            <span className="badge">4</span>
-                        </button>
-                        <button className="icon-btn" data-tooltip="Messages">
-                            <FaCommentAlt />
-                            <span className="badge">2</span>
-                        </button>
                         <div className="balance" data-tooltip="Reward Coins">
                             <FaCoins className="balance-icon" />
-                            <span>1200.00</span>
+                            <span>{userScore.toFixed(2)}</span>
                         </div>
                         <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
                             <div className="avatar">

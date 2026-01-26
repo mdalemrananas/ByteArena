@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  FaHome, FaSearch, FaBell, FaCog, FaQuestionCircle, FaUserCircle,
-  FaSignOutAlt, FaTrophy, FaUsers, FaComments, FaStar,
+  FaHome, FaSearch, FaBell, FaQuestionCircle, FaUserCircle,
+  FaSignOutAlt, FaTrophy, FaUsers, FaStar,
   FaChevronLeft, FaChevronRight
 } from 'react-icons/fa';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import { practiceSubmissionsService } from '../../services/practiceSubmissionsService';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { practiceSubmissionsService } from '../services/practiceSubmissionsService';
 import './question-setter-QuestionDetails.css';
 import './question-setter-ExploreQuestions.css';
 
@@ -264,28 +264,20 @@ const QuestionSetterQuestionDetails = () => {
                 type="text" 
                 placeholder="Search Questions, Contest, Leaderboard..." 
                 className="qs-search-input"
+                style={{ backgroundColor: '#fff' }}
               />
             </div>
           </div>
           <div className="qs-header-right">
-            <button className="qs-header-icon-btn qs-notification-btn" title="Messages">
-              <FaComments />
-              <span className="qs-notification-badge">2</span>
-            </button>
-            <button className="qs-header-icon-btn qs-notification-btn" title="Notifications">
-              <FaBell />
-              <span className="qs-notification-badge">1</span>
-            </button>
-            <button className="qs-header-icon-btn" title="Settings">
-              <FaCog />
+            <button className="qs-header-icon-btn" onClick={() => navigate('/')} title="Home">
+              <FaHome />
             </button>
             <button 
-              className="qs-header-icon-btn qs-notification-btn" 
+              className="qs-header-icon-btn" 
               title="Profile"
               onClick={() => navigate('/question-setter/profile')}
             >
               <FaUserCircle />
-              <span className="qs-notification-badge">3</span>
             </button>
           </div>
         </header>

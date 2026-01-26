@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { auth } from '../firebase';
 import {
   FaBars,
   FaBell,
@@ -35,11 +35,11 @@ import {
   FaUser,
   FaUsers as UsersIcon,
 } from 'react-icons/fa';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import userService from '../../services/userService';
-import '../../User_panel/User_Dashboard.css';
-import '../../User_panel/User_Contest.css';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { getUserByFirebaseUid } from '../services/userService';
+import '../User_panel/User_Dashboard.css';
+import '../User_panel/User_Contest.css';
 
 const QuestionSetterContest = () => {
   const navigate = useNavigate();
@@ -64,7 +64,6 @@ const QuestionSetterContest = () => {
 
   const handleLogout = async () => {
     try {
-      // eslint-disable-next-line no-undef
       await logoutUser();
       navigate('/');
     } catch (error) {
@@ -218,13 +217,34 @@ const QuestionSetterContest = () => {
     return contestCreatedBy === userId;
   };
 
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return '#4CAF50';
+      case 'pending':
+        return '#FFA000';
+      case 'rejected':
+        return '#F44336';
+      default:
+        return '#9E9E9E';
+    }
+  };
+
   const filteredContests = useMemo(() => {
     const now = new Date();
-    const activeAndUpcoming = contests.filter((c) => new Date(c.registration_end) > now);
+    let filtered = [...contests];
+    
     if (contestView === 'My Contests') {
-      return activeAndUpcoming.filter((c) => isMyContest(c));
+      // Show all contests created by the user, regardless of status
+      filtered = filtered.filter((c) => isMyContest(c));
+    } else {
+      // For 'All Contests', only show approved contests that are active/upcoming
+      filtered = filtered.filter(
+        (c) => c.status?.toLowerCase() === 'approved' && new Date(c.registration_end) > now
+      );
     }
-    return activeAndUpcoming;
+    
+    return filtered;
   }, [contests, contestView, currentUserId]);
 
   const handleOpenMenu = (event, contest) => {
@@ -307,7 +327,6 @@ const QuestionSetterContest = () => {
             { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
             { key: 'contest', name: 'Contest', icon: <TrophyIcon className="menu-icon" /> },
             { key: 'leaderboard', name: 'Leaderboard', icon: <UsersIcon className="menu-icon" /> },
-            { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
             { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
           ].map((item) => (
             <button
@@ -322,7 +341,6 @@ const QuestionSetterContest = () => {
                 if (item.key === 'practice') navigate('/question-setter/explore');
                 if (item.key === 'contest') navigate('/question-setter/contest');
                 if (item.key === 'leaderboard') navigate('/question-setter/leaderboard');
-                if (item.key === 'profile') navigate('/question-setter/profile');
               }}
             >
               <span className="icon" style={{ marginRight: '12px' }}>
@@ -354,10 +372,6 @@ const QuestionSetterContest = () => {
           <div className="ud-topbar-right">
             <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
               <FaHome />
-            </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
             </button>
             <div
               className="profile"
@@ -674,10 +688,20 @@ const QuestionSetterContest = () => {
                                   </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <CoinsIcon style={{ fontSize: 14, color: '#666' }} />
-                                  <Typography variant="body2" color="text.secondary">
-                                    ${contest.prize_money || 0} prize
-                                  </Typography>
+                                  <Chip
+                                    label={contest.status || 'pending'}
+                                    size="small"
+                                    sx={{
+                                      backgroundColor: getStatusColor(contest.status),
+                                      color: 'white',
+                                      fontWeight: 'bold',
+                                      fontSize: '10px',
+                                      height: '20px',
+                                      '& .MuiChip-label': {
+                                        px: 0.5,
+                                      },
+                                    }}
+                                  />
                                 </Box>
                               </Box>
                             </Box>
@@ -782,9 +806,18 @@ const QuestionSetterContest = () => {
           <MenuItem onClick={() => handleView(menuContest?.id)}>View</MenuItem>
           {menuContest && isMyContest(menuContest) && (
             <>
-              <MenuItem onClick={() => handleEdit(menuContest.id)}>Edit</MenuItem>
-              <MenuItem onClick={() => handleAskDelete(menuContest)} sx={{ color: '#dc2626' }}>
-                Delete
+              {menuContest.status?.toLowerCase() !== 'approved' && (
+                <MenuItem onClick={() => handleEdit(menuContest.id)}>Edit</MenuItem>
+              )}
+              {menuContest.status?.toLowerCase() === 'approved' && (
+                <MenuItem disabled>Edit (Not allowed for approved contests)</MenuItem>
+              )}
+              <MenuItem 
+                onClick={() => handleAskDelete(menuContest)} 
+                sx={{ color: '#dc2626' }}
+                disabled={menuContest.status?.toLowerCase() === 'approved'}
+              >
+                {menuContest.status?.toLowerCase() === 'approved' ? 'Delete (Not allowed for approved contests)' : 'Delete'}
               </MenuItem>
             </>
           )}

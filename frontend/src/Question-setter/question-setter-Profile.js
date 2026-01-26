@@ -17,10 +17,10 @@ import {
   Camera 
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import '../../User_panel/User_Dashboard.css';
+import { auth } from '../firebase';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
 import './question-setter-Profile.css';
 
 const menuItems = [
@@ -28,7 +28,6 @@ const menuItems = [
   { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -49,13 +48,13 @@ const AccountSettings = ({ user, userData, onClose, onSave }) => {
 
   const tabs = [
     'Profile',
-    'Security',
-    'Notifications',
-    'Privacy',
-    'Appearance',
-    'Quiz Preferences',
-    'Connected Accounts',
-    'Subscription'
+    // 'Security',
+    // 'Notifications',
+    // 'Privacy',
+    // 'Appearance',
+    // 'Quiz Preferences',
+    // 'Connected Accounts',
+    // 'Subscription'
   ];
 
   const handleInputChange = (field) => (e) => {
@@ -404,13 +403,13 @@ const AccountSettings = ({ user, userData, onClose, onSave }) => {
   );
 };
 
-const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile }) => {
+const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile, contestsCreated, questionsCreated, contestsCount, questionsCount, navigate, onQuestionCreatedTabSelect }) => {
   const activities = [
     {
       icon: <FaCheckCircle style={{ color: '#10b981', fontSize: '20px' }} />,
-      text: "Completed 'World History Trivia' with a score of 95%",
+      text: "Created new Contest",
       date: "May 1, 08:30 PM"
-    },
+    }/*
     {
       icon: <FaTrophyIcon style={{ color: '#f59e0b', fontSize: '20px' }} />,
       text: "Earned the 'Quiz Wizard' achievement",
@@ -420,7 +419,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
       icon: <TrendingUp style={{ color: '#3b82f6', fontSize: '20px' }} />,
       text: "Reached level 42",
       date: "Apr 25, 10:45 PM"
-    }
+    }*/
   ];
 
   const achievements = [
@@ -468,18 +467,13 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
               <span className="qs-verified-badge">
                 <Check style={{ width: '12px', height: '12px', color: 'white' }} />
               </span>
-              <span className="qs-level-badge">
-                <span style={{ color: '#fde047' }}>★</span> Level 42
-              </span>
             </div>
             <p className="qs-profile-username">@{user?.displayName?.toLowerCase().replace(/\s+/g, '') || 'alexjohnson'}</p>
             <p className="qs-profile-location">📍 {userData.location || 'United States'} • 📅 Joined {user?.joinedDate || 'March 15, 2022'}</p>
             <p className="qs-profile-bio">{userData.bio || 'Quiz enthusiast and knowledge seeker. I love challenging myself with difficult quizzes!'}</p>
             <div className="qs-profile-stats">
-              <span><strong>187</strong> Quizzes Taken</span>
-              <span><strong>15</strong> Quizzes Created</span>
-              <span><strong>1,243</strong> Followers</span>
-              <span><strong>356</strong> Following</span>
+              <span><strong>{contestsCount}</strong> Contest Created</span>
+              <span><strong>{questionsCount}</strong> Question Created</span>
             </div>
           </div>
           <div className="qs-profile-actions">
@@ -489,18 +483,18 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
             >
               <span>✏️</span> Edit Profile
             </button>
-            <button className="qs-message-btn">
-              <span>💬</span> Message
-            </button>
           </div>
         </div>
       </div>
 
       <div className="qs-profile-tabs">
-        {['Activity', 'Quizzes Taken', 'Created Quizzes', 'Followers', 'Following'].map((tab, index) => (
+        {['Activity', 'Contest Created', 'Question Created'].map((tab, index) => (
           <button
             key={tab}
-            onClick={() => setTabValue(index)}
+            onClick={() => {
+              setTabValue(index);
+              if (index === 2 && onQuestionCreatedTabSelect) onQuestionCreatedTabSelect();
+            }}
             className={`qs-profile-tab ${tabValue === index ? 'active' : ''}`}
           >
             {tab}
@@ -509,111 +503,78 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
       </div>
 
       <div className="qs-profile-content-grid">
-        <div className="qs-profile-content-left">
-          <div className="qs-activity-card">
-            {activities.map((activity, index) => (
-              <div key={index} className="qs-activity-item">
-                <div className="qs-activity-icon">{activity.icon}</div>
-                <div className="qs-activity-text">
-                  <p className="qs-activity-title">{activity.text}</p>
-                  <p className="qs-activity-date">{activity.date}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="qs-profile-content-right">
-          <div className="qs-stats-card">
-            <h2>Stats & Performance</h2>
-            
-            <div className="qs-stats-grid">
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <Target style={{ width: '18px', height: '18px' }} /> Average Score
-                </p>
-                <p className="qs-stat-value">87.5%</p>
-              </div>
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <Trophy style={{ width: '18px', height: '18px' }} /> Win Rate
-                </p>
-                <p className="qs-stat-value">78%</p>
-              </div>
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <TrendingUp style={{ width: '18px', height: '18px' }} /> Current Streak
-                </p>
-                <p className="qs-stat-value">5 quizzes</p>
-              </div>
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <TrendingUp style={{ width: '18px', height: '18px' }} /> Highest Streak
-                </p>
-                <p className="qs-stat-value">12 quizzes</p>
-              </div>
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <Clock style={{ width: '18px', height: '18px' }} /> Time Played
-                </p>
-                <p className="qs-stat-value">11h 50m</p>
-              </div>
-              <div className="qs-stat-item">
-                <p className="qs-stat-label">
-                  <Check style={{ width: '18px', height: '18px' }} /> Completion Rate
-                </p>
-                <p className="qs-stat-value">94%</p>
-              </div>
-            </div>
-
-            <div className="qs-category-stats">
-              <div className="qs-category-stat-row">
-                <span className="qs-category-label">
-                  <span style={{ color: '#f59e0b' }}>⭐</span> Best Category
-                </span>
-                <span className="qs-category-value">History</span>
-              </div>
-              <div className="qs-category-stat-row">
-                <span className="qs-category-label">
-                  <span style={{ color: '#3b82f6' }}>💙</span> Favorite Category
-                </span>
-                <span className="qs-category-value">Science</span>
-              </div>
-              <div className="qs-category-stat-row">
-                <span className="qs-category-label">Weakest Category</span>
-                <span className="qs-category-value">Sports</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="qs-achievements-card">
-            <h2>Achievements</h2>
-            <div className="qs-achievements-list">
-              {achievements.map((achievement, index) => (
-                <div key={index} className="qs-achievement-item">
-                  <div className="qs-achievement-icon-box">
-                    {achievement.icon}
-                  </div>
-                  <div className="qs-achievement-content">
-                    <div className="qs-achievement-header">
-                      <h3>{achievement.title}</h3>
-                      <span 
-                        className="qs-achievement-badge"
-                        style={{
-                          backgroundColor: achievement.badgeColor,
-                          color: achievement.textColor
-                        }}
-                      >
-                        {achievement.badge}
-                      </span>
-                    </div>
-                    <p className="qs-achievement-description">{achievement.description}</p>
-                    <p className="qs-achievement-date">{achievement.date}</p>
+        <div className="qs-profile-content-left" style={{ width: '100%' }}>
+          {tabValue === 0 && (
+            <div className="qs-activity-card">
+              {activities.map((activity, index) => (
+                <div key={index} className="qs-activity-item">
+                  <div className="qs-activity-icon">{activity.icon}</div>
+                  <div className="qs-activity-text">
+                    <p className="qs-activity-title">{activity.text}</p>
+                    <p className="qs-activity-date">{activity.date}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+
+          {tabValue === 1 && (
+            <div className="qs-activity-card">
+              {contestsCreated.length === 0 ? (
+                <p style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No contests created yet.</p>
+              ) : (
+                contestsCreated.map((contest) => (
+                  <div 
+                    key={contest.id} 
+                    className="qs-activity-item"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/question-setter/contest/${contest.id}`)}
+                  >
+                    <div className="qs-activity-icon">
+                      <FaTrophyIcon style={{ color: '#f59e0b', fontSize: '20px' }} />
+                    </div>
+                    <div className="qs-activity-text">
+                      <p className="qs-activity-title">{contest.title}</p>
+                      <p className="qs-activity-date">
+                        Created: {new Date(contest.contest_created_at).toLocaleDateString()} • 
+                        Participants: {contest.total_register || 0} • 
+                        Prize: ${contest.prize_money || 0}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {tabValue === 2 && (
+            <div className="qs-activity-card">
+              {questionsCreated.length === 0 ? (
+                <p style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No questions created yet.</p>
+              ) : (
+                questionsCreated.map((question) => (
+                  <div 
+                    key={question.problem_id} 
+                    className="qs-activity-item"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/question-setter/question/${question.problem_id}`)}
+                  >
+                    <div className="qs-activity-icon">
+                      <FaCode style={{ color: '#3b82f6', fontSize: '20px' }} />
+                    </div>
+                    <div className="qs-activity-text">
+                      <p className="qs-activity-title">{question.problem_title}</p>
+                      <p className="qs-activity-date">
+                        Difficulty: {question.difficulty} • 
+                        Language: {question.problem_language} • 
+                        Points: {question.points || 0}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -642,6 +603,11 @@ const QuestionSetterProfile = () => {
     website: 'alexjohnson.dev',
     skills: ['JavaScript', 'React', 'Node.js', 'Python', 'DSA']
   });
+  const [contestsCreated, setContestsCreated] = useState([]);
+  const [questionsCreated, setQuestionsCreated] = useState([]);
+  const [contestsCount, setContestsCount] = useState(0);
+  const [questionsCount, setQuestionsCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -681,6 +647,8 @@ const QuestionSetterProfile = () => {
               displayName: supabaseUserData.display_name || prev.displayName,
               photoURL: supabaseUserData.avatar_url || prev.photoURL
             }));
+
+            setCurrentUserId(supabaseUserData.id);
           }
         } catch (error) {
           console.error('Error loading user data:', error);
@@ -694,6 +662,66 @@ const QuestionSetterProfile = () => {
     
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      fetchContestsCreated();
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    const name = userData.name || user?.displayName || (user?.email && user.email.split('@')[0]);
+    if (name) {
+      fetchQuestionsCreated();
+    }
+  }, [userData.name, user?.displayName, user?.email]);
+
+  const fetchContestsCreated = async () => {
+    if (!currentUserId) return;
+    try {
+      const { data, error } = await supabase
+        .from('contests')
+        .select('*')
+        .eq('created_by', currentUserId)
+        .order('contest_created_at', { ascending: false });
+
+      if (error) throw error;
+      setContestsCreated(data || []);
+      setContestsCount(data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching contests:', error);
+    }
+  };
+
+  const fetchQuestionsCreated = async () => {
+    const possibleNames = [
+      userData.name,
+      user?.displayName,
+      user?.email && user.email.split('@')[0],
+    ].filter(Boolean);
+    if (possibleNames.length === 0) return;
+    try {
+      const { data, error } = await supabase
+        .from('practice_problem')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const filtered = (data || []).filter((p) =>
+        possibleNames.some(
+          (name) =>
+            name &&
+            (p.problemsetter_name === name ||
+              (p.problemsetter_name && p.problemsetter_name.trim().toLowerCase() === String(name).trim().toLowerCase()))
+        )
+      );
+      setQuestionsCreated(filtered);
+      setQuestionsCount(filtered.length);
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -808,8 +836,6 @@ const QuestionSetterProfile = () => {
                     navigate('/question-setter/explore');
                   } else if (item.key === 'leaderboard') {
                     navigate('/question-setter/leaderboard');
-                  } else if (item.key === 'profile') {
-                    navigate('/question-setter/profile');
                   }
                 }
               }}
@@ -840,10 +866,6 @@ const QuestionSetterProfile = () => {
             <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             <div
               className="profile"
               onClick={() => navigate('/question-setter/profile')}
@@ -868,7 +890,13 @@ const QuestionSetterProfile = () => {
             userData={userData} 
             tabValue={tabValue} 
             setTabValue={setTabValue} 
-            handleEditProfile={handleEditProfile} 
+            handleEditProfile={handleEditProfile}
+            contestsCreated={contestsCreated}
+            questionsCreated={questionsCreated}
+            contestsCount={contestsCount}
+            questionsCount={questionsCount}
+            navigate={navigate}
+            onQuestionCreatedTabSelect={fetchQuestionsCreated}
           />
         </div>
 

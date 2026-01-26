@@ -44,17 +44,16 @@ import {
   FaUser,
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import '../../User_panel/User_Dashboard.css';
+import { auth } from '../firebase';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
 
 const menuItems = [
   { key: 'home', name: 'Home', icon: <FaHome className="menu-icon" /> },
   { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -274,8 +273,6 @@ const QuestionSetterLeaderboard = () => {
                     navigate('/question-setter/explore');
                   } else if (item.key === 'leaderboard') {
                     navigate('/question-setter/leaderboard');
-                  } else if (item.key === 'profile') {
-                    navigate('/question-setter/profile');
                   }
                 }
               }}
@@ -309,10 +306,6 @@ const QuestionSetterLeaderboard = () => {
               data-tooltip="Home"
             >
               <FaHome />
-            </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
             </button>
             <div className="profile" onClick={() => navigate('/question-setter/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">

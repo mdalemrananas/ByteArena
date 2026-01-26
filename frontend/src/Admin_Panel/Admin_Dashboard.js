@@ -93,7 +93,11 @@ function AdminDashboard() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        setUser(currentUser);
+        setUser({
+          displayName: currentUser.displayName || 'Admin',
+          email: currentUser.email,
+          photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'Admin'}&background=random`
+        });
         setLoading(false);
       } else {
         navigate('/');
@@ -112,6 +116,7 @@ function AdminDashboard() {
         const { data, error } = await supabase
           .from('contests')
           .select('*')
+          .eq('status', 'approved')
           .order('contest_created_at', { ascending: false });
         
         if (error) {
@@ -146,6 +151,7 @@ function AdminDashboard() {
         const { data, error } = await supabase
           .from('practice_problem')
           .select('*')
+          .eq('admin_status', 'approved')
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -284,9 +290,8 @@ function AdminDashboard() {
             </div>
           </div>
           <div className="ud-topbar-right">
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">8</span>
+            <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
+              <FaHome />
             </button>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">

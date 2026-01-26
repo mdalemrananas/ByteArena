@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
   FaBars,
-  FaBell,
   FaCode,
   FaHome,
   FaListOl,
@@ -14,10 +13,10 @@ import {
 import { ChevronLeft, ChevronRight, Trophy, Users, Clock, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import '../../User_panel/User_Dashboard.css';
+import { auth } from '../firebase';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import '../User_panel/User_Dashboard.css';
 import './question-setter-Homepage.css';
 
 const qsMenuItems = [
@@ -25,7 +24,6 @@ const qsMenuItems = [
   { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -95,6 +93,7 @@ function QuestionSetterHomepage() {
         const { data, error } = await supabase
           .from('contests')
           .select('*')
+          .eq('status', 'approved')
           .order('contest_created_at', { ascending: false });
 
         if (error) {
@@ -127,6 +126,7 @@ function QuestionSetterHomepage() {
         const { data, error } = await supabase
           .from('practice_problem')
           .select('*')
+          .eq('admin_status', 'approved')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -290,8 +290,6 @@ function QuestionSetterHomepage() {
                     navigate('/question-setter/explore');
                   } else if (item.key === 'leaderboard') {
                     navigate('/question-setter/leaderboard');
-                  } else if (item.key === 'profile') {
-                    navigate('/question-setter/profile');
                   }
                 }
               }}
@@ -332,10 +330,6 @@ function QuestionSetterHomepage() {
               data-tooltip="Home"
           >
               <FaHome />
-          </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
           </button>
             <div
               className="profile"

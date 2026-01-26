@@ -24,16 +24,16 @@ import Editorial from './User_panel/Editorial.js';
 import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
 
 //Question Setter Panel
-import QuestionSetterHomepage from './Question-setter/Question-setter/question-setter-Homepage.js';
-import QuestionSetterExploreQuestions from './Question-setter/Question-setter/question-setter-ExploreQuestions.js';
-import QuestionSetterCreateQuestion from './Question-setter/Question-setter/question-setter-CreateQuestion.js';
-import QuestionSetterCreateCompetition from './Question-setter/Question-setter/question-setter-CreateCompetition.js';
-import QuestionSetterQuestionDetails from './Question-setter/Question-setter/question-setter-QuestionDetails.js';
-import QuestionSetterSubmissionDetails from './Question-setter/Question-setter/question-setter-SubmissionDetails.js';
-import QuestionSetterContest from './Question-setter/Question-setter/question-setter-Contest.js';
-import QuestionSetterContestDetails from './Question-setter/Question-setter/question-setter-ContestDetails.js';
-import QuestionSetterLeaderboard from './Question-setter/Question-setter/question-setter-Leaderboard.js';
-import QuestionSetterProfile from './Question-setter/Question-setter/question-setter-Profile.js';
+import QuestionSetterHomepage from './Question-setter/question-setter-Homepage.js';
+import QuestionSetterExploreQuestions from './Question-setter/question-setter-ExploreQuestions.js';
+import QuestionSetterCreateQuestion from './Question-setter/question-setter-CreateQuestion.js';
+import QuestionSetterCreateCompetition from './Question-setter/question-setter-CreateCompetition.js';
+import QuestionSetterQuestionDetails from './Question-setter/question-setter-QuestionDetails.js';
+import QuestionSetterSubmissionDetails from './Question-setter/question-setter-SubmissionDetails.js';
+import QuestionSetterContest from './Question-setter/question-setter-Contest.js';
+import QuestionSetterContestDetails from './Question-setter/question-setter-ContestDetails.js';
+import QuestionSetterLeaderboard from './Question-setter/question-setter-Leaderboard.js';
+import QuestionSetterProfile from './Question-setter/question-setter-Profile.js';
 
 
 
@@ -41,6 +41,8 @@ import QuestionSetterProfile from './Question-setter/Question-setter/question-se
 import AdminDashboard from './Admin_Panel/Admin_Dashboard.js';
 import Admin_Leaderboard from './Admin_Panel/Admin_Leaderboard.js';
 import Admin_Contest from './Admin_Panel/Admin_Contest.js';
+import Admin_Contest_Create from './Admin_Panel/Admin_Contest_Create.js';
+import Admin_Contest_Edit from './Admin_Panel/Admin_Contest_Edit.js';
 import Admin_Contest_Details from './Admin_Panel/Admin_Contest_Details.js';
 import Admin_Contest_ViewCode from './Admin_Panel/Admin_Contest_View Code.js';
 import UserManagement from './Admin_Panel/UserManagement.js';
@@ -231,6 +233,10 @@ const AppContent = () => {
         <Route path="/admin_dashboard" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_users" element={<RoleBasedRoute allowedRoles={['admin']}><UserManagement /></RoleBasedRoute>} />
         <Route path="/admin_contests" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
+        <Route path="/admin_contest/create" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Create /></RoleBasedRoute>} />
+        <Route path="/admin_contest/edit/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Edit /></RoleBasedRoute>} />
+        <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Details /></RoleBasedRoute>} />
+        <Route path="/admin_contest/:contestId/code/:userId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_ViewCode /></RoleBasedRoute>} />
         <Route path="/admin_problems" element={<RoleBasedRoute allowedRoles={['admin']}><ApproveProblem /></RoleBasedRoute>} />
         <Route path="/admin_problems/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_ViewProblem /></RoleBasedRoute>} />
         <Route path="/admin_submissions/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_ProblemSubmission /></RoleBasedRoute>} />
@@ -238,11 +244,7 @@ const AppContent = () => {
         <Route path="/admin/leaderboard/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_IndividualLeaderboard /></RoleBasedRoute>} />
         <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
-        <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Details /></RoleBasedRoute>} />
         <Route path="/admin_leaderboard" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Leaderboard /></RoleBasedRoute>} />
-        <Route path="/admin_contest" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
-        <Route path="/admin_contest/:contestId/code/:userId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_ViewCode /></RoleBasedRoute>} />
-        {/*<Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />*/}
       </Routes>
     </>
   );

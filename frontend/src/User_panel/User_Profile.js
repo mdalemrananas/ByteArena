@@ -106,13 +106,13 @@ const AccountSettings = ({ user, userData, onClose, onSave }) => {
 
   const tabs = [
     'Profile',
-    'Security',
-    'Notifications',
-    'Privacy',
-    'Appearance',
-    'Quiz Preferences',
-    'Connected Accounts',
-    'Subscription'
+    // 'Security',
+    // 'Notifications',
+    // 'Privacy',
+    //'Appearance',
+    //'Quiz Preferences',
+    //'Connected Accounts',
+    //'Subscription'
   ];
 
   const handleInputChange = (field) => (e) => {
@@ -1129,54 +1129,30 @@ const fetchUserContestStats = async (userId) => {
   }
 };
 
-const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile, contestStats }) => {
-  const activities = [
-    {
-      icon: <FaCheckCircle style={{ color: '#10b981', fontSize: '20px' }} />,
-      text: "Completed 'World History Trivia' with a score of 95%",
-      date: "May 1, 08:30 PM"
-    },
-    {
-      icon: <FaTrophyIcon style={{ color: '#f59e0b', fontSize: '20px' }} />,
-      text: "Earned the 'Problem Solving Wizard' achievement",
-      date: "Apr 28, 03:15 PM"
-    },
-    {
-      icon: <TrendingUp style={{ color: '#3b82f6', fontSize: '20px' }} />,
-      text: "Reached level 42",
-      date: "Apr 25, 10:45 PM"
+const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfile, contestStats, solvedProblems, activities, userScore }) => {
+  
+  const formatActivityDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInHours / 24);
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
     }
-  ];
-
-  const achievements = [
-    {
-      icon: <FaTrophyIcon style={{ color: '#a855f7', fontSize: '24px' }} />,
-      title: "Quiz Master",
-      badge: "Epic",
-      badgeColor: "#f3e8ff",
-      textColor: "#7c3aed",
-      description: "Complete 100 quizzes with a score of 80% or higher",
-      date: "Earned on 1/20/2023"
-    },
-    {
-      icon: <Award style={{ color: '#10b981', width: '24px', height: '24px' }} />,
-      title: "Knowledge Seeker",
-      badge: "Uncommon",
-      badgeColor: "#dcfce7",
-      textColor: "#16a34a",
-      description: "Complete quizzes in 10 different categories",
-      date: "Earned on 11/5/2022"
-    },
-    {
-      icon: <Target style={{ color: '#3b82f6', width: '24px', height: '24px' }} />,
-      title: "Perfect Score",
-      badge: "Rare",
-      badgeColor: "#dbeafe",
-      textColor: "#2563eb",
-      description: "Achieve 100% on a difficult quiz",
-      date: "Earned on 4/12/2023"
-    }
-  ];
+  };
 
   return (
     <>
@@ -1229,7 +1205,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                 gap: '0.25rem',
                 marginLeft: '0.5rem'
               }}>
-                <span style={{ color: '#fde047' }}>★</span> Level 42
+                <span style={{ color: '#fde047' }}>★</span> Level {userData.level || 1}
               </span>
             </div>
             <p style={{ color: '#4b5563', margin: '0 0 0.25rem 0' }}>
@@ -1243,16 +1219,12 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
             </p>
             <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
               <span style={{ color: '#374151' }}>
-                <strong style={{ color: '#111827' }}>187</strong> Problem Solve
+                <strong style={{ color: '#111827' }}>
+                  {(solvedProblems?.contestProblems?.length || 0) + (solvedProblems?.practiceProblems?.length || 0)}
+                </strong> Problem Solve
               </span>
               <span style={{ color: '#374151' }}>
                 <strong style={{ color: '#111827' }}>{userData.contestParticipate || 0}</strong> Contest Participate
-              </span>
-              <span style={{ color: '#374151' }}>
-                <strong style={{ color: '#111827' }}>1,243</strong> Followers
-              </span>
-              <span style={{ color: '#374151' }}>
-                <strong style={{ color: '#111827' }}>356</strong> Following
               </span>
             </div>
           </div>
@@ -1281,7 +1253,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
 
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '2rem' }}>
-        {['Activity', 'Problem Solve', 'Followers', 'Following'].map((tab, index) => (
+        {['Activity', 'Problem Solve'].map((tab, index) => (
           <button
             key={tab}
             onClick={() => setTabValue(index)}
@@ -1309,7 +1281,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
         flexDirection: 'row',
         padding: '0'
       }}>
-        {/* Left Column - Activity */}
+        {/* Left Column - Activity or Problem Solve */}
         <div style={{ 
           flex: 2, 
           minWidth: 0 
@@ -1320,39 +1292,229 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
             overflow: 'hidden'
           }}>
-            {activities.map((activity, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: '2rem',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '1.5rem',
-                  borderBottom: index < activities.length - 1 ? '1px solid #e5e7eb' : 'none',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <div style={{ 
-                  marginTop: '0.25rem', 
-                  fontSize: '24px'
-                }}>{activity.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ 
-                    color: '#111827', 
-                    margin: '0 0 0.5rem 0', 
-                    fontSize: '1rem', 
-                    fontWeight: '500' 
-                  }}>{activity.text}</p>
-                  <p style={{ 
-                    fontSize: '0.875rem', 
-                    color: '#6b7280', 
-                    margin: 0 
-                  }}>{activity.date}</p>
+            {tabValue === 0 ? (
+              // Activity Tab Content
+              activities.length > 0 ? (
+                activities.map((activity, index) => (
+                  <div
+                    key={activity.id || index}
+                    style={{
+                      padding: '2rem',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '1.5rem',
+                      borderBottom: index < activities.length - 1 ? '1px solid #e5e7eb' : 'none',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <div style={{ 
+                      marginTop: '0.25rem', 
+                      fontSize: '24px'
+                    }}>{activity.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ 
+                        color: '#111827', 
+                        margin: '0 0 0.5rem 0', 
+                        fontSize: '1rem', 
+                        fontWeight: '500' 
+                      }}>{activity.title}</p>
+                      <p style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#6b7280', 
+                        margin: '0 0 0.25rem 0' 
+                      }}>{activity.description}</p>
+                      <p style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#6b7280', 
+                        margin: 0 
+                      }}>{formatActivityDate(activity.date)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  padding: '3rem',
+                  textAlign: 'center',
+                  color: '#6b7280'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>📝</div>
+                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>No Activity Yet</h3>
+                  <p style={{ margin: 0 }}>Start participating in contests and solving problems to see your activity here!</p>
+                </div>
+              )
+            ) : (
+              // Problem Solve Tab Content
+              <div style={{ padding: '2rem' }}>
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '600',
+                  color: '#111827',
+                  margin: '0 0 1.5rem 0'
+                }}>
+                  Solved Problems
+                </h3>
+                
+                {/* Contest Problems Section */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: '#374151',
+                    margin: '0 0 1rem 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <FaTrophy style={{ color: '#f59e0b' }} />
+                    Contest Problems ({solvedProblems?.contestProblems?.length || 0})
+                  </h4>
+                  
+                  {solvedProblems?.contestProblems?.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {solvedProblems.contestProblems.map((solve, index) => (
+                        <div
+                          key={solve.id}
+                          style={{
+                            padding: '1rem',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '0.5rem',
+                            backgroundColor: '#f9fafb',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              <h5 style={{
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                color: '#111827',
+                                margin: '0 0 0.5rem 0'
+                              }}>
+                                {solve.question?.question_title || 'Unknown Problem'}
+                              </h5>
+                              <p style={{
+                                fontSize: '0.75rem',
+                                color: '#6b7280',
+                                margin: '0 0 0.5rem 0'
+                              }}>
+                                Contest: {solve.question?.contest?.title || 'Unknown Contest'}
+                              </p>
+                              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <FaCode style={{ color: '#3b82f6' }} />
+                                  {solve.language?.toUpperCase() || 'N/A'}
+                                </span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <AccessTimeIcon style={{ color: '#10b981' }} />
+                                  {solve.time_taken ? `${solve.time_taken}s` : 'N/A'}
+                                </span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <FaChartLine style={{ color: '#f59e0b' }} />
+                                  {solve.memory_taken ? `${solve.memory_taken}MB` : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: '0.75rem',
+                              color: '#6b7280',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {new Date(solve.solve_created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: '#6b7280',
+                      fontSize: '0.875rem'
+                    }}>
+                      <FaCode style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
+                      <p>No contest problems solved yet. Start participating in contests to see your solved problems here!</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Practice Problems Section */}
+                <div>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    color: '#374151',
+                    margin: '0 0 1rem 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <FaCode style={{ color: '#3b82f6' }} />
+                    Practice Problems ({solvedProblems?.practiceProblems?.length || 0})
+                  </h4>
+                  
+                  {solvedProblems?.practiceProblems?.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {solvedProblems.practiceProblems.map((problem, index) => (
+                        <div
+                          key={problem.submission_id}
+                          style={{
+                            padding: '1rem',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '0.5rem',
+                            backgroundColor: '#f9fafb'
+                          }}
+                        >
+                          <h5 style={{
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#111827',
+                            margin: '0 0 0.5rem 0'
+                          }}>
+                            {problem.problem?.problem_title}
+                          </h5>
+                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                            <span>{problem.problem?.difficulty || 'N/A'}</span>
+                            <span>{problem.language?.toUpperCase() || 'N/A'}</span>
+                            <span>{problem.points} points</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <FaCode style={{ color: '#3b82f6' }} />
+                              {problem.problem?.problem_language || 'N/A'}
+                            </span>
+                            {problem.rank && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <FaTrophy style={{ color: '#f59e0b' }} />
+                                Rank #{problem.rank}
+                              </span>
+                            )}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <AccessTimeIcon style={{ color: '#10b981' }} />
+                              {new Date(problem.submitted_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: '#6b7280',
+                      fontSize: '0.875rem'
+                    }}>
+                      <FaCode style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
+                      <p>No practice problems solved yet. Start practicing to improve your skills!</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -1535,7 +1697,8 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
               </div>
             </div>
 
-            {/* Achievements */}
+            {/*}
+            {/* Achievements
             <div style={{
               background: 'white',
               borderRadius: '0.75rem',
@@ -1626,6 +1789,7 @@ const ProfileContent = ({ user, userData, tabValue, setTabValue, handleEditProfi
                 ))}
               </div>
             </div>
+            */}
           </div>
         </div>
       </div>
@@ -1671,13 +1835,18 @@ const User_Profile = () => {
     averageScore: 0,
     winRate: 0,
     completionRate: 0,
-    totalQuestionsSolved: 0,
-    totalContestQuestions: 0,
-    bestCategory: null,
-    favoriteCategory: null,
-    weakestCategory: null
+    bestCategory: 'N/A',
+    favoriteCategory: 'N/A',
+    weakestCategory: 'N/A'
   });
-  
+  const [solvedProblems, setSolvedProblems] = useState({
+    contestProblems: [],
+    practiceProblems: []
+  });
+
+  const [activities, setActivities] = useState([]);
+  const [userScore, setUserScore] = useState(0);
+
   const [editFormData, setEditFormData] = useState({
     display_name: '',
     email: '',
@@ -1798,6 +1967,9 @@ const User_Profile = () => {
             // Fetch contest participation count
             const contestCount = await fetchContestParticipationCount(supabaseUserData.id);
             
+            // Fetch leaderboard data
+            const leaderboardData = await fetchLeaderboardData(supabaseUserData.id);
+            
             setUserData(prev => ({
               ...prev,
               name: supabaseUserData.display_name || prev.name,
@@ -1814,12 +1986,29 @@ const User_Profile = () => {
               wins: supabaseUserData.wins,
               losses: supabaseUserData.losses,
               matches_played: supabaseUserData.matches_played,
-              contestParticipate: contestCount
+              contestParticipate: contestCount,
+              // Add leaderboard data
+              level: leaderboardData.level,
+              badge: leaderboardData.badge,
+              score: leaderboardData.score,
+              problem_solve: leaderboardData.problem_solve
             }));
 
             // Fetch contest statistics
             const stats = await fetchUserContestStats(supabaseUserData.id);
             setContestStats(stats);
+
+            // Fetch solved problems
+            const solvedData = await fetchSolvedProblems(supabaseUserData.id);
+            setSolvedProblems(solvedData);
+
+            // Fetch user activities
+            const userActivities = await fetchUserActivities(supabaseUserData.id);
+            setActivities(userActivities);
+
+            // Fetch user's score
+            const score = await fetchUserScore(supabaseUserData.id);
+            setUserScore(score);
 
             // Update user state with Supabase data
             setUser(prev => ({
@@ -1991,6 +2180,318 @@ const User_Profile = () => {
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       throw error;
+    }
+  };
+
+  const fetchLeaderboardData = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('level, badge, score, problem_solve')
+        .eq('participate_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching leaderboard data:', error);
+        // If no leaderboard entry exists, return default values
+        if (error.code === 'PGRST116') { // No rows returned
+          return { level: 1, badge: 'bronze', score: 0, problem_solve: 0 };
+        }
+        throw error;
+      }
+
+      console.log('Leaderboard data fetched:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in fetchLeaderboardData:', error);
+      // Return default values on error
+      return { level: 1, badge: 'bronze', score: 0, problem_solve: 0 };
+    }
+  };
+
+  const fetchUserScore = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('score')
+        .eq('participate_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user score:', error);
+        // If no leaderboard entry exists, return 0
+        if (error.code === 'PGRST116') {
+          return 0;
+        }
+        throw error;
+      }
+
+      return data?.score || 0;
+    } catch (error) {
+      console.error('Error in fetchUserScore:', error);
+      return 0;
+    }
+  };
+
+  const fetchUserActivities = async (userId) => {
+    try {
+      const activities = [];
+      
+      // 1. Contest participations
+      const { data: contestParticipations, error: contestError } = await supabase
+        .from('contest_participants')
+        .select(`
+          id,
+          status,
+          score,
+          rank,
+          joined_at,
+          updated_at,
+          contest_id,
+          contest:contests(
+            id,
+            title,
+            title_description,
+            contest_difficulty,
+            prize_money
+          )
+        `)
+        .eq('user_id', userId)
+        .order('joined_at', { ascending: false });
+
+      if (!contestError && contestParticipations) {
+        contestParticipations.forEach(participation => {
+          activities.push({
+            id: participation.id,
+            type: 'contest_participation',
+            title: `Registered for ${participation.contest?.title || 'Contest'}`,
+            description: `${participation.contest?.title_description || 'Contest'} - ${participation.contest?.contest_difficulty || 'Medium'} difficulty`,
+            status: participation.status,
+            score: participation.score,
+            rank: participation.rank,
+            prize: participation.contest?.prize_money,
+            date: participation.joined_at,
+            icon: <FaTrophy style={{ color: '#f59e0b', fontSize: '20px' }} />
+          });
+        });
+      }
+
+      // 2. Contest question solves
+      const { data: contestSolves, error: solveError } = await supabase
+        .from('contest_question_solves')
+        .select(`
+          id,
+          language,
+          time_taken,
+          memory_taken,
+          solve_created_at,
+          question_id,
+          question:contest_questions(
+            id,
+            question_title,
+            contest_id,
+            contest:contests(
+              id,
+              title
+            )
+          )
+        `)
+        .eq('participate_id', userId)
+        .order('solve_created_at', { ascending: false });
+
+      if (!solveError && contestSolves) {
+        contestSolves.forEach(solve => {
+          activities.push({
+            id: solve.id,
+            type: 'contest_solve',
+            title: `Solved: ${solve.question?.question_title || 'Contest Problem'}`,
+            description: `Contest: ${solve.question?.contest?.title || 'Unknown'} • Language: ${solve.language?.toUpperCase()}`,
+            language: solve.language,
+            time: solve.time_taken,
+            memory: solve.memory_taken,
+            date: solve.solve_created_at,
+            icon: <FaCheckCircle style={{ color: '#10b981', fontSize: '20px' }} />
+          });
+        });
+      }
+
+      // 3. Practice problem submissions
+      const { data: practiceSubmissions, error: practiceError } = await supabase
+        .from('practice_submission')
+        .select(`
+          submission_id,
+          language,
+          submission_status,
+          points,
+          rank,
+          submitted_at,
+          problem_id,
+          problem:practice_problem(
+            problem_id,
+            problem_title,
+            difficulty,
+            problem_language,
+            points
+          )
+        `)
+        .eq('problem_solver_id', userId)
+        .order('submitted_at', { ascending: false });
+
+      if (!practiceError && practiceSubmissions) {
+        practiceSubmissions.forEach(submission => {
+          activities.push({
+            id: submission.submission_id,
+            type: 'practice_submission',
+            title: `Submitted: ${submission.problem?.problem_title || 'Practice Problem'}`,
+            description: `Difficulty: ${submission.problem?.difficulty || 'Unknown'} • Language: ${submission.language?.toUpperCase()}`,
+            status: submission.submission_status,
+            points: submission.points,
+            rank: submission.rank,
+            date: submission.submitted_at,
+            icon: <FaCode style={{ color: '#3b82f6', fontSize: '20px' }} />
+          });
+        });
+      }
+
+      // 4. User profile updates (check when user was created/updated)
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('created_at, updated_at, last_login')
+        .eq('id', userId)
+        .single();
+
+      if (!profileError && userProfile) {
+        // Account creation
+        activities.push({
+          id: 'account_created',
+          type: 'account_created',
+          title: 'Account Created',
+          description: 'Welcome to ByteArena! Your account has been successfully created.',
+          date: userProfile.created_at,
+          icon: <FaUser style={{ color: '#8b5cf6', fontSize: '20px' }} />
+        });
+
+        // Last login (if different from creation)
+        if (userProfile.last_login && userProfile.last_login !== userProfile.created_at) {
+          activities.push({
+            id: 'last_login',
+            type: 'login',
+            title: 'Last Login',
+            description: 'You logged into your account.',
+            date: userProfile.last_login,
+            icon: <FaUser style={{ color: '#6b7280', fontSize: '20px' }} />
+          });
+        }
+      }
+
+      // 5. Leaderboard achievements
+      const { data: leaderboardData, error: leaderboardError } = await supabase
+        .from('leaderboard')
+        .select('level, badge, score, problem_solve, updated_at')
+        .eq('participate_id', userId)
+        .single();
+
+      if (!leaderboardError && leaderboardData) {
+        activities.push({
+          id: 'leaderboard_rank',
+          type: 'achievement',
+          title: `Achieved Level ${leaderboardData.level} - ${leaderboardData.badge.charAt(0).toUpperCase() + leaderboardData.badge.slice(1)} Badge`,
+          description: `Score: ${leaderboardData.score} • Problems Solved: ${leaderboardData.problem_solve}`,
+          level: leaderboardData.level,
+          badge: leaderboardData.badge,
+          score: leaderboardData.score,
+          problemsSolved: leaderboardData.problem_solve,
+          date: leaderboardData.updated_at,
+          icon: <FaStar style={{ color: '#fde047', fontSize: '20px' }} />
+        });
+      }
+
+      // Sort all activities by date (most recent first)
+      activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      console.log('Fetched user activities:', activities);
+      return activities;
+
+    } catch (error) {
+      console.error('Error fetching user activities:', error);
+      return [];
+    }
+  };
+
+  const fetchSolvedProblems = async (userId) => {
+    try {
+      // Fetch contest questions solved by user
+      const { data: contestSolves, error: contestError } = await supabase
+        .from('contest_question_solves')
+        .select(`
+          id,
+          language,
+          time_taken,
+          memory_taken,
+          solve_created_at,
+          question_id,
+          question:contest_questions(
+            id,
+            question_title,
+            question_description,
+            contest_id,
+            contest:contests(
+              id,
+              title
+            )
+          )
+        `)
+        .eq('participate_id', userId)
+        .order('solve_created_at', { ascending: false });
+
+      if (contestError) {
+        console.error('Error fetching contest solves:', contestError);
+        return { contestProblems: [], practiceProblems: [] };
+      }
+
+      // Fetch practice problems solved by user using practice_submission table
+      const { data: practiceSubmissions, error: practiceError } = await supabase
+        .from('practice_submission')
+        .select(`
+          submission_id,
+          language,
+          submission_status,
+          points,
+          rank,
+          submitted_at,
+          problem_solver_id,
+          problem_id,
+          problem:practice_problem(
+            problem_id,
+            problem_title,
+            difficulty,
+            problem_language,
+            problem_rating,
+            points,
+            created_at
+          )
+        `)
+        .eq('problem_solver_id', userId)
+        .order('submitted_at', { ascending: false });
+
+      if (practiceError) {
+        console.error('Error fetching practice submissions:', practiceError);
+        return { 
+          contestProblems: contestSolves || [], 
+          practiceProblems: [] 
+        };
+      }
+
+      console.log('Contest problems solved:', contestSolves);
+      console.log('Practice problems solved:', practiceSubmissions);
+
+      return {
+        contestProblems: contestSolves || [],
+        practiceProblems: practiceSubmissions || []
+      };
+    } catch (error) {
+      console.error('Error in fetchSolvedProblems:', error);
+      return { contestProblems: [], practiceProblems: [] };
     }
   };
 
@@ -2219,13 +2720,9 @@ const User_Profile = () => {
             >
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
-              <span>1200.00</span>
+              <span>{userScore.toFixed(2)}</span>
             </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
@@ -2248,6 +2745,9 @@ const User_Profile = () => {
             setTabValue={setTabValue} 
             handleEditProfile={handleEditProfile} 
             contestStats={contestStats}
+            solvedProblems={solvedProblems}
+            activities={activities}
+            userScore={userScore}
           />
         </Box>
 

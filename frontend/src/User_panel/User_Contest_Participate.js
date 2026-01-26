@@ -66,6 +66,7 @@ export default function CodingProblemPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState({ type: '', message: '' });
   const [notification, setNotification] = useState(null);
+  const [userScore, setUserScore] = useState(0);
 
   // Function to validate user output against expected output
   const validateOutput = (userOutput, expectedOutput) => {
@@ -1067,11 +1068,52 @@ sys.stdin = StringIO('${escapedInput}')
     }
   };
 
+  const fetchUserScore = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('score')
+        .eq('participate_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user score:', error);
+        // If no leaderboard entry exists, return 0
+        if (error.code === 'PGRST116') {
+          return 0;
+        }
+        throw error;
+      }
+
+      return data?.score || 0;
+    } catch (error) {
+      console.error('Error in fetchUserScore:', error);
+      return 0;
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setLoading(false);
+        
+        // Fetch user's Supabase ID and score
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('firebase_uid', currentUser.uid)
+            .single();
+
+          if (!userError && userData) {
+            const score = await fetchUserScore(userData.id);
+            setUserScore(score);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+        
         // Fetch contest details when user is authenticated and contestId is available
         if (contestId) {
           fetchContestDetails(contestId);
@@ -1138,7 +1180,6 @@ sys.stdin = StringIO('${escapedInput}')
               <FaBars />
             </button>
             <div className="search">
-              <FaSearch className="search-icon" />
               <input type="text" placeholder="Search problems, contests..." />
             </div>
           </div>
@@ -1153,13 +1194,9 @@ sys.stdin = StringIO('${escapedInput}')
             >
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
-              <span>1200.00</span>
+              <span>{userScore.toFixed(2)}</span>
             </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">

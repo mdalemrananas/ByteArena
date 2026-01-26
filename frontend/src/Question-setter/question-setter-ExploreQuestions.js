@@ -18,12 +18,12 @@ import {
   FaUser,
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { logoutUser } from '../../services/authService';
-import { supabase } from '../../services/supabaseClient';
-import problemSolutionsService from '../../services/problemSolutionsService';
-import '../../User_panel/User_Dashboard.css';
-import '../../User_panel/PracticeProblem.css';
+import { auth } from '../firebase';
+import { logoutUser } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import problemSolutionsService from '../services/problemSolutionsService';
+import '../User_panel/User_Dashboard.css';
+import '../User_panel/PracticeProblem.css';
 import './question-setter-ExploreQuestions.css';
 
 const menuItems = [
@@ -31,7 +31,6 @@ const menuItems = [
   { key: 'practice', name: 'Practice Problems', icon: <FaCode className="menu-icon" /> },
   { key: 'contest', name: 'Contest', icon: <FaTrophy className="menu-icon" /> },
   { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'profile', name: 'Profile', icon: <FaUser className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -96,6 +95,7 @@ const QuestionSetterExploreQuestions = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingProblemId, setEditingProblemId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const currentProblemSetterName = useMemo(() => {
     if (!user) return '';
@@ -381,10 +381,16 @@ const QuestionSetterExploreQuestions = () => {
       const solRes = await problemSolutionsService.upsertSolution(solPayload);
       if (!solRes.success) throw new Error(solRes.error);
 
+      setSuccessMessage(editingProblemId ? 'Question updated successfully!' : 'Question created successfully!');
       setShowCreateForm(false);
       setEditingProblemId(null);
       setFormData({ ...emptyForm, problemsetter_name: currentProblemSetterName });
       await fetchProblems();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
     } catch (e) {
       console.error('Publish failed:', e);
       setError(e?.message || 'Failed to publish problem');
@@ -452,8 +458,6 @@ const QuestionSetterExploreQuestions = () => {
                     navigate('/question-setter/explore');
                   } else if (item.key === 'leaderboard') {
                     navigate('/question-setter/leaderboard');
-                  } else if (item.key === 'profile') {
-                    navigate('/question-setter/profile');
                   }
                 }
               }}
@@ -493,10 +497,6 @@ const QuestionSetterExploreQuestions = () => {
             <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             {/* balance UI intentionally excluded */}
             <div
               className="profile"
@@ -519,7 +519,9 @@ const QuestionSetterExploreQuestions = () => {
           </div>
 
           {showCreateForm && (
-            <div className="pp-create-form">
+            <div className="pp-modal-overlay" onClick={() => { setShowCreateForm(false); setEditingProblemId(null); setFormData({ ...emptyForm, problemsetter_name: currentProblemSetterName }); }}>
+              <div className="pp-modal" style={{ maxWidth: '900px', width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+              <div className="pp-create-form" style={{ margin: 0, boxShadow: 'none', padding: '24px 32px' }}>
               <div className="pp-create-form-head">
                 <h3 style={{ margin: 0 }}>{editingProblemId ? 'Edit Question' : 'Create Question'}</h3>
                 <button
@@ -681,11 +683,38 @@ const QuestionSetterExploreQuestions = () => {
                 </div>
               </div>
 
+              {error && (
+                <div style={{
+                  marginBottom: 16,
+                  padding: 12,
+                  borderRadius: 8,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                }}>
+                  {error}
+                </div>
+              )}
+              {successMessage && (
+                <div style={{
+                  marginBottom: 16,
+                  padding: 12,
+                  borderRadius: 8,
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  color: '#166534',
+                }}>
+                  {successMessage}
+                </div>
+              )}
+
               <div className="pp-create-actions">
                 <button className="solve-btn" disabled={isSubmitting} onClick={handlePublish}>
                   {isSubmitting ? 'Publishing...' : 'Publish'}
                 </button>
               </div>
+              </div>
+            </div>
             </div>
           )}
 

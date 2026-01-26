@@ -76,6 +76,7 @@ const User_Contest = () => {
   const [participantCounts, setParticipantCounts] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 8; // 2 rows with 4 cards each
+  const [userScore, setUserScore] = useState(0);
 
   // Fetch user's registered contests
   const fetchRegisteredContests = async (userId) => {
@@ -183,15 +184,56 @@ const User_Contest = () => {
     }
   };
 
+  const fetchUserScore = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select('score')
+        .eq('participate_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user score:', error);
+        // If no leaderboard entry exists, return 0
+        if (error.code === 'PGRST116') {
+          return 0;
+        }
+        throw error;
+      }
+
+      return data?.score || 0;
+    } catch (error) {
+      console.error('Error in fetchUserScore:', error);
+      return 0;
+    }
+  };
+
   // Monitor authentication state and fetch contests
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser({
           displayName: currentUser.displayName || 'User',
           email: currentUser.email,
           photoURL: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName || 'User'}&background=random`
         });
+        
+        // Fetch user's Supabase ID and score
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('firebase_uid', currentUser.uid)
+            .single();
+
+          if (!userError && userData) {
+            const score = await fetchUserScore(userData.id);
+            setUserScore(score);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+        
         // Fetch contests when user is authenticated
         fetchContests();
         // Fetch user's registered contests
@@ -482,13 +524,9 @@ const User_Contest = () => {
             >
               <FaHome />
             </button>
-            <button className="icon-btn" data-tooltip="Notifications">
-              <FaBell />
-              <span className="badge">4</span>
-            </button>
             <div className="balance" data-tooltip="Reward Coins">
               <FaCoins className="balance-icon" />
-              <span>1200.00</span>
+              <span>{userScore.toFixed(2)}</span>
             </div>
             <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
