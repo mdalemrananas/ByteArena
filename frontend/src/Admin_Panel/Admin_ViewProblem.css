@@ -881,3 +881,240 @@ body:has(.admin-sp-content) .ud-sidebar {
         transform: translateY(0);
     }
 }
+
+/* Solution Section Styles */
+.admin-sp-solution-section {
+    margin-top: 24px;
+    padding: 24px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-solution-section h3 {
+    margin: 0 0 20px 0;
+    color: #1f2937;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-sp-solution-section h3::before {
+    content: "💡";
+    font-size: 18px;
+}
+
+.admin-sp-solution-section h4 {
+    margin: 20px 0 12px 0;
+    color: #374151;
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-sp-solution-code h4::before {
+    content: "💻";
+    font-size: 14px;
+}
+
+.admin-sp-solution-video h4::before {
+    content: "🎥";
+    font-size: 14px;
+}
+
+.admin-sp-solution-article h4::before {
+    content: "📝";
+    font-size: 14px;
+}
+
+.admin-sp-code-textarea {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 120px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 4;
+}
+
+.admin-sp-code-textarea::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: 8px 8px 0 0;
+    pointer-events: none;
+}
+
+.admin-sp-code-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.admin-sp-code-textarea::selection {
+    background: rgba(59, 130, 246, 0.3);
+    color: #ffffff;
+}
+
+.admin-sp-code-textarea::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.admin-sp-code-textarea::-webkit-scrollbar-track {
+    background: #1e293b;
+    border-radius: 4px;
+}
+
+.admin-sp-code-textarea::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+.admin-sp-code-textarea::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.admin-sp-video-link {
+    margin: 12px 0;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-video-link a {
+    color: #3b82f6;
+    text-decoration: none;
+    word-break: break-all;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-video-link a::before {
+    content: "🔗";
+    font-size: 14px;
+}
+
+.admin-sp-video-link a:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.admin-sp-article-content {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 12px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-article-content pre {
+    margin: 0;
+    font-family: 'Inter', 'Arial', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #374151;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-sp-no-solution {
+    text-align: center;
+    padding: 32px;
+    color: #6b7280;
+    font-style: italic;
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+.admin-sp-no-solution::before {
+    content: "📋";
+    display: block;
+    font-size: 32px;
+    margin-bottom: 12px;
+    font-style: normal;
+}
+
+/* Add subtle animations */
+.admin-sp-solution-code,
+.admin-sp-solution-video,
+.admin-sp-solution-article {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+.admin-sp-solution-code {
+    animation-delay: 0.1s;
+}
+
+.admin-sp-solution-video {
+    animation-delay: 0.2s;
+}
+
+.admin-sp-solution-article {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Form Section Divider */
+.form-section-divider {
+    margin: 24px 0 16px 0;
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section-divider h4 {
+    margin: 0;
+    color: #374151;
+    font-size: 16px;
+    font-weight: 500;
+}
