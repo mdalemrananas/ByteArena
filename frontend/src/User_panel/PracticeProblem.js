@@ -136,7 +136,7 @@ const PracticeProblem = () => {
         // Fetch both problems and count
         const [problemsResult, countResult] = await Promise.all([
             practiceProblemsService.getProblems(filters, currentPage, problemsPerPage, userDbId),
-            practiceProblemsService.getProblemsCount(filters)
+            practiceProblemsService.getProblemsCount(filters, userDbId)
         ]);
         
         if (problemsResult.success && countResult.success) {

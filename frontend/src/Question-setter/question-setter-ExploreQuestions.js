@@ -165,6 +165,19 @@ const QuestionSetterExploreQuestions = () => {
     }
   };
 
+  const getAdminStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return '#10b981';
+      case 'pending':
+        return '#f59e0b';
+      case 'rejected':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
+  };
+
   const buildProblemsQuery = (forCount = false) => {
     let query = supabase.from('practice_problem').select(forCount ? '*' : '*', {
       count: forCount ? 'exact' : undefined,
@@ -174,6 +187,9 @@ const QuestionSetterExploreQuestions = () => {
     // My Problems filter
     if (problemView === 'My Problems' && currentProblemSetterName) {
       query = query.eq('problemsetter_name', currentProblemSetterName);
+    } else {
+      // For All Problems, only show approved problems
+      query = query.eq('admin_status', 'approved');
     }
 
     // Difficulty filter
@@ -216,7 +232,43 @@ const QuestionSetterExploreQuestions = () => {
       if (listRes.error) throw listRes.error;
       if (countRes.error) throw countRes.error;
 
-      setProblems(listRes.data || []);
+      // If no problems, set empty array and return
+      if (!listRes.data || listRes.data.length === 0) {
+        setProblems([]);
+        setTotalProblems(0);
+        return;
+      }
+
+      // Get unique user counts for all problems in a single query
+      const problemIds = listRes.data.map(problem => problem.problem_id);
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from('practice_submission')
+        .select('problem_id, problem_solver_id')
+        .in('problem_id', problemIds);
+
+      if (submissionsError) {
+        console.error('Error fetching submission counts:', submissionsError);
+        // Continue with the problems data even if submission count fails
+        setProblems(listRes.data || []);
+      } else {
+        // Create a map of problem_id to unique user count
+        const userCounts = submissionsData.reduce((acc, { problem_id, problem_solver_id }) => {
+          if (!acc[problem_id]) {
+            acc[problem_id] = new Set();
+          }
+          acc[problem_id].add(problem_solver_id);
+          return acc;
+        }, {});
+
+        // Merge user counts into problems data
+        const problemsWithUserCounts = listRes.data.map(problem => ({
+          ...problem,
+          unique_users: userCounts[problem.problem_id] ? userCounts[problem.problem_id].size : 0
+        }));
+
+        setProblems(problemsWithUserCounts);
+      }
+
       setTotalProblems(countRes.count || 0);
     } catch (e) {
       console.error('Failed to fetch problems:', e);
@@ -858,10 +910,24 @@ const QuestionSetterExploreQuestions = () => {
                             </div>
                             <div className="stat-item">
                               <FaUser className="user-icon" />
-                              <span>{formatted.participants}</span>
+                              <span>{problem.unique_users || 0} users</span>
                             </div>
                             <div className="stat-item">
                               <span className="success-rate">{formatted.successRate}</span>
+                            </div>
+                            <div 
+                              className="stat-item"
+                              style={{
+                                backgroundColor: getAdminStatusColor(problem.admin_status),
+                                color: 'white',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                textTransform: 'capitalize'
+                              }}
+                            >
+                              {problem.admin_status || 'pending'}
                             </div>
                           </div>
                         </div>
@@ -884,17 +950,31 @@ const QuestionSetterExploreQuestions = () => {
                                 <button onClick={() => handleViewNavigate(formatted.id)}>
                                   <FaEye /> View
                                 </button>
-                                {owner && (
+                                {owner && problem.admin_status !== 'approved' && (
                                   <button onClick={() => openEdit(formatted.id)}>
                                     <FaEdit /> Edit
                                   </button>
                                 )}
-                                {owner && (
+                                {owner && problem.admin_status === 'approved' && (
+                                  <button disabled style={{ opacity: 0.7, cursor: 'not-allowed' }}>
+                                    <FaEdit /> Edit (Approved)
+                                  </button>
+                                )}
+                                {owner && problem.admin_status !== 'approved' && (
                                   <button
                                     onClick={() => requestDelete(formatted.id)}
                                     className="qs-delete-btn"
                                   >
                                     <FaTrash /> Delete
+                                  </button>
+                                )}
+                                {owner && problem.admin_status === 'approved' && (
+                                  <button 
+                                    className="qs-delete-btn"
+                                    disabled 
+                                    style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                                  >
+                                    <FaTrash /> Delete (Approved)
                                   </button>
                                 )}
                               </div>

@@ -4,20 +4,70 @@ import { FaArrowLeft, FaBook, FaCode, FaComments, FaCheckCircle, FaTimesCircle, 
 import { auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { practiceSubmissionsDataService } from '../services/practiceSubmissionsDataService';
+import { supabase } from '../services/supabaseClient';
 import './ViewSubmission.css';
 
 const ViewSubmission = () => {
     const [user, setUser] = useState(null);
+    const [userDbId, setUserDbId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [submissionLoading, setSubmissionLoading] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [active, setActive] = useState('practice');
     const [submission, setSubmission] = useState(null);
     const [error, setError] = useState(null);
+    const [userScore, setUserScore] = useState(0);
     const { submissionId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const passedProblemId = location.state?.problemId;
+
+    // Get user's database ID from Firebase UID
+    const getUserDbId = async (firebaseUser) => {
+        if (!firebaseUser) return null;
+        
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id')
+                .eq('firebase_uid', firebaseUser.uid)
+                .single();
+            
+            if (error) {
+                console.error('Error fetching user DB ID:', error);
+                return null;
+            }
+            
+            return data.id;
+        } catch (error) {
+            console.error('Error getting user DB ID:', error);
+            return null;
+        }
+    };
+
+    const fetchUserScore = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('leaderboard')
+                .select('score')
+                .eq('participate_id', userId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching user score:', error);
+                // If no leaderboard entry exists, return 0
+                if (error.code === 'PGRST116') {
+                    return 0;
+                }
+                throw error;
+            }
+
+            return data?.score || 0;
+        } catch (error) {
+            console.error('Error in fetchUserScore:', error);
+            return 0;
+        }
+    };
 
     // Fetch submission data
     const fetchSubmission = async () => {
@@ -59,8 +109,24 @@ const ViewSubmission = () => {
     ];
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            
+            if (currentUser) {
+                // Get user's database ID
+                const dbId = await getUserDbId(currentUser);
+                setUserDbId(dbId);
+                
+                // Fetch user's score
+                if (dbId) {
+                    const score = await fetchUserScore(dbId);
+                    setUserScore(score);
+                }
+            } else {
+                setUserDbId(null);
+                setUserScore(0);
+            }
+            
             setLoading(false);
         });
 
@@ -255,17 +321,9 @@ const ViewSubmission = () => {
                         >
                             <FaHome />
                         </button>
-                        <button className="icon-btn" data-tooltip="Notifications">
-                            <FaBell />
-                            <span className="badge">4</span>
-                        </button>
-                        <button className="icon-btn" data-tooltip="Messages">
-                            <FaCommentAlt />
-                            <span className="badge">2</span>
-                        </button>
                         <div className="balance" data-tooltip="Reward Coins">
                             <FaCoins className="balance-icon" />
-                            <span>1200.00</span>
+                            <span>{userScore.toFixed(2)}</span>
                         </div>
                         <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
                             <div className="avatar">

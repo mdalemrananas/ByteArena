@@ -612,7 +612,7 @@ const [passwordError, setPasswordError] = useState('');
             <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
               <FaHome />
             </button>
-            <div className="profile" onClick={() => navigate('/admin_profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
+            <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
                   <img src={user.photoURL} alt="avatar" />
@@ -945,22 +945,6 @@ const [passwordError, setPasswordError] = useState('');
                   </span>
                 </div>
                 <div className="detail-item">
-                  <label>Rating</label>
-                  <span>{selectedUser.rating || 1000}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Wins</label>
-                  <span>{selectedUser.wins || 0}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Losses</label>
-                  <span>{selectedUser.losses || 0}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Matches Played</label>
-                  <span>{selectedUser.matches_played || 0}</span>
-                </div>
-                <div className="detail-item">
                   <label>Created At</label>
                   <span>{new Date(selectedUser.created_at).toLocaleDateString()}</span>
                 </div>
@@ -1095,50 +1079,6 @@ const [passwordError, setPasswordError] = useState('');
                     <option value="true">Verified</option>
                     <option value="false">Not Verified</option>
                   </select>
-                </div>
-                <div className="detail-item">
-                  <label>Rating</label>
-                  <input
-                    type="number"
-                    name="rating"
-                    value={editUser.rating || 1000}
-                    onChange={handleEditInputChange}
-                    className="form-input"
-                    min="0"
-                  />
-                </div>
-                <div className="detail-item">
-                  <label>Wins</label>
-                  <input
-                    type="number"
-                    name="wins"
-                    value={editUser.wins || 0}
-                    onChange={handleEditInputChange}
-                    className="form-input"
-                    min="0"
-                  />
-                </div>
-                <div className="detail-item">
-                  <label>Losses</label>
-                  <input
-                    type="number"
-                    name="losses"
-                    value={editUser.losses || 0}
-                    onChange={handleEditInputChange}
-                    className="form-input"
-                    min="0"
-                  />
-                </div>
-                <div className="detail-item">
-                  <label>Matches Played</label>
-                  <input
-                    type="number"
-                    name="matches_played"
-                    value={editUser.matches_played || 0}
-                    onChange={handleEditInputChange}
-                    className="form-input"
-                    min="0"
-                  />
                 </div>
                 <div className="detail-item full-width">
                   <label>Website</label>

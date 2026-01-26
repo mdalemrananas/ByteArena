@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaBars, FaTimes, FaUser, FaTh, FaSignOutAlt } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { FaBars, FaTimes, FaUser, FaTh, FaSignOutAlt, FaUserTie } from 'react-icons/fa';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { logoutUser } from '../services/authService';
@@ -10,6 +10,8 @@ const Navbar = ({ onSignInClick, onGetStartedClick }) => {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
   const [user, setUser] = useState({
     name: 'Guest',
     avatar: 'https://ui-avatars.com/api/?name=Guest&background=4a3fcc&color=fff'
@@ -51,6 +53,7 @@ const Navbar = ({ onSignInClick, onGetStartedClick }) => {
     return () => unsubscribe();
   }, []);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,6 +79,14 @@ const Navbar = ({ onSignInClick, onGetStartedClick }) => {
     }
   };
 
+  const showCustomAlert = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+    setTimeout(() => {
+      setShowAlert(false);
+    }, 3000);
+  };
+
   // Debug log to check values
   console.log('isLoggedIn:', isLoggedIn);
   console.log('user:', user);
@@ -88,10 +99,17 @@ const Navbar = ({ onSignInClick, onGetStartedClick }) => {
         </div>
 
         <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
-          <a href="#" className="nav-link active">Home</a>
-          <a href="#" className="nav-link">Practice</a>
-          <a href="#" className="nav-link">Community</a>
-          <a href="#" className="nav-link">About Us</a>
+          <a href="#" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigate('/'); }}>Home</a>
+          <a href="#" className={`nav-link ${location.pathname === '/practice' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); 
+            if (isLoggedIn) {
+              navigate('/practice');
+            } else {
+              showCustomAlert('Please login to access Practice problems');
+              setTimeout(() => onSignInClick(), 1500);
+            }
+          }}>Practice</a>
+          <a href="#" className={`nav-link ${location.pathname === '/community' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigate('/community'); }}>Community</a>
+          <a href="#" className={`nav-link ${location.pathname === '/about' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigate('/about'); }}>About Us</a>
           
           {isLoggedIn ? (
             <div className="user-profile" style={{
@@ -292,6 +310,93 @@ const Navbar = ({ onSignInClick, onGetStartedClick }) => {
           {isMenuOpen ? <FaTimes /> : <FaBars />}
         </button>
       </div>
+      
+      {/* Custom Alert Modal */}
+      {showAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: '#ffffff',
+          border: '2px solid #e2e8f0',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          zIndex: 9999,
+          minWidth: '300px',
+          maxWidth: '400px',
+          animation: 'slideIn 0.3s ease-out',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: '#fef3c7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <FaUserTie style={{ color: '#f59e0b', fontSize: '18px' }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ 
+              fontSize: '14px', 
+              fontWeight: '600', 
+              color: '#1e293b',
+              marginBottom: '4px'
+            }}>
+              Login Required
+            </div>
+            <div style={{ 
+              fontSize: '13px', 
+              color: '#64748b',
+              lineHeight: '1.4'
+            }}>
+              {alertMessage}
+            </div>
+          </div>
+          <button
+            onClick={() => setShowAlert(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '4px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#f1f5f9';
+              e.target.style.color = '#1e293b';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = '#94a3b8';
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </nav>
   );
 };

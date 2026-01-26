@@ -576,7 +576,7 @@ const Admin_Contest_Details = () => {
             <button className="icon-btn" onClick={() => navigate('/')} data-tooltip="Home">
               <FaHome />
             </button>
-            <div className="profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
+            <div className="profile" onClick={() => navigate('/admin_profile')} style={{ cursor: 'pointer' }} data-tooltip="Profile">
               <div className="avatar">
                 {user?.photoURL ? (
                   <img src={user.photoURL} alt="avatar" />

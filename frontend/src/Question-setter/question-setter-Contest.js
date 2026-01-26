@@ -113,21 +113,53 @@ const QuestionSetterContest = () => {
 
   const fetchContests = async () => {
     try {
-      const { data, error } = await supabase
+      // First, fetch all contests
+      const { data: contestsData, error: contestsError } = await supabase
         .from('contests')
         .select('*')
         .order('registration_end', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching contests:', error);
+      if (contestsError) {
+        console.error('Error fetching contests:', contestsError);
         return;
       }
 
-      setContests(data || []);
+      // If no contests, set empty array and return
+      if (!contestsData || contestsData.length === 0) {
+        setContests([]);
+        return;
+      }
+
+      // Get participant counts for all contests in a single query
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('contest_participants')
+        .select('contest_id')
+        .in('contest_id', contestsData.map(contest => contest.id));
+
+      if (participantsError) {
+        console.error('Error fetching participant counts:', participantsError);
+        // Continue with the contests data even if participant count fails
+        setContests(contestsData || []);
+      } else {
+        // Create a map of contest_id to participant count
+        const participantCounts = participantsData.reduce((acc, { contest_id }) => {
+          acc[contest_id] = (acc[contest_id] || 0) + 1;
+          return acc;
+        }, {});
+
+        // Merge participant counts into contests data
+        const contestsWithParticipants = contestsData.map(contest => ({
+          ...contest,
+          participant_count: participantCounts[contest.id] || 0
+        }));
+
+        setContests(contestsWithParticipants);
+      }
 
       const now = new Date();
-      const upcomingContests =
-        data?.filter((contest) => new Date(contest.registration_end) > now) || [];
+      const upcomingContests = contestsData.filter(
+        (contest) => new Date(contest.registration_end) > now
+      ) || [];
       const sortedUpcoming = upcomingContests.sort(
         (a, b) => new Date(a.registration_end) - new Date(b.registration_end),
       );
@@ -684,7 +716,7 @@ const QuestionSetterContest = () => {
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   <UsersIcon style={{ fontSize: 14, color: '#666' }} />
                                   <Typography variant="body2" color="text.secondary">
-                                    {contest.total_register || 0} participants
+                                    {contest.participant_count || 0} participants
                                   </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

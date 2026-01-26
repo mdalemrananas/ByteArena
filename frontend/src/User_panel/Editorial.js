@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaHome, FaTrophy, FaListOl, FaSignOutAlt, FaCode, FaFileAlt, FaVideo, FaCopy, FaUser, FaBars, FaBell, FaCommentAlt, FaCoins, FaSearch, FaEye, FaPlayCircle } from 'react-icons/fa';
+import { FaHome, FaTrophy, FaListOl, FaSignOutAlt, FaCode, FaFileAlt, FaVideo, FaCopy, FaUser, FaBars, FaBell, FaCommentAlt, FaCoins, FaSearch, FaEye, FaPlayCircle, FaDownload } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import problemSolutionsService from '../services/problemSolutionsService';
@@ -220,6 +220,30 @@ const Editorial = () => {
 
     const handleBack = () => {
         navigate('/practice/solve/1');
+    };
+
+    const handleCopyCode = () => {
+        if (solution?.solution_code) {
+            navigator.clipboard.writeText(solution.solution_code);
+            alert('Code copied to clipboard!');
+        }
+    };
+
+    const handleDownloadCode = () => {
+        if (solution?.solution_code) {
+            const blob = new Blob([solution.solution_code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Determine file extension based on problem language or default to .txt
+            const language = problem?.problem_language?.toLowerCase() || 'txt';
+            const extension = language === 'c++' ? 'cpp' : language === 'c' ? 'c' : language === 'java' ? 'java' : language === 'python' ? 'py' : language === 'javascript' ? 'js' : 'txt';
+            a.download = `solution_${problem?.problem_title || 'editorial'}_${currentProblemId}.${extension}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
     };
 
     if (loading || solutionLoading) {
@@ -527,6 +551,16 @@ const Editorial = () => {
                                 <div className="section-header">
                                     <FaCode />
                                     <h3>Problem Setter's Code</h3>
+                                    {solution?.solution_code && (
+                                        <div className="code-actions">
+                                            <button onClick={handleCopyCode} className="action-btn" title="Copy code">
+                                                <FaCopy />
+                                            </button>
+                                            <button onClick={handleDownloadCode} className="action-btn" title="Download code">
+                                                <FaDownload />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {solution?.solution_code ? (
                                     <textarea

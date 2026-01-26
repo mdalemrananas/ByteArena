@@ -28,20 +28,45 @@ const QuestionSetterContestDetails = () => {
   const [contestQuestions, setContestQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [overviewView, setOverviewView] = useState('description'); // 'description' | 'cards'
+  const [contestSubmissions, setContestSubmissions] = useState([]);
+  const [submissionCode, setSubmissionCode] = useState(null);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [codeLoading, setCodeLoading] = useState(false);
 
   useEffect(() => {
     const loadContest = async () => {
       if (!contestId) return;
       
       try {
-        const { data, error } = await supabase
+        // First, get the contest data
+        const { data: contestData, error: contestError } = await supabase
           .from('contests')
           .select('*')
           .eq('id', contestId)
           .single();
 
-        if (error) throw error;
-        setContest(data);
+        if (contestError) throw contestError;
+
+        // Then, get the participant count for this contest
+        const { count: participantCount, error: countError } = await supabase
+          .from('contest_participants')
+          .select('*', { count: 'exact', head: true })
+          .eq('contest_id', contestId);
+
+        if (countError) {
+          console.error('Error fetching participant count:', countError);
+          // If there's an error, just use the total_register from contest data
+          setContest({
+            ...contestData,
+            participant_count: contestData.total_register || 0
+          });
+        } else {
+          // Update the contest data with the actual participant count
+          setContest({
+            ...contestData,
+            participant_count: participantCount || 0
+          });
+        }
       } catch (error) {
         console.error('Error loading contest:', error);
       } finally {
@@ -96,64 +121,42 @@ const QuestionSetterContestDetails = () => {
     setSubmissionsLoading(true);
     
     try {
-      // Get contest questions for this contest first
-      const { data: contestQuestions, error: questionsError } = await supabase
-        .from('contest_questions')
-        .select('id')
-        .eq('contest_id', contestId);
-
-      if (questionsError) throw questionsError;
-      const questionIds = contestQuestions?.map(q => q.id) || [];
-
-      // Fetch all participants for this contest
+      // First get all participants for this contest
       const { data: participants, error: participantsError } = await supabase
         .from('contest_participants')
         .select(`
-          id,
-          user_id,
-          status,
-          score,
-          rank,
-          users!inner (
-            id,
-            display_name,
-            email
-          )
+          *,
+          users (*)
         `)
-        .eq('contest_id', contestId);
+        .eq('contest_id', contestId)
+        .order('score', { ascending: false, nullsLast: true });
 
       if (participantsError) throw participantsError;
 
-      // For each participant, get their submissions for this contest's questions only
-      const submissionsWithData = await Promise.all(
-        participants.map(async (participant) => {
-          let solves = [];
-          if (questionIds.length > 0) {
-            const { data: solvesData, error: solvesError } = await supabase
-              .from('contest_question_solves')
-              .select('*')
-              .eq('participate_id', participant.user_id)
-              .in('question_id', questionIds);
+      // Get submission counts for each participant
+      const participantIds = participants.map(p => p.user_id);
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from('contest_question_solves')
+        .select('participate_id')
+        .in('participate_id', participantIds);
 
-            if (solvesError) {
-              console.error(`Error fetching solves for participant ${participant.user_id}:`, solvesError);
-            } else {
-              solves = solvesData || [];
-            }
-          }
+      if (submissionsError) throw submissionsError;
 
-          return {
-            ...participant,
-            submissions: solves,
-            submissionCount: solves.length
-          };
-        })
-      );
+      // Count submissions per participant
+      const submissionCounts = submissionsData.reduce((acc, { participate_id }) => {
+        acc[participate_id] = (acc[participate_id] || 0) + 1;
+        return acc;
+      }, {});
 
-      setSubmissions(submissionsWithData);
+      // Add submission counts to participants
+      const participantsWithCounts = participants.map(participant => ({
+        ...participant,
+        submissionCount: submissionCounts[participant.user_id] || 0
+      }));
+
+      setSubmissions(participantsWithCounts);
     } catch (error) {
       console.error('Error loading submissions:', error);
-      setSubmissions([]);
     } finally {
       setSubmissionsLoading(false);
     }
@@ -264,8 +267,11 @@ const QuestionSetterContestDetails = () => {
     return 'Registration Open';
   };
 
-  const handleViewSubmission = (participantId, userId) => {
-    navigate(`/question-setter/submission/${contestId}/${participantId}`);
+  const handleViewCode = (participant) => {
+    if (!participant || !contestId) return;
+    
+    // Navigate to the submission details page
+    navigate(`/question-setter/contests/${contestId}/participants/${participant.id}`);
   };
 
   const handleLogout = async () => {
@@ -419,7 +425,7 @@ const QuestionSetterContestDetails = () => {
               </div>
               <div className="qs-hero-info-item">
                 <FaUsers className="qs-hero-info-icon" />
-                <span>{contest.total_register || 0} participants</span>
+                <span>{contest.participant_count || 0} participants</span>
               </div>
               <div className="qs-hero-info-item">
                 <FaCoins className="qs-hero-info-icon" />
@@ -580,7 +586,7 @@ const QuestionSetterContestDetails = () => {
                       <div className="qs-stat-row">
                         <FaUsers className="qs-stat-icon" />
                         <span className="qs-stat-label">Participants:</span>
-                        <span className="qs-stat-value">{contest.total_register || 0}</span>
+                        <span className="qs-stat-value">{contest.participant_count || 0}</span>
                       </div>
                       <div className="qs-stat-row">
                         <FaAward className="qs-stat-icon" />
@@ -697,7 +703,7 @@ const QuestionSetterContestDetails = () => {
                           <th>Status</th>
                           <th>Score</th>
                           <th>Rank</th>
-                          <th>Submission Count</th>
+                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -723,20 +729,28 @@ const QuestionSetterContestDetails = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td className="qs-language-cell">{sub.status || 'registered'}</td>
+                              <td className="qs-status-cell">
+                                <span className={`qs-status-badge qs-status-${(sub.status || 'registered').toLowerCase().replace(' ', '-')}`}>
+                                  {sub.status || 'Registered'}
+                                </span>
+                              </td>
                               <td className="qs-points-cell">
                                 <FaStar className="qs-star-icon" />
                                 {sub.score || 0}
                               </td>
                               <td className="qs-rank-cell">{sub.rank || '-'}</td>
-                              <td className="qs-points-cell">{sub.submissionCount}</td>
                               <td className="qs-actions-cell">
-                                <button 
-                                  className="qs-view-btn"
-                                  onClick={() => handleViewSubmission(sub.id, sub.user_id)}
-                                >
-                                  <FaEye /> View Submission
-                                </button>
+                                {sub.submissionCount > 0 ? (
+                                  <button 
+                                    className="qs-view-btn"
+                                    onClick={() => handleViewCode(sub)}
+                                    disabled={codeLoading}
+                                  >
+                                    <FaEye /> View Submissions
+                                  </button>
+                                ) : (
+                                  <span className="qs-no-submission">No submissions</span>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -745,6 +759,59 @@ const QuestionSetterContestDetails = () => {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Code View Modal */}
+            {showCodeModal && (
+              <div className="qs-modal-overlay">
+                <div className="qs-code-modal">
+                  <div className="qs-code-modal-header">
+                    <h3>Submission Code</h3>
+                    <button 
+                      className="qs-modal-close"
+                      onClick={() => {
+                        setShowCodeModal(false);
+                        setSubmissionCode(null);
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  <div className="qs-code-modal-body">
+                    {codeLoading ? (
+                      <div className="qs-loading">Loading code...</div>
+                    ) : submissionCode ? (
+                      <div className="qs-code-container">
+                        <div className="qs-code-header">
+                          <span className="qs-code-language">
+                            {submissionCode.language || 'text'}
+                          </span>
+                          <span className="qs-code-stats">
+                            {submissionCode.time_taken && `${submissionCode.time_taken}ms`}
+                            {submissionCode.memory_taken && ` • ${submissionCode.memory_taken}MB`}
+                          </span>
+                        </div>
+                        <pre className="qs-code-content">
+                          <code>{submissionCode.code || 'No code available'}</code>
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="qs-no-code">No code available</div>
+                    )}
+                  </div>
+                  <div className="qs-code-modal-footer">
+                    <button 
+                      className="qs-modal-button"
+                      onClick={() => {
+                        setShowCodeModal(false);
+                        setSubmissionCode(null);
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -843,26 +910,6 @@ const QuestionSetterContestDetails = () => {
                       <strong>Total Prize Pool:</strong> ${contest.prize_money || 0}
                     </li>
                   </ul>
-                </div>
-                <div className="qs-contest-stats-card" style={{ marginTop: '32px' }}>
-                  <h3 className="qs-stats-card-title">Contest Stats</h3>
-                  <div className="qs-stats-list">
-                    <div className="qs-stat-row">
-                      <FaUsers className="qs-stat-icon" />
-                      <span className="qs-stat-label">Participants:</span>
-                      <span className="qs-stat-value">{contest.total_register || 0}</span>
-                    </div>
-                    <div className="qs-stat-row">
-                      <FaAward className="qs-stat-icon" />
-                      <span className="qs-stat-label">Questions:</span>
-                      <span className="qs-stat-value">{contest.question_problem || 0}</span>
-                    </div>
-                    <div className="qs-stat-row">
-                      <FaCoins className="qs-stat-icon" />
-                      <span className="qs-stat-label">Prize Money:</span>
-                      <span className="qs-stat-value">${contest.prize_money || 0}</span>
-                    </div>
-                  </div>
                 </div>
                 <div className="qs-key-dates-card" style={{ marginTop: '24px' }}>
                   <h3 className="qs-stats-card-title">Key Dates</h3>

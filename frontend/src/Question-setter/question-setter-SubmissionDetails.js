@@ -273,13 +273,14 @@ const QuestionSetterSubmissionDetails = () => {
             className="qs-submission-nav-tab"
             onClick={() => {
               if (isContestSubmission) {
-                navigate(`/question-setter/contest/${contestId}`);
+                // Navigate to contest details with submissions tab active
+                navigate(`/question-setter/contest/${contestId}?tab=submissions`);
               } else {
                 navigate(`/question-setter/question/${questionId}`);
               }
             }}
           >
-            <FaChevronLeft /> Back {isContestSubmission ? 'to Submission' : 'to Question'}
+            <FaChevronLeft /> Back {isContestSubmission ? 'to Submissions' : 'to Question'}
           </button>
         </div>
 

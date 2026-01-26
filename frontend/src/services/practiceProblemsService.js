@@ -11,11 +11,6 @@ export const practiceProblemsService = {
         .eq('admin_status', 'approved')
         .order('created_at', { ascending: false });
 
-      // Calculate range for pagination
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-
       // Apply filters
       if (filters.difficulty && filters.difficulty !== 'All Levels') {
         // Handle both cases for difficulty (Easy/EASY, Medium/MEDIUM, Hard/HARD)
@@ -36,14 +31,7 @@ export const practiceProblemsService = {
         query = query.or(`problem_title.ilike.%${filters.search}%,problemsetter_name.ilike.%${filters.search}%`);
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      // If status filter is applied and userId is provided, filter the results
-      let filteredData = data;
+      // If status filter is applied and userId is provided, we need to handle it differently
       if (filters.status && filters.status !== 'All' && userId) {
         // Get user's submissions to determine solved status
         const { data: submissions, error: submissionError } = await supabase
@@ -59,13 +47,40 @@ export const practiceProblemsService = {
         const solvedProblemIds = new Set(submissions.map(sub => sub.problem_id));
 
         if (filters.status === 'Solved') {
-          filteredData = data.filter(problem => solvedProblemIds.has(problem.problem_id));
+          // Only get problems that are solved by the user
+          if (solvedProblemIds.size === 0) {
+            return { success: true, data: [] }; // No solved problems
+          }
+          query = query.in('problem_id', Array.from(solvedProblemIds));
         } else if (filters.status === 'Unsolved') {
-          filteredData = data.filter(problem => !solvedProblemIds.has(problem.problem_id));
+          // Get all problems first, then filter out solved ones
+          const { data: allProblems, error: allError } = await query;
+          if (allError) {
+            throw allError;
+          }
+          const unsolvedProblems = allProblems.filter(problem => !solvedProblemIds.has(problem.problem_id));
+          
+          // Apply pagination to unsolved problems
+          const from = (page - 1) * limit;
+          const to = from + limit - 1;
+          const paginatedUnsolved = unsolvedProblems.slice(from, to + 1);
+          
+          return { success: true, data: paginatedUnsolved };
         }
       }
 
-      return { success: true, data: filteredData };
+      // For non-Unsolved cases, apply pagination normally
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, data: data || [] };
     } catch (error) {
       console.error('Error fetching practice problems:', error);
       return { success: false, error: error.message };
@@ -73,7 +88,7 @@ export const practiceProblemsService = {
   },
 
   // Get total count of problems (for pagination)
-  async getProblemsCount(filters = {}) {
+  async getProblemsCount(filters = {}, userId = null) {
     try {
       let query = supabase
         .from('practice_problem')
@@ -95,18 +110,70 @@ export const practiceProblemsService = {
         query = query.eq('problem_language', filters.language);
       }
 
-      if (filters.status && filters.status !== 'All') {
-        if (filters.status === 'Solved') {
-          query = query.or('status.eq.solved,status.eq.SOLVED');
-        } else if (filters.status === 'Unsolved') {
-          query = query.or('status.eq.unsolved,status.eq.UNSOLVED');
-        }
-      }
-
       if (filters.search) {
         query = query.or(`problem_title.ilike.%${filters.search}%,problemsetter_name.ilike.%${filters.search}%`);
       }
 
+      // For status filtering, we need to handle it specially since it depends on user submissions
+      if (filters.status && filters.status !== 'All' && userId) {
+        // Get all problems first with other filters applied
+        const { data: allProblems, error: allError } = await supabase
+          .from('practice_problem')
+          .select('*')
+          .eq('admin_status', 'approved')
+          .order('created_at', { ascending: false });
+
+        if (allError) {
+          throw allError;
+        }
+
+        // Apply other filters to the problems
+        let filteredProblems = allProblems;
+        
+        if (filters.difficulty && filters.difficulty !== 'All Levels') {
+          if (filters.difficulty === 'Easy') {
+            filteredProblems = filteredProblems.filter(p => p.difficulty === 'Easy' || p.difficulty === 'EASY');
+          } else if (filters.difficulty === 'Medium') {
+            filteredProblems = filteredProblems.filter(p => p.difficulty === 'Medium' || p.difficulty === 'MEDIUM');
+          } else if (filters.difficulty === 'Hard') {
+            filteredProblems = filteredProblems.filter(p => p.difficulty === 'Hard' || p.difficulty === 'HARD');
+          }
+        }
+
+        if (filters.language && filters.language !== 'All Categories') {
+          filteredProblems = filteredProblems.filter(p => p.problem_language === filters.language);
+        }
+
+        if (filters.search) {
+          filteredProblems = filteredProblems.filter(p => 
+            p.problem_title.toLowerCase().includes(filters.search.toLowerCase()) ||
+            p.problemsetter_name.toLowerCase().includes(filters.search.toLowerCase())
+          );
+        }
+
+        // Get user's solved problems
+        const { data: submissions, error: submissionError } = await supabase
+          .from('practice_submission')
+          .select('problem_id')
+          .eq('problem_solver_id', userId)
+          .eq('submission_status', 'Accepted');
+
+        if (submissionError) {
+          throw submissionError;
+        }
+
+        const solvedProblemIds = new Set(submissions.map(sub => sub.problem_id));
+
+        if (filters.status === 'Solved') {
+          filteredProblems = filteredProblems.filter(problem => solvedProblemIds.has(problem.problem_id));
+        } else if (filters.status === 'Unsolved') {
+          filteredProblems = filteredProblems.filter(problem => !solvedProblemIds.has(problem.problem_id));
+        }
+
+        return { success: true, count: filteredProblems.length };
+      }
+
+      // For non-status filters or when userId is not provided, use the normal query
       const { count, error } = await query;
 
       if (error) {

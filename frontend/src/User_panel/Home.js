@@ -13,24 +13,24 @@ import Footer from '../components/Footer';
 const testimonials = [
     {
         id: 1,
-        name: 'Alex Johnson',
+        name: 'Rahman Karim',
         role: 'Software Engineer',
-        content: 'CodeMaster helped me land my dream job at a FAANG company. The practice problems and community support were invaluable!',
-        avatar: 'https://randomuser.me/api/portraits/men/1.jpg'
+        content: 'Byte Arena helped me land my dream job at a leading tech company. The practice problems and community support were invaluable!',
+        avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
     },
     {
         id: 2,
-        name: 'Sarah Williams',
+        name: 'Fatima Begum',
         role: 'Computer Science Student',
         content: 'The structured learning path and real-world challenges made all the difference in my coding journey.',
-        avatar: 'https://randomuser.me/api/portraits/women/1.jpg'
+        avatar: 'https://randomuser.me/api/portraits/women/44.jpg'
     },
     {
         id: 3,
-        name: 'Michael Chen',
+        name: 'Mohammad Hassan',
         role: 'Full Stack Developer',
-        content: 'I improved my problem-solving skills significantly after joining CodeMaster. The community is amazing!',
-        avatar: 'https://randomuser.me/api/portraits/men/2.jpg'
+        content: 'I improved my problem-solving skills significantly after joining Byte Arena. The community is amazing!',
+        avatar: 'https://randomuser.me/api/portraits/men/28.jpg'
     }
 ];
 

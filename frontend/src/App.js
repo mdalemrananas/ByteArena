@@ -22,6 +22,8 @@ import Submissions from './User_panel/Submissions.js';
 import ViewSubmission from './User_panel/ViewSubmission.js';
 import Editorial from './User_panel/Editorial.js';
 import IndividualLeaderboard from './User_panel/Individual_Leaderboard.js';
+import Community from './User_panel/Community.js';
+import AboutUs from './User_panel/About_us.js';
 
 //Question Setter Panel
 import QuestionSetterHomepage from './Question-setter/question-setter-Homepage.js';
@@ -51,6 +53,7 @@ import Admin_ViewProblem from './Admin_Panel/Admin_ViewProblem.js';
 import Admin_ProblemSubmission from './Admin_Panel/Admin_ProblemSubmission.js';
 import Admin_IndividualLeaderboard from './Admin_Panel/Admin_IndividualLeaderboard.js';
 import Admin_ViewSubmission from './Admin_Panel/Admin_ViewSubmission.js';
+import AdminProfile from './Admin_Panel/Admin_Profile.js';
 
 
 
@@ -203,6 +206,8 @@ const AppContent = () => {
         <Route path="/dashboard" element={<RoleBasedRoute allowedRoles={['user']}><Dashboard /></RoleBasedRoute>} />
         <Route path="/profile" element={<RoleBasedRoute allowedRoles={['user']}><UserProfile /></RoleBasedRoute>} />
         <Route path="/leaderboard" element={<RoleBasedRoute allowedRoles={['user']}><UserLeaderboard /></RoleBasedRoute>} />
+        <Route path="/community" element={<Community onSignInClick={() => {}} onGetStartedClick={() => {}} />} />
+        <Route path="/about" element={<AboutUs onSignInClick={() => {}} onGetStartedClick={() => {}} />} />
         <Route path="/contest" element={<RoleBasedRoute allowedRoles={['user']}><UserContest /></RoleBasedRoute>} />
         <Route path="/contest/:contestId" element={<RoleBasedRoute allowedRoles={['user']}><User_Contest_Details /></RoleBasedRoute>} />
         <Route path="/contest/participate/:contestId" element={<RoleBasedRoute allowedRoles={['user']}><User_Contest_Participate /></RoleBasedRoute>} />
@@ -221,6 +226,14 @@ const AppContent = () => {
         <Route path="/question-setter/explore" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterExploreQuestions /></RoleBasedRoute>} />
         <Route path="/question-setter/contest" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterContest /></RoleBasedRoute>} />
         <Route path="/question-setter/contest/:contestId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterContestDetails /></RoleBasedRoute>} />
+        <Route 
+          path="/question-setter/contests/:contestId/participants/:participantId" 
+          element={
+            <RoleBasedRoute allowedRoles={['moderator']}>
+              <QuestionSetterSubmissionDetails />
+            </RoleBasedRoute>
+          } 
+        />
         <Route path="/question-setter/leaderboard" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterLeaderboard /></RoleBasedRoute>} />
         <Route path="/question-setter/profile" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterProfile /></RoleBasedRoute>} />
         <Route path="/question-setter/create" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateQuestion /></RoleBasedRoute>} />
@@ -231,6 +244,7 @@ const AppContent = () => {
         
         {/* Admin Routes - Only accessible by admins */}
         <Route path="/admin_dashboard" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_profile" element={<RoleBasedRoute allowedRoles={['admin']}><AdminProfile /></RoleBasedRoute>} />
         <Route path="/admin_users" element={<RoleBasedRoute allowedRoles={['admin']}><UserManagement /></RoleBasedRoute>} />
         <Route path="/admin_contests" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
         <Route path="/admin_contest/create" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Create /></RoleBasedRoute>} />
