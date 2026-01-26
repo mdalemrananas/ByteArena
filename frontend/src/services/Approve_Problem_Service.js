@@ -83,7 +83,8 @@ export const getProblemById = async (problemId) => {
 // Create new problem
 export const createProblem = async (problemData) => {
   try {
-    const { data, error } = await supabase
+    // First, create the problem
+    const { data: problem, error: problemError } = await supabase
       .from('practice_problem')
       .insert([
         {
@@ -104,11 +105,30 @@ export const createProblem = async (problemData) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (problemError) throw problemError;
+
+    // If solution data is provided, create solution entry
+    if (problemData.solution_code || problemData.video_link || problemData.solution_article) {
+      const { error: solutionError } = await supabase
+        .from('problem_solution')
+        .insert([
+          {
+            problem_id: problem.problem_id,
+            solution_code: problemData.solution_code || '',
+            video_link: problemData.video_link || '',
+            solution_article: problemData.solution_article || ''
+          }
+        ]);
+
+      if (solutionError) {
+        console.error('Error creating solution:', solutionError);
+        // Don't fail the problem creation if solution creation fails
+      }
+    }
 
     return {
       success: true,
-      data,
+      data: problem,
       message: 'Problem created successfully'
     };
   } catch (error) {

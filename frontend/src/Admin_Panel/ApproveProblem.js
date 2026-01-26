@@ -103,7 +103,10 @@ const ApproveProblem = () => {
         problem_output: '',
         sample_input: '',
         sample_output: '',
-        points: 0
+        points: 0,
+        solution_code: '',
+        video_link: '',
+        solution_article: ''
     });
     const navigate = useNavigate();
 
@@ -324,7 +327,10 @@ const ApproveProblem = () => {
                     problem_output: '',
                     sample_input: '',
                     sample_output: '',
-                    points: 0
+                    points: 0,
+                    solution_code: '',
+                    video_link: '',
+                    solution_article: ''
                 });
                 setError('');
                 showSuccess('Problem created successfully!');
@@ -348,7 +354,10 @@ const ApproveProblem = () => {
             problem_output: '',
             sample_input: '',
             sample_output: '',
-            points: 0
+            points: 0,
+            solution_code: '',
+            video_link: '',
+            solution_article: ''
         });
     };
 
@@ -836,6 +845,40 @@ const ApproveProblem = () => {
                                     onChange={handleInputChange}
                                     placeholder="Enter points"
                                     min="0"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Solution Code</label>
+                                <textarea
+                                    name="solution_code"
+                                    value={newProblem.solution_code}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter solution code (optional)"
+                                    rows="8"
+                                    style={{ fontFamily: 'monospace', fontSize: '14px' }}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Video Link</label>
+                                <input
+                                    type="url"
+                                    name="video_link"
+                                    value={newProblem.video_link}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter video solution link (optional)"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Solution Article</label>
+                                <textarea
+                                    name="solution_article"
+                                    value={newProblem.solution_article}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter detailed solution explanation (optional)"
+                                    rows="6"
                                 />
                             </div>
                         </div>
