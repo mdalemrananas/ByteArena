@@ -74,6 +74,7 @@ function UserDashboard() {
   const [practiceProblems, setPracticeProblems] = useState([]);
   const [practiceProblemsLoading, setPracticeProblemsLoading] = useState(false);
   const [practiceProblemsError, setPracticeProblemsError] = useState(null);
+  const [topCompetitors, setTopCompetitors] = useState([]);
 
   const stats = useMemo(
     () => [
@@ -159,6 +160,13 @@ function UserDashboard() {
     fetchPracticeProblems();
   }, []);
 
+  // Fetch top competitors data from Supabase
+  useEffect(() => {
+    if (user) {
+      fetchTopCompetitors();
+    }
+  }, [user]);
+
   // Sliding effect for Latest Problems
   useEffect(() => {
     const interval = setInterval(() => {
@@ -212,6 +220,78 @@ function UserDashboard() {
     } catch (error) {
       console.error('Logout error:', error);
       navigate('/');
+    }
+  };
+
+  // Fetch top 5 competitors from leaderboard
+  const fetchTopCompetitors = async () => {
+    try {
+      console.log('Fetching top 5 competitors...');
+      
+      const { data, error } = await supabase
+        .from('leaderboard')
+        .select(`
+          *,
+          users:participate_id (
+            username,
+            email
+          )
+        `)
+        .order('score', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        console.error('Error fetching top competitors:', error);
+        setTopCompetitors([]);
+        return;
+      }
+
+      console.log('Top competitors data fetched:', data);
+
+      if (data && data.length > 0) {
+        // Fetch submission counts for each competitor
+        const competitorsWithCounts = await Promise.all(
+          data.map(async (entry, index) => {
+            // Get contest submission count
+            const { count: contestCount, error: contestError } = await supabase
+              .from('contest_question_solves')
+              .select('*', { count: 'exact', head: true })
+              .eq('participate_id', entry.participate_id);
+
+            // Get practice submission count
+            const { count: practiceCount, error: practiceError } = await supabase
+              .from('practice_submission')
+              .select('*', { count: 'exact', head: true })
+              .eq('problem_solver_id', entry.participate_id);
+
+            const totalSubmissions = (contestCount || 0) + (practiceCount || 0);
+
+            return {
+              rank: index + 1,
+              id: entry.id,
+              score: entry.score,
+              level: entry.level,
+              problemsSolved: entry.problem_solve,
+              totalSubmissions: totalSubmissions,
+              contestSubmissions: contestCount || 0,
+              practiceSubmissions: practiceCount || 0,
+              badge: entry.badge,
+              name: entry.users?.username || `User ${entry.participate_id}`,
+              email: entry.users?.email || 'user@example.com',
+              userId: entry.participate_id
+            };
+          })
+        );
+
+        console.log('Transformed top competitors with submission counts:', competitorsWithCounts);
+        setTopCompetitors(competitorsWithCounts);
+      } else {
+        console.log('No top competitors data found');
+        setTopCompetitors([]);
+      }
+    } catch (error) {
+      console.error('Error in fetchTopCompetitors:', error);
+      setTopCompetitors([]);
     }
   };
 
@@ -1144,58 +1224,7 @@ function UserDashboard() {
                   gridTemplateColumns: 'repeat(5, 1fr)',
                   gap: '1rem'
                 }}>
-                  {[
-                    {
-                      id: 1,
-                      rank: 1,
-                      name: 'Rahman Islam',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 1250,
-                      rating: 2890,
-                      points: 42
-                    },
-                    {
-                      id: 2,
-                      rank: 2,
-                      name: 'Fatema Begum',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 980,
-                      rating: 2756,
-                      points: 38
-                    },
-                    {
-                      id: 3,
-                      rank: 3,
-                      name: 'Mohammad Ali',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 875,
-                      rating: 2654,
-                      points: 35
-                    },
-                    {
-                      id: 4,
-                      rank: 4,
-                      name: 'Ayesha Siddiqua',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 725,
-                      rating: 2543,
-                      points: 31
-                    },
-                    {
-                      id: 5,
-                      rank: 5,
-                      name: 'Hasan Mahmud',
-                      country: 'Bangladesh',
-                      flag: '🇧🇩',
-                      problemsSolved: 650,
-                      rating: 2450,
-                      points: 28
-                    }
-                  ].map((competitor) => (
+                  {topCompetitors.length > 0 ? topCompetitors.map((competitor) => (
                     <div key={competitor.id} style={{
                       backgroundColor: 'white',
                       borderRadius: '8px',
@@ -1283,8 +1312,8 @@ function UserDashboard() {
                           justifyContent: 'center',
                           gap: '0.25rem'
                         }}>
-                          <span>{competitor.flag}</span>
-                          <span>{competitor.country}</span>
+                          <span>🏆</span>
+                          <span>Level {competitor.level}</span>
                         </div>
                         <div style={{
                           display: 'flex',
@@ -1294,26 +1323,35 @@ function UserDashboard() {
                         }}>
                           <div>
                             <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.points}
+                              #{competitor.rank}
                             </div>
                             <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Rank</div>
                           </div>
                           <div>
                             <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.problemsSolved}
+                              {competitor.totalSubmissions}
                             </div>
-                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Problems</div>
+                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Submissions</div>
                           </div>
                           <div>
                             <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937' }}>
-                              {competitor.rating}
+                              {competitor.score}
                             </div>
-                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Rating</div>
+                            <div style={{ fontSize: '0.6rem', color: '#6b7280' }}>Score</div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div style={{ 
+                      gridColumn: '1 / -1', 
+                      textAlign: 'center', 
+                      padding: '2rem',
+                      color: '#6b7280'
+                    }}>
+                      No competitors data available
+                    </div>
+                  )}
                 </div>
               </div>
 

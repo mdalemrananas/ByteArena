@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Container, 
+import {
+  Container,
   Typography,
   Menu,
   MenuItem,
   IconButton,
-  Card, 
-  CardContent, 
-  Button, 
-  Grid, 
+  Card,
+  CardContent,
+  Button,
+  Grid,
   Box,
   Chip,
   LinearProgress,
@@ -25,7 +25,7 @@ import {
   FormControl,
   InputLabel
 } from '@mui/material';
-import { 
+import {
   FaArrowLeft as ArrowBackIcon,
   FaTrophy as TrophyIcon,
   FaUsers as UsersIcon,
@@ -45,7 +45,7 @@ import {
   FaEdit as EditIcon,
   FaTrash as DeleteIcon
 } from 'react-icons/fa';
-import { 
+import {
   FaBars,
   FaHome,
   FaTrophy,
@@ -92,6 +92,7 @@ const Admin_Contest = () => {
   const [contests, setContests] = useState([]);
   const [featuredContest, setFeaturedContest] = useState(null);
   const [registeredContests, setRegisteredContests] = useState([]);
+  const [participantCounts, setParticipantCounts] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 8; // 2 rows with 4 cards each
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
@@ -156,14 +157,23 @@ const Admin_Contest = () => {
       console.log('Contests fetched from Supabase:', data);
       setContests(data || []);
 
+      // Fetch participant counts for all contests
+      if (data && data.length > 0) {
+        const counts = {};
+        for (const contest of data) {
+          counts[contest.id] = await getParticipantCount(contest.id);
+        }
+        setParticipantCounts(counts);
+      }
+
       // Filter for upcoming contests (registration_end > now) and find the one ending soonest
       const now = new Date();
-      const upcomingContests = data?.filter(contest => 
+      const upcomingContests = data?.filter(contest =>
         new Date(contest.registration_end) > now
       ) || [];
 
       // Sort by registration_end (soonest first) and take the first one
-      const sortedUpcoming = upcomingContests.sort((a, b) => 
+      const sortedUpcoming = upcomingContests.sort((a, b) =>
         new Date(a.registration_end) - new Date(b.registration_end)
       );
 
@@ -172,6 +182,27 @@ const Admin_Contest = () => {
       }
     } catch (error) {
       console.error('Error in fetchContests:', error);
+    }
+  };
+
+  // Function to get participant count for a contest (excluding only null/invalid statuses)
+  const getParticipantCount = async (contestId) => {
+    try {
+      const { data, error } = await supabase
+        .from('contest_participants')
+        .select('id')
+        .eq('contest_id', contestId)
+        .in('status', ['registered', 'in_progress', 'completed', 'disqualified']);
+
+      if (error) {
+        console.error('Error fetching participants:', error);
+        return 0;
+      }
+
+      return data ? data.length : 0;
+    } catch (error) {
+      console.error('Error in getParticipantCount:', error);
+      return 0;
     }
   };
 
@@ -245,10 +276,10 @@ const Admin_Contest = () => {
   // Helper function to format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
@@ -257,7 +288,7 @@ const Admin_Contest = () => {
     const now = new Date();
     const start = new Date(registrationStart);
     const end = new Date(registrationEnd);
-    
+
     if (now < start) return 'Upcoming';
     if (now > end) return 'Closed';
     return 'Registration Open';
@@ -305,44 +336,44 @@ const Admin_Contest = () => {
   const getFilteredContests = useMemo(() => {
     const now = new Date();
     let filteredContests = [];
-    
+
     // Filter by tab first
     if (tabValue === 0) { // All Contests tab - show present/future contests only
-      filteredContests = contests.filter(contest => 
+      filteredContests = contests.filter(contest =>
         new Date(contest.registration_end) > now
       );
     } else if (tabValue === 1) { // Past Contests tab - show past contests only
-      filteredContests = contests.filter(contest => 
+      filteredContests = contests.filter(contest =>
         new Date(contest.registration_end) <= now
       );
     } else {
       filteredContests = contests;
     }
-    
+
     // Apply category-based sorting or filtering
     if (categoryFilter === 'Registration End') {
       // Sort by registration end date (soonest first)
-      filteredContests = [...filteredContests].sort((a, b) => 
+      filteredContests = [...filteredContests].sort((a, b) =>
         new Date(a.registration_end) - new Date(b.registration_end)
       );
     } else if (categoryFilter === 'Prize') {
       // Sort by prize amount (highest first)
-      filteredContests = [...filteredContests].sort((a, b) => 
+      filteredContests = [...filteredContests].sort((a, b) =>
         (b.prize_money || 0) - (a.prize_money || 0)
       );
     }
-    
+
     // Filter by difficulty
     if (difficultyFilter !== 'all') {
-      filteredContests = filteredContests.filter(contest => 
+      filteredContests = filteredContests.filter(contest =>
         contest.contest_difficulty && contest.contest_difficulty.toLowerCase() === difficultyFilter.toLowerCase()
       );
     }
-    
+
     // Filter by search term (using debounced value)
     if (debouncedSearchTerm.trim()) {
       const searchLower = debouncedSearchTerm.toLowerCase().trim();
-      filteredContests = filteredContests.filter(contest => 
+      filteredContests = filteredContests.filter(contest =>
         (contest.title && contest.title.toLowerCase().includes(searchLower)) ||
         (contest.description && contest.description.toLowerCase().includes(searchLower)) ||
         (contest.contest_difficulty && contest.contest_difficulty.toLowerCase().includes(searchLower)) ||
@@ -350,7 +381,7 @@ const Admin_Contest = () => {
         (contest.prize_money && contest.prize_money.toString().includes(searchLower))
       );
     }
-    
+
     return filteredContests;
   }, [contests, tabValue, categoryFilter, difficultyFilter, debouncedSearchTerm, registeredContests]);
 
@@ -359,7 +390,7 @@ const Admin_Contest = () => {
     const now = new Date();
     const registrationStart = new Date(contest.registration_start);
     const registrationEnd = new Date(contest.registration_end);
-    
+
     // Show register button only if registration is currently open (between start and end dates)
     return now >= registrationStart && now <= registrationEnd;
   };
@@ -436,13 +467,13 @@ const Admin_Contest = () => {
 
   const confirmDeleteContest = async () => {
     setConfirmDialogOpen(false);
-    
+
     try {
       const { error } = await supabase
         .from('contests')
         .delete()
         .eq('id', selectedContest.id);
-      
+
       if (error) {
         console.error('Error deleting contest:', error);
         setNotification({
@@ -499,7 +530,7 @@ const Admin_Contest = () => {
         .from('contests')
         .update({ status: newStatus })
         .eq('id', contestId);
-      
+
       if (error) {
         console.error('Error updating contest status:', error);
         setNotification({
@@ -588,7 +619,7 @@ const Admin_Contest = () => {
               <div className="avatar">
                 {user?.photoURL ? (
                   <img src={user.photoURL} alt="avatar" onError={(e) => {
-                    e.target.onerror = null; 
+                    e.target.onerror = null;
                     e.target.src = `https://ui-avatars.com/api/?name=${user?.displayName || 'Admin'}&background=random`;
                   }} />
                 ) : (
@@ -606,8 +637,8 @@ const Admin_Contest = () => {
             <h1>Manage Contests:</h1>
             <h2>Create, Monitor, and Analyze</h2>
             <p className="sub">Oversee all contest activities and participant engagement</p>
-            <button 
-              className="primary-btn" 
+            <button
+              className="primary-btn"
               onClick={() => navigate('/admin/contests/new')}
               style={{ display: 'flex', alignItems: 'center' }}
             >
@@ -617,10 +648,10 @@ const Admin_Contest = () => {
           </div>
         </section>
 
-        <Container 
+        <Container
           maxWidth={false}
-          sx={{ 
-            px: { xs: 1, sm: 2, md: 3, lg: 4 }, 
+          sx={{
+            px: { xs: 1, sm: 2, md: 3, lg: 4 },
             py: { xs: 2, sm: 3 },
             width: '100%'
           }}
@@ -780,8 +811,8 @@ const Admin_Contest = () => {
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
-              sx={{ 
-                borderBottom: 1, 
+              sx={{
+                borderBottom: 1,
                 borderColor: 'divider',
                 mb: 3,
                 '& .MuiTab-root': {
@@ -796,20 +827,20 @@ const Admin_Contest = () => {
             </Tabs>
 
             {/* Search and Filter Section */}
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 2, 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
               mb: 3,
               flexWrap: 'wrap'
             }}>
               {/* Search Bar */}
-              <Box sx={{ 
+              <Box sx={{
                 width: '350px', // Decreased width
                 position: 'relative'
               }}>
-                <FaSearch 
-                  style={{ 
+                <FaSearch
+                  style={{
                     position: 'absolute',
                     left: '12px',
                     top: '50%',
@@ -817,7 +848,7 @@ const Admin_Contest = () => {
                     color: '#9ca3af',
                     fontSize: '16px',
                     zIndex: 2
-                  }} 
+                  }}
                 />
                 <input
                   type="text"
@@ -975,8 +1006,8 @@ const Admin_Contest = () => {
           {/* Contest Cards Grid */}
           <Box sx={{ mb: 4, maxWidth: '1400px', mx: 'auto' }}>
             {debouncedSearchTerm && getFilteredContests.length === 0 ? (
-              <Box sx={{ 
-                textAlign: 'center', 
+              <Box sx={{
+                textAlign: 'center',
                 py: 8,
                 display: 'flex',
                 flexDirection: 'column',
@@ -989,8 +1020,8 @@ const Admin_Contest = () => {
                 <Typography variant="body2" color="text.secondary">
                   Try adjusting your search terms or filters
                 </Typography>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   onClick={clearSearch}
                   sx={{ mt: 2 }}
                 >
@@ -1002,214 +1033,214 @@ const Admin_Contest = () => {
                 {getFilteredContests
                   .slice(currentPage * cardsPerPage, (currentPage + 1) * cardsPerPage)
                   .map((contest) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
-                  <div className="contest-card-wrapper">
-                    <Card 
-                      sx={{ 
-                        width: '330px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'all 0.3s ease',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: 4
-                        }
-                      }}
-                    >
-                  {/* Contest Image */}
-                  <Box
-                    sx={{
-                      height: 160,
-                      backgroundImage: contest.cover_image ? `url(${contest.cover_image})` : 'url(/Contest_Cover.jpg)',
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      position: 'relative',
-                      flexShrink: 0,
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))'
-                      }
-                    }}
-                  >
-                    {/* Difficulty chip in top-right */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        zIndex: 1
-                      }}
-                    >
-                      <Chip
-                        label={contest.contest_difficulty}
-                        size="small"
-                        sx={{
-                          backgroundColor: getDifficultyColor(contest.contest_difficulty),
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '12px',
-                          height: '24px'
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  <CardContent sx={{ 
-                    flex: 1, 
-                    p: 2, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justifyContent: 'space-between'
-                  }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h6" component="h3" sx={{ 
-                        fontWeight: 'bold', 
-                        flex: 1,
-                        fontSize: '1.1rem',
-                        lineHeight: 1.3
-                      }}>
-                        {contest.title}
-                      </Typography>
-                    </Box>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ 
-                    mb: 2, 
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    lineHeight: 1.4,
-                    maxHeight: '2.8em'
-                  }}>
-                      {contest.title_description}
-                    </Typography>
-
-                    <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                        <CalendarIcon style={{ fontSize: '14px', color: '#666' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {formatDate(contest.registration_start)} - {formatDate(contest.registration_end)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <UsersIcon style={{ fontSize: '14px', color: '#666' }} />
-                          <Typography variant="body2" color="text.secondary">
-                            {contest.total_register || 0} participants
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CoinsIcon style={{ fontSize: '14px', color: '#666' }} />
-                          <Typography variant="body2" color="text.secondary">
-                            ${contest.prize_money || 0} prize
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ClockIcon style={{ fontSize: '14px', color: '#666' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {getRegistrationStatus(contest.registration_start, contest.registration_end)}
-                        </Typography>
-                      </Box>
-                      <div>
-                        <IconButton
-                          onClick={(e) => handleActionMenuOpen(e, contest)}
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={contest.id}>
+                      <div className="contest-card-wrapper">
+                        <Card
                           sx={{
-                            backgroundColor: '#635BFF',
-                            color: 'white',
+                            width: '330px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            transition: 'all 0.3s ease',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            flexShrink: 0,
                             '&:hover': {
-                              backgroundColor: '#635BFF',
-                              opacity: 0.9
-                            },
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            fontSize: '14px'
-                          }}
-                        >
-                          Actions <MoreVertIcon style={{ marginLeft: '4px', fontSize: '12px' }} />
-                        </IconButton>
-                        <Menu
-                          anchorEl={actionAnchorEl}
-                          open={Boolean(actionAnchorEl)}
-                          onClose={handleActionMenuClose}
-                          PaperProps={{
-                            sx: {
-                              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-                              borderRadius: '8px',
-                              mt: 1,
-                              minWidth: '150px'
+                              transform: 'translateY(-4px)',
+                              boxShadow: 4
                             }
                           }}
                         >
-                          <MenuItem onClick={handleViewContest} sx={{ fontSize: '14px' }}>
-                            <ViewIcon style={{ marginRight: '8px', color: '#6366f1' }} />
-                            View
-                          </MenuItem>
-                          <MenuItem onClick={handleEditContest} sx={{ fontSize: '14px' }}>
-                            <EditIcon style={{ marginRight: '8px', color: '#10b981' }} />
-                            Edit
-                          </MenuItem>
-                          <MenuItem onClick={handleDeleteContest} sx={{ fontSize: '14px', color: '#ef4444' }}>
-                            <DeleteIcon style={{ marginRight: '8px' }} />
-                            Delete
-                          </MenuItem>
-                        </Menu>
+                          {/* Contest Image */}
+                          <Box
+                            sx={{
+                              height: 160,
+                              backgroundImage: contest.cover_image ? `url(${contest.cover_image})` : 'url(/Contest_Cover.jpg)',
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              position: 'relative',
+                              flexShrink: 0,
+                              '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))'
+                              }
+                            }}
+                          >
+                            {/* Difficulty chip in top-right */}
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: 10,
+                                right: 10,
+                                zIndex: 1
+                              }}
+                            >
+                              <Chip
+                                label={contest.contest_difficulty}
+                                size="small"
+                                sx={{
+                                  backgroundColor: getDifficultyColor(contest.contest_difficulty),
+                                  color: 'white',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                  height: '24px'
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          <CardContent sx={{
+                            flex: 1,
+                            p: 2,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                              <Typography variant="h6" component="h3" sx={{
+                                fontWeight: 'bold',
+                                flex: 1,
+                                fontSize: '1.1rem',
+                                lineHeight: 1.3
+                              }}>
+                                {contest.title}
+                              </Typography>
+                            </Box>
+
+                            <Typography variant="body2" color="text.secondary" sx={{
+                              mb: 2,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              lineHeight: 1.4,
+                              maxHeight: '2.8em'
+                            }}>
+                              {contest.title_description}
+                            </Typography>
+
+                            <Box sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <CalendarIcon style={{ fontSize: '14px', color: '#666' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatDate(contest.registration_start)} - {formatDate(contest.registration_end)}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <UsersIcon style={{ fontSize: '14px', color: '#666' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    {participantCounts[contest.id] || 0} participants
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <CoinsIcon style={{ fontSize: '14px', color: '#666' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    {contest.prize_money || 0} Points
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ClockIcon style={{ fontSize: '14px', color: '#666' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                  {getRegistrationStatus(contest.registration_start, contest.registration_end)}
+                                </Typography>
+                              </Box>
+                              <div>
+                                <IconButton
+                                  onClick={(e) => handleActionMenuOpen(e, contest)}
+                                  sx={{
+                                    backgroundColor: '#635BFF',
+                                    color: 'white',
+                                    '&:hover': {
+                                      backgroundColor: '#635BFF',
+                                      opacity: 0.9
+                                    },
+                                    padding: '8px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '14px'
+                                  }}
+                                >
+                                  Actions <MoreVertIcon style={{ marginLeft: '4px', fontSize: '12px' }} />
+                                </IconButton>
+                                <Menu
+                                  anchorEl={actionAnchorEl}
+                                  open={Boolean(actionAnchorEl)}
+                                  onClose={handleActionMenuClose}
+                                  PaperProps={{
+                                    sx: {
+                                      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+                                      borderRadius: '8px',
+                                      mt: 1,
+                                      minWidth: '150px'
+                                    }
+                                  }}
+                                >
+                                  <MenuItem onClick={handleViewContest} sx={{ fontSize: '14px' }}>
+                                    <ViewIcon style={{ marginRight: '8px', color: '#6366f1' }} />
+                                    View
+                                  </MenuItem>
+                                  <MenuItem onClick={handleEditContest} sx={{ fontSize: '14px' }}>
+                                    <EditIcon style={{ marginRight: '8px', color: '#10b981' }} />
+                                    Edit
+                                  </MenuItem>
+                                  <MenuItem onClick={handleDeleteContest} sx={{ fontSize: '14px', color: '#ef4444' }}>
+                                    <DeleteIcon style={{ marginRight: '8px' }} />
+                                    Delete
+                                  </MenuItem>
+                                </Menu>
+                              </div>
+                            </Box>
+                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                              <Select
+                                value={contest.status || 'pending'}
+                                onChange={(e) => handleStatusChange(contest.id, e.target.value)}
+                                sx={{
+                                  backgroundColor: getStatusColor(contest.status),
+                                  color: 'white',
+                                  fontWeight: 'bold',
+                                  fontSize: '11px',
+                                  height: '30px',
+                                  '& .MuiOutlinedInput-notchedOutline': {
+                                    border: 'none'
+                                  },
+                                  '& .MuiSvgIcon-root': {
+                                    color: 'white'
+                                  },
+                                  '& .MuiSelect-select': {
+                                    padding: '4px 8px',
+                                    textTransform: 'capitalize'
+                                  }
+                                }}
+                              >
+                                <MenuItem value="pending" sx={{ textTransform: 'capitalize' }}>Pending</MenuItem>
+                                <MenuItem value="approved" sx={{ textTransform: 'capitalize' }}>Approved</MenuItem>
+                                <MenuItem value="rejected" sx={{ textTransform: 'capitalize' }}>Rejected</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </CardContent>
+                        </Card>
                       </div>
-                    </Box>
-                    <FormControl size="small" sx={{ minWidth: 100 }}>
-                      <Select
-                        value={contest.status || 'pending'}
-                        onChange={(e) => handleStatusChange(contest.id, e.target.value)}
-                        sx={{
-                          backgroundColor: getStatusColor(contest.status),
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '11px',
-                          height: '30px',
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            border: 'none'
-                          },
-                          '& .MuiSvgIcon-root': {
-                            color: 'white'
-                          },
-                          '& .MuiSelect-select': {
-                            padding: '4px 8px',
-                            textTransform: 'capitalize'
-                          }
-                        }}
-                      >
-                        <MenuItem value="pending" sx={{ textTransform: 'capitalize' }}>Pending</MenuItem>
-                        <MenuItem value="approved" sx={{ textTransform: 'capitalize' }}>Approved</MenuItem>
-                        <MenuItem value="rejected" sx={{ textTransform: 'capitalize' }}>Rejected</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </CardContent>
-                </Card>
-              </div>
-                </Grid>
-              ))}
-            </Grid>
+                    </Grid>
+                  ))}
+              </Grid>
             )}
-            
+
             {/* Pagination Controls */}
             {getFilteredContests.length > cardsPerPage && (
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                gap: 2, 
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 2,
                 mt: 4,
                 '& button': {
                   minWidth: '36px',
@@ -1246,7 +1277,7 @@ const Admin_Contest = () => {
                   }
                 }
               }}>
-                <button 
+                <button
                   className="pagination-arrow"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 0))}
                   disabled={currentPage === 0}
@@ -1254,7 +1285,7 @@ const Admin_Contest = () => {
                 >
                   <FaChevronLeft />
                 </button>
-                
+
                 {Array.from({ length: Math.ceil(getFilteredContests.length / cardsPerPage) }, (_, i) => (
                   <button
                     key={i}
@@ -1265,8 +1296,8 @@ const Admin_Contest = () => {
                     {i + 1}
                   </button>
                 ))}
-                
-                <button 
+
+                <button
                   className="pagination-arrow"
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(getFilteredContests.length / cardsPerPage) - 1))}
                   disabled={currentPage >= Math.ceil(getFilteredContests.length / cardsPerPage) - 1}
@@ -1294,10 +1325,10 @@ const Admin_Contest = () => {
           }
         }}
       >
-        <DialogTitle 
-          id="confirm-delete-dialog" 
-          sx={{ 
-            fontSize: '20px', 
+        <DialogTitle
+          id="confirm-delete-dialog"
+          sx={{
+            fontSize: '20px',
             fontWeight: 'bold',
             color: '#d32f2f',
             paddingBottom: '8px'
@@ -1314,7 +1345,7 @@ const Admin_Contest = () => {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ paddingTop: '0', gap: 1 }}>
-          <Button 
+          <Button
             onClick={cancelDeleteContest}
             variant="outlined"
             sx={{
@@ -1328,7 +1359,7 @@ const Admin_Contest = () => {
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={confirmDeleteContest}
             variant="contained"
             sx={{
@@ -1345,7 +1376,7 @@ const Admin_Contest = () => {
 
       {/* Notification */}
       {notification && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: '20px',
@@ -1357,10 +1388,10 @@ const Admin_Contest = () => {
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             maxWidth: '400px',
             animation: 'slideIn 0.3s ease-out',
-            backgroundColor: 
+            backgroundColor:
               notification.type === 'success' ? '#10b981' :
-              notification.type === 'error' ? '#ef4444' :
-              notification.type === 'info' ? '#3b82f6' : '#6b7280'
+                notification.type === 'error' ? '#ef4444' :
+                  notification.type === 'info' ? '#3b82f6' : '#6b7280'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1383,7 +1414,7 @@ const Admin_Contest = () => {
           </div>
         </div>
       )}
-      
+
     </div>
   );
 };

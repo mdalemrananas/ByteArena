@@ -198,21 +198,42 @@ const Admin_Leaderboard = () => {
       console.log('Leaderboard data fetched:', data);
 
       if (data && data.length > 0) {
-        // Transform data for the leaderboard
-        const transformedData = data.map((entry, index) => ({
-          rank: index + 1,
-          id: entry.id,
-          name: entry.users?.display_name || 'Anonymous User',
-          username: entry.users?.email ? `@${entry.users.email.split('@')[0]}` : '@anonymous',
-          score: entry.score,
-          level: entry.level,
-          problemsSolved: entry.problem_solve,
-          badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1), // Capitalize first letter
-          avatar: entry.users?.display_name 
-            ? entry.users.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-            : 'AU',
-          userId: entry.participate_id
-        }));
+        // Transform data for the leaderboard with submission counts
+        const transformedData = await Promise.all(
+          data.map(async (entry, index) => {
+            // Get contest submission count
+            const { count: contestCount, error: contestError } = await supabase
+              .from('contest_question_solves')
+              .select('*', { count: 'exact', head: true })
+              .eq('participate_id', entry.participate_id);
+
+            // Get practice submission count
+            const { count: practiceCount, error: practiceError } = await supabase
+              .from('practice_submission')
+              .select('*', { count: 'exact', head: true })
+              .eq('problem_solver_id', entry.participate_id);
+
+            const totalSubmissions = (contestCount || 0) + (practiceCount || 0);
+
+            return {
+              rank: index + 1,
+              id: entry.id,
+              name: entry.users?.display_name || 'Anonymous User',
+              username: entry.users?.email ? `@${entry.users.email.split('@')[0]}` : '@anonymous',
+              score: entry.score,
+              level: entry.level,
+              problemsSolved: entry.problem_solve,
+              totalSubmissions: totalSubmissions,
+              contestSubmissions: contestCount || 0,
+              practiceSubmissions: practiceCount || 0,
+              badge: entry.badge.charAt(0).toUpperCase() + entry.badge.slice(1), // Capitalize first letter
+              avatar: entry.users?.display_name 
+                ? entry.users.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                : 'AU',
+              userId: entry.participate_id
+            };
+          })
+        );
 
         console.log('Transformed leaderboard data:', transformedData);
         setLeaderboardData(transformedData);
@@ -220,12 +241,12 @@ const Admin_Leaderboard = () => {
         // Calculate stats
         const totalPlayers = transformedData.length;
         const avgScore = Math.round(transformedData.reduce((sum, player) => sum + player.score, 0) / totalPlayers);
-        const totalProblems = transformedData.reduce((sum, player) => sum + player.problemsSolved, 0);
+        const totalSubmissions = transformedData.reduce((sum, player) => sum + player.totalSubmissions, 0);
 
         setStatsData([
           { label: 'Total Players', value: totalPlayers.toLocaleString(), change: '+12%', icon: <FaUser />, color: '#6366F1' },
           { label: 'Avg Score', value: avgScore.toLocaleString(), change: '+5%', icon: <TrendingUp />, color: '#10B981' },
-          { label: 'Problems Solved', value: totalProblems.toLocaleString(), change: '+8%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Total Submissions', value: totalSubmissions.toLocaleString(), change: '+8%', icon: <FaFire />, color: '#F59E0B' },
           { label: 'Active Players', value: Math.round(totalPlayers * 0.8).toLocaleString(), change: '+3%', icon: <FaTrophy />, color: '#EF4444' }
         ]);
       } else {
@@ -234,7 +255,7 @@ const Admin_Leaderboard = () => {
         setStatsData([
           { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
           { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
-          { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+          { label: 'Total Submissions', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
           { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
         ]);
       }
@@ -245,7 +266,7 @@ const Admin_Leaderboard = () => {
       setStatsData([
         { label: 'Total Players', value: '0', change: '0%', icon: <FaUser />, color: '#6366F1' },
         { label: 'Avg Score', value: '0', change: '0%', icon: <TrendingUp />, color: '#10B981' },
-        { label: 'Problems Solved', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
+        { label: 'Total Submissions', value: '0', change: '0%', icon: <FaFire />, color: '#F59E0B' },
         { label: 'Active Players', value: '0', change: '0%', icon: <FaTrophy />, color: '#EF4444' }
       ]);
     }
@@ -551,7 +572,7 @@ const Admin_Leaderboard = () => {
                     >
                       <MenuItem value="score">Sort by Score</MenuItem>
                       <MenuItem value="level">Sort by Level</MenuItem>
-                      <MenuItem value="problems">Sort by Problems</MenuItem>
+                      <MenuItem value="submissions">Sort by Submissions</MenuItem>
                       <MenuItem value="name">Sort by Name</MenuItem>
                     </Select>
                   </FormControl>
@@ -633,7 +654,7 @@ const Admin_Leaderboard = () => {
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em'
                         }}>
-                          Problems
+                          Submissions
                         </TableCell>
                         <TableCell sx={{ 
                           fontWeight: '600', 
@@ -673,8 +694,8 @@ const Admin_Leaderboard = () => {
                       return b.score - a.score;
                     } else if (sortBy === 'level') {
                       return b.level - a.level;
-                    } else if (sortBy === 'problems') {
-                      return b.problemsSolved - a.problemsSolved;
+                    } else if (sortBy === 'submissions') {
+                      return b.totalSubmissions - a.totalSubmissions;
                     } else if (sortBy === 'name') {
                       return a.name.localeCompare(b.name);
                     }
@@ -753,7 +774,7 @@ const Admin_Leaderboard = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="600" sx={{ color: '#1e293b', fontSize: '0.875rem' }}>
-                          {user.problemsSolved}
+                          {user.totalSubmissions}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -820,12 +841,6 @@ const Admin_Leaderboard = () => {
                 <VisibilityIcon fontSize="small" sx={{ color: '#64748b' }} />
               </ListItemIcon>
               <ListItemText>View</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={handleEdit}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" sx={{ color: '#64748b' }} />
-              </ListItemIcon>
-              <ListItemText>Edit</ListItemText>
             </MenuItem>
             <MenuItem onClick={handleDelete} sx={{ color: '#ef4444' }}>
               <ListItemIcon>
