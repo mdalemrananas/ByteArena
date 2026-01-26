@@ -53,12 +53,10 @@ import './Admin_Contest_Details.css';
 
 const menuItems = [
   { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
-  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'users', name: 'User Management', icon: <FaUsers className="menu-icon" /> },
   { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
-  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'analytics', name: 'Analytics', icon: <FaChartLine className="menu-icon" /> },
-  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
+  { key: 'problems', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaMedal className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -81,6 +79,26 @@ const Admin_Contest_Details = () => {
   const [rowsPerPage, setRowsPerPage] = useState(3);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  // Edit functionality state
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState('');
+  const [isEditingRules, setIsEditingRules] = useState(false);
+  const [editedRules, setEditedRules] = useState('');
+  const [isEditingStats, setIsEditingStats] = useState(false);
+  const [editedStats, setEditedStats] = useState({
+    prize_money: '',
+    contest_difficulty: '',
+    time_limit_qs: '',
+    question_problem: ''
+  });
+  const [isEditingDates, setIsEditingDates] = useState(false);
+  const [editedDates, setEditedDates] = useState({
+    registration_start: '',
+    registration_end: '',
+    contest_start: '',
+    contest_end: ''
+  });
 
   // Fetch contest details from Supabase
   const fetchContestDetails = async (id) => {
@@ -268,6 +286,226 @@ const Admin_Contest_Details = () => {
     setPage(0);
   };
 
+  // Edit functionality functions
+  const handleEditDescription = () => {
+    setIsEditingDescription(true);
+    setEditedDescription(contestData?.description || '');
+  };
+
+  const handleSaveDescription = async () => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({ description: editedDescription })
+        .eq('id', contestId);
+
+      if (error) {
+        console.error('Error updating contest description:', error);
+        setNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update contest description. Please try again.'
+        });
+      } else {
+        setContestData(prev => ({
+          ...prev,
+          description: editedDescription
+        }));
+        setIsEditingDescription(false);
+        setNotification({
+          type: 'success',
+          title: 'Update Successful',
+          message: 'Contest description has been updated successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleSaveDescription:', error);
+      setNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingDescription(false);
+    setEditedDescription('');
+  };
+
+  // Rules edit functions
+  const handleEditRules = () => {
+    setIsEditingRules(true);
+    setEditedRules(contestData?.rules || '');
+  };
+
+  const handleSaveRules = async () => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({ rules: editedRules })
+        .eq('id', contestId);
+
+      if (error) {
+        console.error('Error updating contest rules:', error);
+        setNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update contest rules. Please try again.'
+        });
+      } else {
+        setContestData(prev => ({
+          ...prev,
+          rules: editedRules
+        }));
+        setIsEditingRules(false);
+        setNotification({
+          type: 'success',
+          title: 'Update Successful',
+          message: 'Contest rules have been updated successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleSaveRules:', error);
+      setNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+  };
+
+  const handleCancelEditRules = () => {
+    setIsEditingRules(false);
+    setEditedRules('');
+  };
+
+  // Stats edit functions
+  const handleEditStats = () => {
+    setIsEditingStats(true);
+    setEditedStats({
+      prize_money: contestData?.prize_money?.toString() || '',
+      contest_difficulty: contestData?.contest_difficulty || '',
+      time_limit_qs: contestData?.time_limit_qs?.toString() || '',
+      question_problem: contestData?.question_problem?.toString() || ''
+    });
+  };
+
+  const handleSaveStats = async () => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({
+          prize_money: parseFloat(editedStats.prize_money) || 0,
+          contest_difficulty: editedStats.contest_difficulty,
+          time_limit_qs: parseInt(editedStats.time_limit_qs) || 0,
+          question_problem: parseInt(editedStats.question_problem) || 0
+        })
+        .eq('id', contestId);
+
+      if (error) {
+        console.error('Error updating contest stats:', error);
+        setNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update contest stats. Please try again.'
+        });
+      } else {
+        setContestData(prev => ({
+          ...prev,
+          prize_money: parseFloat(editedStats.prize_money) || 0,
+          contest_difficulty: editedStats.contest_difficulty,
+          time_limit_qs: parseInt(editedStats.time_limit_qs) || 0,
+          question_problem: parseInt(editedStats.question_problem) || 0
+        }));
+        setIsEditingStats(false);
+        setNotification({
+          type: 'success',
+          title: 'Update Successful',
+          message: 'Contest stats have been updated successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleSaveStats:', error);
+      setNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+  };
+
+  const handleCancelEditStats = () => {
+    setIsEditingStats(false);
+    setEditedStats({
+      prize_money: '',
+      contest_difficulty: '',
+      time_limit_qs: '',
+      question_problem: ''
+    });
+  };
+
+  // Dates edit functions
+  const handleEditDates = () => {
+    setIsEditingDates(true);
+    setEditedDates({
+      registration_start: contestData?.registration_start ? new Date(contestData.registration_start).toISOString().slice(0, 16) : '',
+      registration_end: contestData?.registration_end ? new Date(contestData.registration_end).toISOString().slice(0, 16) : '',
+      contest_start: contestData?.registration_start ? new Date(contestData.registration_start).toISOString().slice(0, 16) : '',
+      contest_end: contestData?.registration_end ? new Date(contestData.registration_end).toISOString().slice(0, 16) : ''
+    });
+  };
+
+  const handleSaveDates = async () => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({
+          registration_start: editedDates.registration_start,
+          registration_end: editedDates.registration_end
+        })
+        .eq('id', contestId);
+
+      if (error) {
+        console.error('Error updating contest dates:', error);
+        setNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update contest dates. Please try again.'
+        });
+      } else {
+        setContestData(prev => ({
+          ...prev,
+          registration_start: editedDates.registration_start,
+          registration_end: editedDates.registration_end
+        }));
+        setIsEditingDates(false);
+        setNotification({
+          type: 'success',
+          title: 'Update Successful',
+          message: 'Contest dates have been updated successfully.'
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleSaveDates:', error);
+      setNotification({
+        type: 'error',
+        title: 'Update Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+  };
+
+  const handleCancelEditDates = () => {
+    setIsEditingDates(false);
+    setEditedDates({
+      registration_start: '',
+      registration_end: '',
+      contest_start: '',
+      contest_end: ''
+    });
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -297,17 +535,13 @@ const Admin_Contest_Details = () => {
                   if (item.key === 'home') {
                     navigate('/admin_dashboard');
                   } else if (item.key === 'users') {
-                    navigate('/admin/users');
+                    navigate('/admin_users');
                   } else if (item.key === 'contests') {
-                    navigate('/admin_contest');
+                    navigate('/admin_contests');
                   } else if (item.key === 'problems') {
-                    navigate('/admin/problems');
-                  } else if (item.key === 'analytics') {
-                    navigate('/admin/analytics');
+                    navigate('/admin_problems');
                   } else if (item.key === 'leaderboard') {
                     navigate('/admin_leaderboard');
-                  } else if (item.key === 'settings') {
-                    navigate('/admin/settings');
                   }
                 }
               }}
@@ -440,9 +674,119 @@ const Admin_Contest_Details = () => {
                     
                     <div>
                       <h3 className="section-subtitle">About This Contest</h3>
-                      <p className="section-text">
-                        {contestData?.description || 'Contest description will be available soon.'}
-                      </p>
+                      {isEditingDescription ? (
+                        <div>
+                          <TextField
+                            multiline
+                            rows={4}
+                            fullWidth
+                            value={editedDescription}
+                            onChange={(e) => setEditedDescription(e.target.value)}
+                            placeholder="Enter contest description..."
+                            sx={{
+                              mb: 2,
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'black',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                            <button
+                              onClick={handleSaveDescription}
+                              sx={{
+                                px: 3,
+                                py: 1,
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                '&:hover': {
+                                  backgroundColor: '#45a049'
+                                }
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              sx={{
+                                px: 3,
+                                py: 1,
+                                backgroundColor: '#f44336',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                '&:hover': {
+                                  backgroundColor: '#d32f2f'
+                                }
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </Box>
+                        </div>
+                      ) : (
+                        <div style={{ position: 'relative' }}>
+                          <p className="section-text" style={{ 
+                            whiteSpace: 'pre-line',
+                            minHeight: '80px',
+                            padding: '12px',
+                            borderRadius: '4px',
+                            backgroundColor: alpha('#6366F1', 0.02),
+                            border: '1px solid rgba(226, 232, 240, 0.8)',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            {contestData?.description || 'Contest description will be available soon.'}
+                          </p>
+                          <button
+                            onClick={handleEditDescription}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              backgroundColor: 'transparent',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              color: 'rgba(255, 255, 255, 0.7)',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                borderColor: 'rgba(255, 255, 255, 0.5)',
+                                color: 'white'
+                              }
+                            }}
+                            >
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -452,9 +796,119 @@ const Admin_Contest_Details = () => {
                     <h2 className="section-title" style={{ color: 'white' }}>Rules</h2>
                     <div>
                       <h3 className="section-subtitle">Contest Rules</h3>
-                      <div className="section-text" style={{ whiteSpace: 'pre-line' }}>
-                        {contestData?.rules || 'Rules will be available soon.'}
-                      </div>
+                      {isEditingRules ? (
+                        <div>
+                          <TextField
+                            multiline
+                            rows={6}
+                            fullWidth
+                            value={editedRules}
+                            onChange={(e) => setEditedRules(e.target.value)}
+                            placeholder="Enter contest rules..."
+                            sx={{
+                              mb: 2,
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'black',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                            <button
+                              onClick={handleSaveRules}
+                              sx={{
+                                px: 3,
+                                py: 1,
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                '&:hover': {
+                                  backgroundColor: '#45a049'
+                                }
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={handleCancelEditRules}
+                              sx={{
+                                px: 3,
+                                py: 1,
+                                backgroundColor: '#f44336',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 2,
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                '&:hover': {
+                                  backgroundColor: '#d32f2f'
+                                }
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </Box>
+                        </div>
+                      ) : (
+                        <div style={{ position: 'relative' }}>
+                          <div className="section-text" style={{ 
+                            whiteSpace: 'pre-line',
+                            minHeight: '120px',
+                            padding: '12px',
+                            borderRadius: '4px',
+                            backgroundColor: alpha('#6366F1', 0.02),
+                            border: '1px solid rgba(226, 232, 240, 0.8)',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            {contestData?.rules || 'Rules will be available soon.'}
+                          </div>
+                          <button
+                            onClick={handleEditRules}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              backgroundColor: 'transparent',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              color: 'rgba(255, 255, 255, 0.7)',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                borderColor: 'rgba(255, 255, 255, 0.5)',
+                                color: 'white'
+                              }
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -494,6 +948,9 @@ const Admin_Contest_Details = () => {
                                 '&.Mui-focused': {
                                   borderColor: '#6366F1',
                                   backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
                                   boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}` 
                                 }
                               }
@@ -521,6 +978,9 @@ const Admin_Contest_Details = () => {
                                 '&.Mui-focused': {
                                   borderColor: '#6366F1',
                                   backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
                                   boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}` 
                                 }
                               }}
@@ -774,6 +1234,14 @@ const Admin_Contest_Details = () => {
                                     border: '1px solid rgba(226, 232, 240, 0.8)',
                                     '&:hover': {
                                       borderColor: '#6366F1'
+                                    },
+                                    '&.Mui-focused': {
+                                      borderColor: '#6366F1',
+                                      backgroundColor: 'white',
+                                      '& input': {
+                                        color: 'black'
+                                      },
+                                      boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}` 
                                     }
                                   }}
                                 >
@@ -858,54 +1326,436 @@ const Admin_Contest_Details = () => {
                 {/* Contest Stats Card */}
                 {contestData && (
                   <div className="sidebar-card">
-                    <h3 className="sidebar-card-title">Contest Stats</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 className="sidebar-card-title">Contest Stats</h3>
+                      {!isEditingStats && (
+                        <button
+                          onClick={handleEditStats}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                              borderColor: 'rgba(255, 255, 255, 0.5)',
+                              color: 'white'
+                            }
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
+                    </div>
+                    
                     <div className="stat-item">
                       <span className="stat-label">Participants</span>
                       <span className="stat-value">{contestData.total_register || 0}</span>
                     </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Prize Pool</span>
-                      <span className="stat-value">${contestData.prize_money || 0}</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Difficulty</span>
-                      <span className="stat-value">{contestData.contest_difficulty}</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Time per Question</span>
-                      <span className="stat-value">{contestData.time_limit_qs} sec</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Total Questions</span>
-                      <span className="stat-value">{contestData.question_problem}</span>
-                    </div>
+                    
+                    {isEditingStats ? (
+                      <>
+                        <div className="stat-item">
+                          <span className="stat-label">Prize Pool</span>
+                          <TextField
+                            size="small"
+                            value={editedStats.prize_money}
+                            onChange={(e) => setEditedStats(prev => ({ ...prev, prize_money: e.target.value }))}
+                            placeholder="Enter prize amount..."
+                            sx={{
+                              width: '120px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Difficulty</span>
+                          <FormControl size="small" sx={{ width: '120px' }}>
+                            <Select
+                              value={editedStats.contest_difficulty}
+                              onChange={(e) => setEditedStats(prev => ({ ...prev, contest_difficulty: e.target.value }))}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  backgroundColor: alpha('#6366F1', 0.02),
+                                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                                  borderRadius: 2,
+                                  color: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  '&:hover': {
+                                    borderColor: '#6366F1',
+                                    backgroundColor: alpha('#6366F1', 0.04)
+                                  },
+                                  '&.Mui-focused': {
+                                    borderColor: '#6366F1',
+                                    backgroundColor: 'white',
+                                    '& input': {
+                                      color: 'black'
+                                    },
+                                    boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                  }
+                                }
+                              }}
+                            >
+                              <MenuItem value="easy">Easy</MenuItem>
+                              <MenuItem value="medium">Medium</MenuItem>
+                              <MenuItem value="hard">Hard</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Time per Question</span>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={editedStats.time_limit_qs}
+                            onChange={(e) => setEditedStats(prev => ({ ...prev, time_limit_qs: e.target.value }))}
+                            placeholder="Enter time limit..."
+                            sx={{
+                              width: '120px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Total Questions</span>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={editedStats.question_problem}
+                            onChange={(e) => setEditedStats(prev => ({ ...prev, question_problem: e.target.value }))}
+                            placeholder="Enter question count..."
+                            sx={{
+                              width: '120px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 2, pl: 1 }}>
+                          <button
+                            onClick={handleSaveStats}
+                            sx={{
+                              px: 3,
+                              py: 1,
+                              backgroundColor: '#4CAF50',
+                              color: 'black',
+                              border: 'none',
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              '&:hover': {
+                                backgroundColor: '#45a049'
+                              }
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={handleCancelEditStats}
+                            sx={{
+                              px: 3,
+                              py: 1,
+                              backgroundColor: '#f44336',
+                              color: 'black',
+                              border: 'none',
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              '&:hover': {
+                                backgroundColor: '#d32f2f'
+                              }
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <div className="stat-item">
+                          <span className="stat-label">Prize Pool</span>
+                          <span className="stat-value">${contestData.prize_money || 0}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Difficulty</span>
+                          <span className="stat-value">{contestData.contest_difficulty}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Time per Question</span>
+                          <span className="stat-value">{contestData.time_limit_qs} sec</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Total Questions</span>
+                          <span className="stat-value">{contestData.question_problem}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
                 {/* Key Dates Card */}
                 {contestData && (
                   <div className="sidebar-card">
-                    <h3 className="sidebar-card-title">Key Dates</h3>
-                    <div className="date-item">
-                      <span className="date-label">Registration Period</span>
-                      <span className="date-value">
-                        {formatDate(contestData.registration_start)} - {formatDate(contestData.registration_end)}
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 className="sidebar-card-title">Key Dates</h3>
+                      {!isEditingDates && (
+                        <button
+                          onClick={handleEditDates}
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                              borderColor: 'rgba(255, 255, 255, 0.5)',
+                              color: 'white'
+                            }
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
                     </div>
-                    <div className="date-item">
-                      <span className="date-label">Contest Start</span>
-                      <span className="date-value">{formatDate(contestData.registration_start)}</span>
-                    </div>
-                    <div className="date-item">
-                      <span className="date-label">Contest End</span>
-                      <span className="date-value">{formatDate(contestData.registration_end)}</span>
-                    </div>
-                    <div className="date-item">
-                      <span className="date-label">Created</span>
-                      <span className="date-value">{formatDate(contestData.contest_created_at)}</span>
-                    </div>
+                    
+                    {isEditingDates ? (
+                      <>
+                        <div className="date-item">
+                          <span className="date-label">Registration Start</span>
+                          <TextField
+                            type="datetime-local"
+                            size="small"
+                            value={editedDates.registration_start}
+                            onChange={(e) => setEditedDates(prev => ({ ...prev, registration_start: e.target.value }))}
+                            sx={{
+                              width: '180px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="date-item">
+                          <span className="date-label">Registration End</span>
+                          <TextField
+                            type="datetime-local"
+                            size="small"
+                            value={editedDates.registration_end}
+                            onChange={(e) => setEditedDates(prev => ({ ...prev, registration_end: e.target.value }))}
+                            sx={{
+                              width: '180px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="date-item">
+                          <span className="date-label">Contest Start</span>
+                          <TextField
+                            type="datetime-local"
+                            size="small"
+                            value={editedDates.contest_start}
+                            onChange={(e) => setEditedDates(prev => ({ ...prev, contest_start: e.target.value }))}
+                            sx={{
+                              width: '180px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha('#6366F1', 0.02),
+                                border: '1px solid rgba(226, 232, 240, 0.8)',
+                                borderRadius: 2,
+                                color: 'white',
+                                '& input': {
+                                  color: 'black'
+                                },
+                                '&:hover': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: alpha('#6366F1', 0.04)
+                                },
+                                '&.Mui-focused': {
+                                  borderColor: '#6366F1',
+                                  backgroundColor: 'white',
+                                  '& input': {
+                                    color: 'black'
+                                  },
+                                  boxShadow: `0 0 0 3px ${alpha('#6366F1', 0.1)}`
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 2, pl: 1 }}>
+                          <button
+                            onClick={handleSaveDates}
+                            sx={{
+                              px: 3,
+                              py: 1,
+                              backgroundColor: '#4CAF50',
+                              color: 'black',
+                              border: 'none',
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              '&:hover': {
+                                backgroundColor: '#45a049'
+                              }
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={handleCancelEditDates}
+                            sx={{
+                              px: 3,
+                              py: 1,
+                              backgroundColor: '#f44336',
+                              color: 'black',
+                              border: 'none',
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              '&:hover': {
+                                backgroundColor: '#d32f2f'
+                              }
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <div className="date-item">
+                          <span className="date-label">Registration Period</span>
+                          <span className="date-value">
+                            {formatDate(contestData.registration_start)} - {formatDate(contestData.registration_end)}
+                          </span>
+                        </div>
+                        <div className="date-item">
+                          <span className="date-label">Contest Start</span>
+                          <span className="date-value">{formatDate(contestData.registration_start)}</span>
+                        </div>
+                        <div className="date-item">
+                          <span className="date-label">Contest End</span>
+                          <span className="date-value">{formatDate(contestData.registration_end)}</span>
+                        </div>
+                        <div className="date-item">
+                          <span className="date-label">Created</span>
+                          <span className="date-value">{formatDate(contestData.contest_created_at)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
+
               </div>
             </div>
           </div>
@@ -921,7 +1771,7 @@ const Admin_Contest_Details = () => {
             right: '20px',
             padding: '16px 24px',
             borderRadius: '8px',
-            color: 'white',
+            color: 'black',
             fontWeight: '500',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             zIndex: 1000,
@@ -940,7 +1790,7 @@ const Admin_Contest_Details = () => {
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'white',
+                color: 'black',
                 fontSize: '18px',
                 cursor: 'pointer',
                 padding: '0',

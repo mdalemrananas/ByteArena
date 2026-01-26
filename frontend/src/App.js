@@ -43,6 +43,15 @@ import Admin_Leaderboard from './Admin_Panel/Admin_Leaderboard.js';
 import Admin_Contest from './Admin_Panel/Admin_Contest.js';
 import Admin_Contest_Details from './Admin_Panel/Admin_Contest_Details.js';
 import Admin_Contest_ViewCode from './Admin_Panel/Admin_Contest_View Code.js';
+import UserManagement from './Admin_Panel/UserManagement.js';
+import ApproveProblem from './Admin_Panel/ApproveProblem.js';
+import Admin_ViewProblem from './Admin_Panel/Admin_ViewProblem.js';
+import Admin_ProblemSubmission from './Admin_Panel/Admin_ProblemSubmission.js';
+import Admin_IndividualLeaderboard from './Admin_Panel/Admin_IndividualLeaderboard.js';
+import Admin_ViewSubmission from './Admin_Panel/Admin_ViewSubmission.js';
+
+
+
 
 // Wrapper component to handle loading bar
 const AppContent = () => {
@@ -215,20 +224,25 @@ const AppContent = () => {
         <Route path="/question-setter/create" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateQuestion /></RoleBasedRoute>} />
         <Route path="/question-setter/create-competition" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterCreateCompetition /></RoleBasedRoute>} />
         <Route path="/question-setter/question/:questionId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterQuestionDetails /></RoleBasedRoute>} />
-        <Route path="/question-setter/submission/:contestId/:participantId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterSubmissionDetails /></RoleBasedRoute>} />
         <Route path="/question-setter/submission/:questionId/:userId" element={<RoleBasedRoute allowedRoles={['moderator']}><QuestionSetterSubmissionDetails /></RoleBasedRoute>} />
+        
         
         {/* Admin Routes - Only accessible by admins */}
         <Route path="/admin_dashboard" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
-        <Route path="/admin_users" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
-        <Route path="/admin_contests" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
-        <Route path="/admin_problems" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
+        <Route path="/admin_users" element={<RoleBasedRoute allowedRoles={['admin']}><UserManagement /></RoleBasedRoute>} />
+        <Route path="/admin_contests" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
+        <Route path="/admin_problems" element={<RoleBasedRoute allowedRoles={['admin']}><ApproveProblem /></RoleBasedRoute>} />
+        <Route path="/admin_problems/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_ViewProblem /></RoleBasedRoute>} />
+        <Route path="/admin_submissions/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_ProblemSubmission /></RoleBasedRoute>} />
+        <Route path="/admin/submissions/view/:submissionId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_ViewSubmission /></RoleBasedRoute>} />
+        <Route path="/admin/leaderboard/:problemId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_IndividualLeaderboard /></RoleBasedRoute>} />
         <Route path="/admin_analytics" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />
         <Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_Details /></RoleBasedRoute>} />
         <Route path="/admin_leaderboard" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Leaderboard /></RoleBasedRoute>} />
         <Route path="/admin_contest" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest /></RoleBasedRoute>} />
         <Route path="/admin_contest/:contestId/code/:userId" element={<RoleBasedRoute allowedRoles={['admin']}><Admin_Contest_ViewCode /></RoleBasedRoute>} />
+        {/*<Route path="/admin_contest/:contestId" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDashboard /></RoleBasedRoute>} />*/}
       </Routes>
     </>
   );

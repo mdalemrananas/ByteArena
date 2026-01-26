@@ -69,7 +69,7 @@ const statusOptions = ["All", "Pending", "Approved", "Rejected"];
 
 const ApproveProblem = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [active, setActive] = useState('approve');
+    const [active, setActive] = useState('problems');
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [problemsLoading, setProblemsLoading] = useState(true);

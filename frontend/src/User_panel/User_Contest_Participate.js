@@ -413,6 +413,14 @@ export default function CodingProblemPage() {
 
       if (error) {
         console.error('Error fetching contest details:', error);
+        navigate('/contest');
+        return;
+      }
+
+      // Check if contest is approved
+      if (!data || data.status !== 'approved') {
+        console.log('Contest not found or not approved:', data);
+        navigate('/contest');
         return;
       }
 

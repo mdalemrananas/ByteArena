@@ -29,12 +29,10 @@ import './Admin_Dashboard.css';
 
 const menuItems = [
   { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
-  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'users', name: 'User Management', icon: <FaUsers className="menu-icon" /> },
   { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
-  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
-  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
+  { key: 'problems', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaMedal className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -252,17 +250,13 @@ function AdminDashboard() {
                   if (item.key === 'home') {
                     navigate('/admin_dashboard');
                   } else if (item.key === 'users') {
-                    navigate('/admin/users');
+                    navigate('/admin_users');
                   } else if (item.key === 'contests') {
-                    navigate('/admin_contest');
+                    navigate('/admin_contests');
                   } else if (item.key === 'problems') {
-                    navigate('/admin/problems');
-                  } else if (item.key === 'analytics') {
-                    navigate('/admin/analytics');
+                    navigate('/admin_problems');
                   } else if (item.key === 'leaderboard') {
                     navigate('/admin_leaderboard');
-                  } else if (item.key === 'settings') {
-                    navigate('/admin/settings');
                   }
                 }
               }}
@@ -313,7 +307,7 @@ function AdminDashboard() {
             <h1>Manage Your Platform:</h1>
             <h2>Monitor, Control, Optimize!</h2>
             <p className="sub">Oversee users, contests, and system performance</p>
-            <button className="primary-btn" onClick={() => navigate('/admin/contests')}>
+            <button className="primary-btn" onClick={() => navigate('/admin_contests')}>
               <FaPlus style={{ marginRight: '8px' }} />
               Create New Contest
             </button>
@@ -436,7 +430,7 @@ function AdminDashboard() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => navigate('/admin/problems')}
+                    onClick={() => navigate('/admin_problems')}
                     style={{
                       color: '#6366f1',
                       fontSize: '0.875rem',
@@ -751,7 +745,7 @@ function AdminDashboard() {
                     alignItems: 'center'
                   }}>
                     <button 
-                      onClick={() => navigate('/admin/contests')}
+                      onClick={() => navigate('/admin_contests')}
                       style={{
                         color: '#6366f1',
                         fontSize: '0.875rem',

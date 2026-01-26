@@ -16,7 +16,14 @@ import {
   Tabs,
   Tab,
   Avatar,
-  Paper
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { 
   FaArrowLeft as ArrowBackIcon,
@@ -33,7 +40,10 @@ import {
   FaChevronRight,
   FaChevronLeft as ChevronLeftIcon,
   FaChevronRight as ChevronRightIcon,
-  FaEllipsisV as MoreVertIcon
+  FaEllipsisV as MoreVertIcon,
+  FaEye as ViewIcon,
+  FaEdit as EditIcon,
+  FaTrash as DeleteIcon
 } from 'react-icons/fa';
 import { 
   FaBars,
@@ -49,7 +59,8 @@ import {
   FaPlus,
   FaUsers,
   FaChartBar,
-  FaCog
+  FaCog,
+  FaMedal
 } from 'react-icons/fa';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -60,12 +71,10 @@ import './Admin_Contest.css';
 
 const menuItems = [
   { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
-  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'users', name: 'User Management', icon: <FaUsers className="menu-icon" /> },
   { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
-  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
-  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
+  { key: 'problems', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaMedal className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -85,48 +94,10 @@ const Admin_Contest = () => {
   const [registeredContests, setRegisteredContests] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 8; // 2 rows with 4 cards each
-  
-  // Menu state
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [selectedContest, setSelectedContest] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleMenuClick = (event, contest) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedContest(contest);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedContest(null);
-  };
-
-  const handleEdit = (contest) => {
-    console.log('Edit contest:', contest.id);
-    navigate(`/admin/contests/edit/${contest.id}`);
-    handleMenuClose();
-  };
-
-  const handleDelete = async (contestId) => {
-    if (window.confirm('Are you sure you want to delete this contest? This action cannot be undone.')) {
-      try {
-        const { error } = await supabase
-          .from('contests')
-          .delete()
-          .eq('id', contestId);
-        
-        if (error) throw error;
-        
-        // Refresh the contests list
-        fetchContests();
-        alert('Contest deleted successfully');
-      } catch (error) {
-        console.error('Error deleting contest:', error);
-        alert('Failed to delete contest');
-      }
-    }
-    handleMenuClose();
-  };
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   // Fetch user's registered contests
   const fetchRegisteredContests = async (userId) => {
@@ -243,22 +214,16 @@ const Admin_Contest = () => {
         navigate('/admin_dashboard');
         break;
       case 'users':
-        navigate('/admin/users');
+        navigate('/admin_users');
         break;
       case 'contests':
-        navigate('/admin_contest');
+        navigate('/admin_contests');
         break;
       case 'problems':
-        navigate('/admin/problems');
+        navigate('/admin_problems');
         break;
       case 'leaderboard':
         navigate('/admin_leaderboard');
-        break;
-      case 'analytics':
-        navigate('/admin/analytics');
-        break;
-      case 'settings':
-        navigate('/admin/settings');
         break;
       case 'logout':
         handleLogout();
@@ -438,12 +403,126 @@ const Admin_Contest = () => {
     navigate(`/admin_contest/${contestId}`);
   };
 
+  const handleActionMenuOpen = (event, contest) => {
+    setActionAnchorEl(event.currentTarget);
+    setSelectedContest(contest);
+  };
+
+  const handleActionMenuClose = (clearSelectedContest = true) => {
+    setActionAnchorEl(null);
+    if (clearSelectedContest) {
+      setSelectedContest(null);
+    }
+  };
+
+  const handleViewContest = () => {
+    if (selectedContest) {
+      navigate(`/admin_contest/${selectedContest.id}`);
+    }
+    handleActionMenuClose();
+  };
+
+  const handleEditContest = () => {
+    if (selectedContest) {
+      navigate(`/admin_contest/${selectedContest.id}/edit`);
+    }
+    handleActionMenuClose();
+  };
+
+  const handleDeleteContest = () => {
+    setConfirmDialogOpen(true);
+    handleActionMenuClose(false); // Don't clear selectedContest
+  };
+
+  const confirmDeleteContest = async () => {
+    setConfirmDialogOpen(false);
+    
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .delete()
+        .eq('id', selectedContest.id);
+      
+      if (error) {
+        console.error('Error deleting contest:', error);
+        setNotification({
+          type: 'error',
+          title: 'Delete Failed',
+          message: 'Failed to delete contest. Please try again.'
+        });
+      } else {
+        // Refresh contests list
+        fetchContests();
+        setNotification({
+          type: 'success',
+          title: 'Delete Successful',
+          message: `Contest "${selectedContest.title}" has been deleted successfully.`
+        });
+      }
+    } catch (error) {
+      console.error('Error in confirmDeleteContest:', error);
+      setNotification({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
+    }
+    setSelectedContest(null);
+  };
+
+  const cancelDeleteContest = () => {
+    setConfirmDialogOpen(false);
+    setSelectedContest(null);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return '#10b981';
+      case 'pending': return '#f59e0b';
+      case 'rejected': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case 'Easy': return '#4CAF50';
       case 'Medium': return '#FF9800';
       case 'Hard': return '#F44336';
       default: return '#9E9E9E';
+    }
+  };
+
+  const handleStatusChange = async (contestId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({ status: newStatus })
+        .eq('id', contestId);
+      
+      if (error) {
+        console.error('Error updating contest status:', error);
+        setNotification({
+          type: 'error',
+          title: 'Status Update Failed',
+          message: 'Failed to update contest status. Please try again.'
+        });
+      } else {
+        // Refresh contests list
+        fetchContests();
+        setNotification({
+          type: 'success',
+          title: 'Status Updated',
+          message: `Contest status has been updated to ${newStatus}.`
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleStatusChange:', error);
+      setNotification({
+        type: 'error',
+        title: 'Status Update Failed',
+        message: 'An unexpected error occurred. Please try again.'
+      });
     }
   };
 
@@ -960,36 +1039,6 @@ const Admin_Contest = () => {
                       }
                     }}
                   >
-                    {/* Three-dot menu in top-left */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 10,
-                        left: 10,
-                        zIndex: 1
-                      }}
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMenuClick(e, contest);
-                        }}
-                        sx={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 1)'
-                          },
-                          padding: '4px',
-                          minWidth: '24px',
-                          height: '24px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-
                     {/* Difficulty chip in top-right */}
                     <Box
                       sx={{
@@ -1074,20 +1123,78 @@ const Admin_Contest = () => {
                           {getRegistrationStatus(contest.registration_start, contest.registration_end)}
                         </Typography>
                       </Box>
-                      <Button 
-                        variant="contained" 
-                        onClick={() => handleRegister(contest.id)}
-                        sx={{
-                          backgroundColor: '#635BFF',
-                          '&:hover': {
+                      <div>
+                        <IconButton
+                          onClick={(e) => handleActionMenuOpen(e, contest)}
+                          sx={{
                             backgroundColor: '#635BFF',
-                            opacity: 0.9
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: '#635BFF',
+                              opacity: 0.9
+                            },
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        >
+                          Actions <MoreVertIcon style={{ marginLeft: '4px', fontSize: '12px' }} />
+                        </IconButton>
+                        <Menu
+                          anchorEl={actionAnchorEl}
+                          open={Boolean(actionAnchorEl)}
+                          onClose={handleActionMenuClose}
+                          PaperProps={{
+                            sx: {
+                              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+                              borderRadius: '8px',
+                              mt: 1,
+                              minWidth: '150px'
+                            }
+                          }}
+                        >
+                          <MenuItem onClick={handleViewContest} sx={{ fontSize: '14px' }}>
+                            <ViewIcon style={{ marginRight: '8px', color: '#6366f1' }} />
+                            View
+                          </MenuItem>
+                          <MenuItem onClick={handleEditContest} sx={{ fontSize: '14px' }}>
+                            <EditIcon style={{ marginRight: '8px', color: '#10b981' }} />
+                            Edit
+                          </MenuItem>
+                          <MenuItem onClick={handleDeleteContest} sx={{ fontSize: '14px', color: '#ef4444' }}>
+                            <DeleteIcon style={{ marginRight: '8px' }} />
+                            Delete
+                          </MenuItem>
+                        </Menu>
+                      </div>
+                    </Box>
+                    <FormControl size="small" sx={{ minWidth: 100 }}>
+                      <Select
+                        value={contest.status || 'pending'}
+                        onChange={(e) => handleStatusChange(contest.id, e.target.value)}
+                        sx={{
+                          backgroundColor: getStatusColor(contest.status),
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '11px',
+                          height: '30px',
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            border: 'none'
+                          },
+                          '& .MuiSvgIcon-root': {
+                            color: 'white'
+                          },
+                          '& .MuiSelect-select': {
+                            padding: '4px 8px',
+                            textTransform: 'capitalize'
                           }
                         }}
                       >
-                        View Details
-                      </Button>
-                    </Box>
+                        <MenuItem value="pending" sx={{ textTransform: 'capitalize' }}>Pending</MenuItem>
+                        <MenuItem value="approved" sx={{ textTransform: 'capitalize' }}>Approved</MenuItem>
+                        <MenuItem value="rejected" sx={{ textTransform: 'capitalize' }}>Rejected</MenuItem>
+                      </Select>
+                    </FormControl>
                   </CardContent>
                 </Card>
               </div>
@@ -1172,24 +1279,111 @@ const Admin_Contest = () => {
           </Box>
         </Container>
       </main>
-      
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={cancelDeleteContest}
+        aria-labelledby="confirm-delete-dialog"
+        aria-describedby="confirm-delete-description"
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            padding: '8px',
+            minWidth: '400px'
+          }
         }}
       >
-        <MenuItem onClick={() => handleEdit(selectedContest)}>Edit</MenuItem>
-        <MenuItem onClick={() => handleDelete(selectedContest?.id)} sx={{ color: 'error.main' }}>Delete</MenuItem>
-      </Menu>
+        <DialogTitle 
+          id="confirm-delete-dialog" 
+          sx={{ 
+            fontSize: '20px', 
+            fontWeight: 'bold',
+            color: '#d32f2f',
+            paddingBottom: '8px'
+          }}
+        >
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent sx={{ paddingBottom: '16px' }}>
+          <Typography variant="body1" color="text.secondary">
+            Are you sure you want to delete the contest "<strong>{selectedContest?.title}</strong>"?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ paddingTop: '0', gap: 1 }}>
+          <Button 
+            onClick={cancelDeleteContest}
+            variant="outlined"
+            sx={{
+              borderColor: '#e0e0e0',
+              color: '#666',
+              '&:hover': {
+                borderColor: '#d0d0d0',
+                backgroundColor: '#f5f5f5'
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteContest}
+            variant="contained"
+            sx={{
+              backgroundColor: '#d32f2f',
+              '&:hover': {
+                backgroundColor: '#b71c1c'
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Notification */}
+      {notification && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 9999,
+            padding: '16px 20px',
+            borderRadius: '8px',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            maxWidth: '400px',
+            animation: 'slideIn 0.3s ease-out',
+            backgroundColor: 
+              notification.type === 'success' ? '#10b981' :
+              notification.type === 'error' ? '#ef4444' :
+              notification.type === 'info' ? '#3b82f6' : '#6b7280'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '18px',
+                padding: '0',
+                marginLeft: '12px',
+                lineHeight: '1'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };

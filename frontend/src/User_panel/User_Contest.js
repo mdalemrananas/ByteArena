@@ -279,21 +279,26 @@ const User_Contest = () => {
     const now = new Date();
     let filteredContests = [];
     
+    // First filter by approved status only
+    const approvedContests = contests.filter(contest => 
+      contest.status === 'approved'
+    );
+    
     // Filter by tab first
     if (tabValue === 0) { // All Contests tab - show present/future contests only
-      filteredContests = contests.filter(contest => 
+      filteredContests = approvedContests.filter(contest => 
         new Date(contest.registration_end) > now
       );
     } else if (tabValue === 2) { // Past Contests tab - show past contests only
-      filteredContests = contests.filter(contest => 
+      filteredContests = approvedContests.filter(contest => 
         new Date(contest.registration_end) <= now
       );
     } else if (tabValue === 1) { // My Contests tab - show registered contests only
-      filteredContests = contests.filter(contest => 
+      filteredContests = approvedContests.filter(contest => 
         registeredContests.includes(contest.id)
       );
     } else {
-      filteredContests = contests;
+      filteredContests = approvedContests;
     }
     
     // Apply category-based sorting or filtering

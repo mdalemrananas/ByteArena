@@ -29,12 +29,10 @@ import './Notifications.css';
 
 const menuItems = [
   { key: 'home', name: 'Dashboard', icon: <FaHome className="menu-icon" /> },
-  { key: 'users', name: 'Users', icon: <FaUsers className="menu-icon" /> },
+  { key: 'users', name: 'User Management', icon: <FaUsers className="menu-icon" /> },
   { key: 'contests', name: 'Contests', icon: <FaTrophy className="menu-icon" /> },
-  { key: 'problems', name: 'Problems', icon: <FaCode className="menu-icon" /> },
-  { key: 'leaderboard', name: 'Leaderboard', icon: <FaListOl className="menu-icon" /> },
-  { key: 'analytics', name: 'Analytics', icon: <FaChartBar className="menu-icon" /> },
-  { key: 'settings', name: 'Settings', icon: <FaCog className="menu-icon" /> },
+  { key: 'problems', name: 'Practice Problem', icon: <FaCode className="menu-icon" /> },
+  { key: 'leaderboard', name: 'Leaderboard', icon: <FaMedal className="menu-icon" /> },
   { key: 'logout', name: 'Logout', icon: <FaSignOutAlt className="menu-icon" />, danger: true },
 ];
 
@@ -970,17 +968,13 @@ sys.stdin = StringIO('${escapedInput}')
                   if (item.key === 'home') {
                     navigate('/admin_dashboard');
                   } else if (item.key === 'users') {
-                    navigate('/admin/users');
+                    navigate('/admin_users');
                   } else if (item.key === 'contests') {
-                    navigate('/admin_contest');
+                    navigate('/admin_contests');
                   } else if (item.key === 'problems') {
-                    navigate('/admin/problems');
-                  } else if (item.key === 'analytics') {
-                    navigate('/admin/analytics');
+                    navigate('/admin_problems');
                   } else if (item.key === 'leaderboard') {
                     navigate('/admin_leaderboard');
-                  } else if (item.key === 'settings') {
-                    navigate('/admin/settings');
                   }
                 }
               }}
