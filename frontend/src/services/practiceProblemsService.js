@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 // Practice Problems Service
 export const practiceProblemsService = {
   // Fetch all problems with optional filters
-  async getProblems(filters = {}, page = 1, limit = 5) {
+  async getProblems(filters = {}, page = 1, limit = 5, userId = null) {
     try {
       let query = supabase
         .from('practice_problem')
@@ -32,15 +32,6 @@ export const practiceProblemsService = {
         query = query.eq('problem_language', filters.language);
       }
 
-      if (filters.status && filters.status !== 'All') {
-        // Handle both cases for status (solved/SOLVED, unsolved/UNSOLVED)
-        if (filters.status === 'Solved') {
-          query = query.or('status.eq.solved,status.eq.SOLVED');
-        } else if (filters.status === 'Unsolved') {
-          query = query.or('status.eq.unsolved,status.eq.UNSOLVED');
-        }
-      }
-
       if (filters.search) {
         query = query.or(`problem_title.ilike.%${filters.search}%,problemsetter_name.ilike.%${filters.search}%`);
       }
@@ -48,14 +39,36 @@ export const practiceProblemsService = {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching problems:', error);
-        return { success: false, error: error.message };
+        throw error;
       }
 
-      return { success: true, data: data || [] };
+      // If status filter is applied and userId is provided, filter the results
+      let filteredData = data;
+      if (filters.status && filters.status !== 'All' && userId) {
+        // Get user's submissions to determine solved status
+        const { data: submissions, error: submissionError } = await supabase
+          .from('practice_submission')
+          .select('problem_id')
+          .eq('problem_solver_id', userId)
+          .eq('submission_status', 'Accepted');
+
+        if (submissionError) {
+          throw submissionError;
+        }
+
+        const solvedProblemIds = new Set(submissions.map(sub => sub.problem_id));
+
+        if (filters.status === 'Solved') {
+          filteredData = data.filter(problem => solvedProblemIds.has(problem.problem_id));
+        } else if (filters.status === 'Unsolved') {
+          filteredData = data.filter(problem => !solvedProblemIds.has(problem.problem_id));
+        }
+      }
+
+      return { success: true, data: filteredData };
     } catch (error) {
-      console.error('Unexpected error fetching problems:', error);
-      return { success: false, error: 'Failed to fetch problems' };
+      console.error('Error fetching practice problems:', error);
+      return { success: false, error: error.message };
     }
   },
 

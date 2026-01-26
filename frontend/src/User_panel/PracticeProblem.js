@@ -24,6 +24,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { logoutUser } from '../services/authService';
 import { practiceProblemsService } from '../services/practiceProblemsService';
+import { supabase } from '../services/supabaseClient';
 import './User_Dashboard.css';
 import './PracticeProblem.css';
 
@@ -51,6 +52,8 @@ const PracticeProblem = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [active, setActive] = useState('practice');
     const [user, setUser] = useState(null);
+    const [userDbId, setUserDbId] = useState(null);
+    const [solvedProblems, setSolvedProblems] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [problemsLoading, setProblemsLoading] = useState(true);
     const [problems, setProblems] = useState([]);
@@ -71,6 +74,52 @@ const PracticeProblem = () => {
     const [problemsPerPage] = useState(5);
     const totalPages = Math.ceil(totalProblems / problemsPerPage);
 
+    // Get user's database ID from Firebase UID
+    const getUserDbId = async (firebaseUser) => {
+        if (!firebaseUser) return null;
+        
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('id')
+                .eq('firebase_uid', firebaseUser.uid)
+                .single();
+            
+            if (error) {
+                console.error('Error fetching user DB ID:', error);
+                return null;
+            }
+            
+            return data.id;
+        } catch (error) {
+            console.error('Error getting user DB ID:', error);
+            return null;
+        }
+    };
+
+    // Get user's solved problems
+    const getUserSolvedProblems = async (userId) => {
+        if (!userId) return new Set();
+        
+        try {
+            const { data, error } = await supabase
+                .from('practice_submission')
+                .select('problem_id')
+                .eq('problem_solver_id', userId)
+                .eq('submission_status', 'Accepted');
+            
+            if (error) {
+                console.error('Error fetching solved problems:', error);
+                return new Set();
+            }
+            
+            return new Set(data.map(sub => sub.problem_id));
+        } catch (error) {
+            console.error('Error getting solved problems:', error);
+            return new Set();
+        }
+    };
+
     // Fetch problems from Supabase
     const fetchProblems = async () => {
         setProblemsLoading(true);
@@ -85,7 +134,7 @@ const PracticeProblem = () => {
 
         // Fetch both problems and count
         const [problemsResult, countResult] = await Promise.all([
-            practiceProblemsService.getProblems(filters, currentPage, problemsPerPage),
+            practiceProblemsService.getProblems(filters, currentPage, problemsPerPage, userDbId),
             practiceProblemsService.getProblemsCount(filters)
         ]);
         
@@ -103,8 +152,10 @@ const PracticeProblem = () => {
 
     // Fetch problems when filters or page changes
     useEffect(() => {
-        fetchProblems();
-    }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery, currentPage]);
+        if (userDbId !== null) {
+            fetchProblems();
+        }
+    }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery, currentPage, userDbId]);
 
     // Reset to first page when filters change
     useEffect(() => {
@@ -112,8 +163,24 @@ const PracticeProblem = () => {
     }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery]);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            
+            if (currentUser) {
+                // Get user's database ID
+                const dbId = await getUserDbId(currentUser);
+                setUserDbId(dbId);
+                
+                // Get user's solved problems
+                if (dbId) {
+                    const solved = await getUserSolvedProblems(dbId);
+                    setSolvedProblems(solved);
+                }
+            } else {
+                setUserDbId(null);
+                setSolvedProblems(new Set());
+            }
+            
             setLoading(false);
         });
 
@@ -375,6 +442,7 @@ const PracticeProblem = () => {
                                 ) : (
                                     problems.map(problem => {
                                         const formattedProblem = formatProblemData(problem);
+                                        const isSolved = solvedProblems.has(formattedProblem.id);
                                         return (
                                             <div key={formattedProblem.id} className="problem-card-wide">
                                                 <div className="problem-left">
@@ -382,6 +450,9 @@ const PracticeProblem = () => {
                                                         <div className="problem-difficulty" style={{ color: getDifficultyColor(formattedProblem.difficulty) }}>
                                                             {formattedProblem.difficulty}
                                                         </div>
+                                                        {isSolved && (
+                                                            <div className="solved-badge">✓ Solved</div>
+                                                        )}
                                                     </div>
                                                     
                                                     <div className="problem-category" style={{ color: getCategoryColor(formattedProblem.category) }}>

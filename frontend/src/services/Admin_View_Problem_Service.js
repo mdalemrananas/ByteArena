@@ -24,6 +24,102 @@ export const getProblemById = async (problemId) => {
   }
 };
 
+// Get solution by problem ID
+export const getSolutionByProblemId = async (problemId) => {
+  try {
+    console.log('Fetching solution for problem ID:', problemId);
+    const { data, error } = await supabase
+      .from('problem_solution')
+      .select('*')
+      .eq('problem_id', problemId)
+      .single();
+
+    console.log('Solution query result:', { data, error });
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Solution fetch error (not found):', error);
+      throw error;
+    }
+
+    const result = {
+      success: true,
+      data: data || {
+        solution_code: '',
+        video_link: '',
+        solution_article: ''
+      }
+    };
+    console.log('Solution service returning:', result);
+    return result;
+  } catch (error) {
+    console.error('Error fetching solution by problem ID:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Update solution by problem ID
+export const updateSolution = async (problemId, solutionData) => {
+  try {
+    // First check if solution exists
+    const { data: existingSolution, error: fetchError } = await supabase
+      .from('problem_solution')
+      .select('solution_id')
+      .eq('problem_id', problemId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    let result;
+    if (existingSolution) {
+      // Update existing solution
+      const { data, error } = await supabase
+        .from('problem_solution')
+        .update({
+          solution_code: solutionData.solution_code || '',
+          video_link: solutionData.video_link || '',
+          solution_article: solutionData.solution_article || ''
+        })
+        .eq('problem_id', problemId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = data;
+    } else {
+      // Create new solution
+      const { data, error } = await supabase
+        .from('problem_solution')
+        .insert({
+          problem_id: problemId,
+          solution_code: solutionData.solution_code || '',
+          video_link: solutionData.video_link || '',
+          solution_article: solutionData.solution_article || ''
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = data;
+    }
+
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error('Error updating solution:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 // Update problem details
 export const updateProblem = async (problemId, problemData) => {
   try {

@@ -39,7 +39,9 @@ import {
     searchProblems,
     getProblemStatistics,
     duplicateProblem,
-    exportProblemData
+    exportProblemData,
+    getSolutionByProblemId,
+    updateSolution
 } from '../services/Admin_View_Problem_Service';
 import './Admin_Dashboard.css';
 import './Admin_ViewProblem.css';
@@ -71,6 +73,11 @@ const Admin_ViewProblem = () => {
         sample_output: '',
         problem_rating: 2.5,
         created_at: new Date().toISOString()
+    });
+    const [solution, setSolution] = useState({
+        solution_code: '',
+        video_link: '',
+        solution_article: ''
     });
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -131,11 +138,33 @@ If multiple solutions exist, any valid solution is acceptable.`,
     const fetchProblem = async () => {
         setProblemLoading(true);
         try {
-            const result = await getProblemById(problemId);
-            if (result.success) {
-                setProblem(result.data);
+            console.log('Fetching problem with ID:', problemId);
+            const [problemResult, solutionResult] = await Promise.all([
+                getProblemById(problemId),
+                getSolutionByProblemId(problemId)
+            ]);
+            
+            console.log('Problem result:', problemResult);
+            console.log('Solution result:', solutionResult);
+            
+            if (problemResult.success) {
+                setProblem(problemResult.data);
+                console.log('Problem set:', problemResult.data);
             } else {
-                console.error('Failed to fetch problem:', result.error);
+                console.error('Failed to fetch problem:', problemResult.error);
+            }
+            
+            if (solutionResult.success) {
+                setSolution(solutionResult.data);
+                console.log('Solution set:', solutionResult.data);
+            } else {
+                console.error('Failed to fetch solution:', solutionResult.error);
+                // Set default empty solution if fetch fails
+                setSolution({
+                    solution_code: '',
+                    video_link: '',
+                    solution_article: ''
+                });
             }
         } catch (error) {
             console.error('Error fetching problem:', error);
@@ -198,6 +227,12 @@ If multiple solutions exist, any valid solution is acceptable.`,
             points: problem?.points || 0,
             created_at: problem?.created_at || new Date().toISOString()
         });
+        // Set solution data - use current solution state
+        setSolution({
+            solution_code: solution?.solution_code || '',
+            video_link: solution?.video_link || '',
+            solution_article: solution?.solution_article || ''
+        });
         setShowEditModal(true);
     };
 
@@ -214,15 +249,28 @@ If multiple solutions exist, any valid solution is acceptable.`,
 
     const saveEditForm = async () => {
         try {
-            const result = await updateProblem(problemId, editForm);
-            if (result.success) {
-                console.log('Problem updated successfully:', result.data);
+            // Update problem
+            const problemResult = await updateProblem(problemId, editForm);
+            if (problemResult.success) {
+                console.log('Problem updated successfully:', problemResult.data);
                 // Update the problem state with new data
-                setProblem(result.data);
+                setProblem(problemResult.data);
+                
+                // Update solution
+                const solutionResult = await updateSolution(problemId, solution);
+                if (solutionResult.success) {
+                    console.log('Solution updated successfully:', solutionResult.data);
+                    // Update solution state
+                    setSolution(solutionResult.data);
+                } else {
+                    console.error('Failed to update solution:', solutionResult.error);
+                    // Don't fail the entire operation if solution update fails
+                }
+                
                 setShowEditModal(false);
             } else {
-                console.error('Failed to update problem:', result.error);
-                alert('Failed to update problem: ' + result.error);
+                console.error('Failed to update problem:', problemResult.error);
+                alert('Failed to update problem: ' + problemResult.error);
             }
         } catch (error) {
             console.error('Error updating problem:', error);
@@ -465,6 +513,56 @@ If multiple solutions exist, any valid solution is acceptable.`,
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Solution Section */}
+                            <div className="admin-sp-problem-section">
+                                <div className="admin-sp-section-header">
+                                    <h2>Solution</h2>
+                                </div>
+                                <div className="admin-sp-problem-content">
+                                    <div className="admin-sp-solution-section">
+                                        
+                                        {solution?.solution_code && (
+                                            <div className="admin-sp-solution-code">
+                                                <h4>Solution Code</h4>
+                                                <textarea 
+                                                    className="admin-sp-code-textarea"
+                                                    value={solution.solution_code}
+                                                    readOnly
+                                                    rows={Math.max(8, solution.solution_code.split('\n').length)}
+                                                    style={{ fontFamily: 'Fira Code, Courier New, monospace' }}
+                                                />
+                                            </div>
+                                        )}
+                                        
+                                        {solution?.video_link && (
+                                            <div className="admin-sp-solution-video">
+                                                <h4>Video Solution</h4>
+                                                <div className="admin-sp-video-link">
+                                                    <a href={solution.video_link} target="_blank" rel="noopener noreferrer">
+                                                        {solution.video_link}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {solution?.solution_article && (
+                                            <div className="admin-sp-solution-article">
+                                                <h4>Solution Explanation</h4>
+                                                <div className="admin-sp-article-content">
+                                                    <pre>{solution.solution_article}</pre>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {!solution?.solution_code && !solution?.video_link && !solution?.solution_article && (
+                                            <div className="admin-sp-no-solution">
+                                                <p>No solution provided yet.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Right Column - Admin Info (instead of code editor) */}
@@ -675,6 +773,48 @@ If multiple solutions exist, any valid solution is acceptable.`,
                                         value={editForm.created_at.slice(0, 16)}
                                         onChange={(e) => handleEditFormChange('created_at', e.target.value)}
                                         readOnly
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Solution Fields */}
+                            <div className="form-section-divider">
+                                <h4>Solution (Optional)</h4>
+                            </div>
+                            
+                            <div className="form-row">
+                                <div className="form-group full-width">
+                                    <label>Solution Code</label>
+                                    <textarea
+                                        value={solution.solution_code}
+                                        onChange={(e) => setSolution({...solution, solution_code: e.target.value})}
+                                        placeholder="Enter solution code (optional)"
+                                        rows="8"
+                                        style={{ fontFamily: 'monospace', fontSize: '14px' }}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="form-row">
+                                <div className="form-group full-width">
+                                    <label>Video Link</label>
+                                    <input
+                                        type="url"
+                                        value={solution.video_link}
+                                        onChange={(e) => setSolution({...solution, video_link: e.target.value})}
+                                        placeholder="Enter video solution link (optional)"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="form-row">
+                                <div className="form-group full-width">
+                                    <label>Solution Article</label>
+                                    <textarea
+                                        value={solution.solution_article}
+                                        onChange={(e) => setSolution({...solution, solution_article: e.target.value})}
+                                        placeholder="Enter detailed solution explanation (optional)"
+                                        rows="6"
                                     />
                                 </div>
                             </div>
