@@ -57,7 +57,6 @@ ByteArena is an interactive coding platform designed for developers and programm
 | Supabase      | Database and backend services |
 | Firebase      | User authentication           |
 | Piston API    | Secure code execution         |
-| Monaco Editor | Online code editor            |
 
 ## 📦 Key Dependencies
 
